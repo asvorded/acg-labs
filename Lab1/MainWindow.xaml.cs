@@ -1,5 +1,8 @@
-﻿using Microsoft.Win32;
+﻿using GraphicsLib;
+using GraphicsLib.Types;
+using Microsoft.Win32;
 using System.ComponentModel;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -39,10 +42,10 @@ namespace Lab1
 
             WriteableBitmap bitmap = new WriteableBitmap(
                 ((int)canvas.ActualWidth), ((int)canvas.ActualHeight), 96, 96, PixelFormats.Bgra32, null);
-
-            bitmap.SetPixel(100, 100, 0xFFFFFFFF);
-            bitmap.SetPixel(101, 101, 0xFFFFFFFF);
-
+            using FileStream fileStream = new(ofd.FileName, FileMode.Open);
+            Obj obj = Parser.ParseObjFile(fileStream);
+            Renderer renderer = new Renderer(new Camera(), bitmap);
+            renderer.RenderCarcass(obj);
             canvas.Child = new Image { Source = bitmap };
         }
 
