@@ -21,6 +21,6 @@
                     Click="ButtonOpenFile_Click" Content="{StaticResource openString}" />
             <TextBlock x:Name="fileName" VerticalAlignment="Center" Text="{StaticResource fileString}"/>
         </StackPanel>
-        <Canvas x:Name="canvas" Grid.Row="1" Margin="10" Background="Black"/>
+        <Border x:Name="canvas" Grid.Row="1" Margin="10" Background="Black"/>
     </Grid>
 </Window>
