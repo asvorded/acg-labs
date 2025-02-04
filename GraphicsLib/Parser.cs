@@ -1,4 +1,5 @@
 ﻿using GraphicsLib.Types;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Numerics;
@@ -58,42 +59,24 @@ namespace GraphicsLib
                                 string[] faceParts = parts[1].Split('/');
                                 bool hasTextureIndices = faceParts.Length > 1 && faceParts[1].Length > 0;
                                 bool hasNormalIndices = faceParts.Length > 2 && faceParts[2].Length > 0;
+                                int[] vertices = new int[(parts.Length - 1)];
+                                int[]? textures = hasTextureIndices ? new int[(parts.Length - 1)] : null;
+                                int[]? normals = hasNormalIndices ? new int[(parts.Length - 1)] : null;
                                 for (int i = 1; i < parts.Length; i++)
                                 {
                                     faceParts = parts[i].Split('/');
-                                    //vertices
-                                    indices[i - 1, 0] = int.Parse(faceParts[0], NumberStyles.Any, CultureInfo.InvariantCulture) - 1;
+                                    vertices[i - 1] = int.Parse(faceParts[0], NumberStyles.Any, CultureInfo.InvariantCulture) - 1;
                                     if (hasTextureIndices)
                                     {
-                                        //textures
-                                        indices[i - 1, 1] = int.Parse(faceParts[1], NumberStyles.Any, CultureInfo.InvariantCulture) - 1;
-
+                                        textures[i - 1] = int.Parse(faceParts[1], NumberStyles.Any, CultureInfo.InvariantCulture) - 1;
                                     }
                                     if (hasNormalIndices)
                                     {
-                                        //normals
-                                        indices[i - 1, 2] = int.Parse(faceParts[2], NumberStyles.Any, CultureInfo.InvariantCulture) - 1;
+                                        normals[i - 1] = int.Parse(faceParts[2], NumberStyles.Any, CultureInfo.InvariantCulture) - 1;
                                     }
                                 }
-                                //триангулируем
-                                for (int i = 1; i < (parts.Length - 1) - 1; i++)
-                                {
-                                    int[] vertices = [indices[0, 0],
-                                                          indices[i, 0],
-                                                          indices[i + 1, 0]];
-                                    int[]? textures = hasTextureIndices
-                                                            ? [indices[0, 1],
-                                                                    indices[i, 1],
-                                                                    indices[i + 1, 1]]
-                                                            : null;
-                                    int[]? normals = hasNormalIndices
-                                                            ? [indices[0, 1],
-                                                                    indices[i, 1],
-                                                                    indices[i + 1, 2]]
-                                                            : null;
-                                    Face newFace = new(vertices, textures, normals);
-                                    obj.faces.Add(newFace);
-                                }
+                                Face newFace = new(vertices, textures, normals);
+                                obj.faces.Add(newFace);
                             }
                             break;
                         case "#":
