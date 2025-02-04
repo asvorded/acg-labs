@@ -24,6 +24,16 @@ namespace Lab1
             defaultRect.Y = y;
             bitmap.AddDirtyRect(defaultRect);
         }
+        public static unsafe void SetPixelLockedNoDirty(this WriteableBitmap bitmap, int x, int y, uint argb)
+        {
+            unsafe
+            {
+                uint* ptr = (uint*)bitmap.BackBuffer;
+                ptr[y * bitmap.PixelWidth + x] = argb;
+            }
+            defaultRect.X = x;
+            defaultRect.Y = y;
+        }
 
         public static void EndLock(this WriteableBitmap bitmap)
         {
@@ -63,8 +73,7 @@ namespace Lab1
                     for (int x = start.X; x < finish.X; x++)
                     {
                         if (x >= 0 && x < width && y >= 0 && y < height)
-                            //bitmap.SetPixel(x, y, color);
-                            bitmap.SetPixelLocked(x, y, color);
+                            bitmap.SetPixelLockedNoDirty(x, y, color);
                         error += deltaerr;
                         if (error > dx + 1)
                         {
@@ -86,8 +95,7 @@ namespace Lab1
                     for (int y = start.Y; y < finish.Y; y++)
                     {
                         if (x >= 0 && x < width && y >= 0 && y < height)
-                            //bitmap.SetPixel(x, y, color);
-                            bitmap.SetPixelLocked(x, y, color);
+                            bitmap.SetPixelLockedNoDirty(x, y, color);
                         error += deltaerr;
                         if (error > dy + 1)
                         {

@@ -49,7 +49,11 @@ namespace Lab1
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
             bitmap.Lock();
-            renderer.RenderCarcass(obj);
+           // for(int i = 0; i < 50; i++)
+           // {
+                renderer.RenderCarcass(obj);
+           // }
+            bitmap.AddDirtyRect(new Int32Rect(0,0,bitmap.PixelWidth,bitmap.PixelHeight));
             bitmap.Unlock();
             stopwatch.Stop();
             canvas.Child = new Image { Source = bitmap };
