@@ -23,6 +23,6 @@
             <TextBlock x:Name="fileName" VerticalAlignment="Center" Text="{StaticResource fileString}"/>
         </StackPanel>
         <Border x:Name="canvas" Grid.Row="1" Margin="10" Background="Black"
-                MouseDown="Window_MouseDown" MouseUp="Window_MouseUp" MouseMove="Window_MouseMove"/>
+                MouseDown="Window_MouseDown" MouseUp="Window_MouseUp" MouseMove="Window_MouseMove" PreviewMouseWheel="Window_MouseWheel"/>
     </Grid>
 </Window>

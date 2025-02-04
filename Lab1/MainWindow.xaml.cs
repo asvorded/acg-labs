@@ -24,6 +24,7 @@ namespace Lab1
         private readonly OpenFileDialog ofd;
 
         private Obj obj;
+        private Camera camera;
         private Point oldPos;
 
         public MainWindow() {
@@ -39,6 +40,7 @@ namespace Lab1
 
             Height = SystemParameters.PrimaryScreenHeight / 1.25;
             Width = SystemParameters.PrimaryScreenWidth / 1.25;
+            camera = new Camera();
         }
 
         private void OnFileOpened(object? sender, CancelEventArgs e) {
@@ -52,7 +54,7 @@ namespace Lab1
         private void Draw() {
             WriteableBitmap bitmap = new WriteableBitmap(
                 ((int)canvas.ActualWidth), ((int)canvas.ActualHeight), 96, 96, PixelFormats.Bgra32, null);
-            Renderer renderer = new Renderer(new Camera(), bitmap);
+            Renderer renderer = new Renderer(camera, bitmap);
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
             bitmap.Lock();
@@ -60,6 +62,7 @@ namespace Lab1
             // {
             renderer.RenderCarcass(obj);
             // }
+            Debug.WriteLine($"Camera Azimuth: {camera.Azimuth}, Polar: {camera.Polar} Position: {camera.Position}");
             bitmap.AddDirtyRect(new Int32Rect(0, 0, bitmap.PixelWidth, bitmap.PixelHeight));
             bitmap.Unlock();
             stopwatch.Stop();
@@ -76,14 +79,30 @@ namespace Lab1
         }
 
         private void Window_MouseMove(object sender, MouseEventArgs e) {
-            if (e.LeftButton == MouseButtonState.Pressed && Mouse.Captured == canvas) {
+            if (e.LeftButton == MouseButtonState.Pressed && Mouse.Captured == canvas && oldPos.X != -1) {
                 Point newPos = Mouse.GetPosition(canvas);
-
+                float dx = (float)(newPos.X - oldPos.X);
+                float dy = (float)(newPos.Y - oldPos.Y);
+                camera.RotateAroundTargetHorizontal((float)(-dx * MathF.PI / canvas.ActualWidth));
+                camera.RotateAroundTargetVertical((float)(-dy * MathF.PI / canvas.ActualHeight));
+                Draw();
+                oldPos = newPos;
+            }
+            else
+            {
+                oldPos = new Point(-1 , -1);
             }
         }
 
         private void Window_MouseUp(object sender, MouseButtonEventArgs e) {
             Mouse.Capture(canvas, CaptureMode.None);
+            oldPos = new Point(-1, -1);
+        }
+        private void Window_MouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            float dz = (float)e.Delta;
+            camera.MoveTowardTarget(dz * 2);
+            Draw();
         }
     }
 }
