@@ -16,7 +16,10 @@ namespace GraphicsLib.Types
         public Vector3 Position { get => _position; set => SetPosition(value); }
         public Vector3 Target { get => _target; set => SetTarget(value); }
         public Matrix4x4 ViewMatrix { get => _viewMatrix; }
-
+        public Camera() {
+            Position = new Vector3(1000, 1000, 1000);
+            Target = Vector3.Zero;
+        }
         public Camera(Vector3 position, Vector3 lookAtPos)
         {
             Position = position;
@@ -38,7 +41,7 @@ namespace GraphicsLib.Types
         }
         public void RotateAroundTargetHorizontal(float angleRadians)
         {
-            Matrix4x4 rotation = Matrix4x4.CreateRotationY(angleRadians, Target);
+            Matrix4x4 rotation = Matrix4x4.CreateRotationY(-angleRadians, Target);
             Position = Vector3.Transform(Position, rotation);
         }
         public void RotateAroundTargetVertical(float angleRadians)
@@ -46,6 +49,11 @@ namespace GraphicsLib.Types
             Vector3 axis = Vector3.Cross(Position - Target, Vector3.UnitY);
             Quaternion rotation = Quaternion.CreateFromAxisAngle(axis, angleRadians);
             Position = Vector3.Transform(Position, rotation);
+        }
+        public void MoveTowardTarget(float distance)
+        {
+            Vector3 forward = Vector3.Normalize((Target - Position));
+            Position += forward * distance;
         }
     }
 }

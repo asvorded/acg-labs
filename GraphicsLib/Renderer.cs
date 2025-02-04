@@ -18,6 +18,8 @@ namespace GraphicsLib
 
         public void RenderCarcass(Obj obj)
         {
+            if( obj == null ) 
+                return;
             List<Vector3> buffer = obj.vertices.ToList();
             Matrix4x4 view = Camera.ViewMatrix;
             for (int i = 0; i < buffer.Count; i++)
@@ -26,13 +28,13 @@ namespace GraphicsLib
                 v = Vector3.Transform(v, view);
                 buffer[i] = v;
             }
-            Matrix4x4 projection = Matrix4x4.CreatePerspective(Bitmap.PixelWidth, Bitmap.PixelHeight, 1f, 10000f);
+            Matrix4x4 projection2 = Matrix4x4.CreatePerspective(Bitmap.PixelWidth, Bitmap.PixelHeight, 1f, 1000f);
+            Matrix4x4 projection = Matrix4x4.CreateOrthographic((float)Bitmap.Width, (float)Bitmap.Height, 1f, 10000f);
             for (int i = 0; i < buffer.Count; i++)
             {
                 Vector3 v = buffer[i];
                 //Matrix4x4 projection = Matrix4x4.CreatePerspectiveFieldOfView(MathF.PI / 2, (float)(Bitmap.Width / Bitmap.Height), 0.1f, 10000);
                 //Matrix4x4 x2 = Matrix4x4.CreatePerspectiveFieldOfView(40 * MathF.PI / 180, 1, 0.01f, 100);
-                //Matrix4x4 projection = Matrix4x4.CreateOrthographic((float)Bitmap.Width, (float)Bitmap.Height, 1f, 10000f);
                 v = Vector3.Transform(v, projection);
                 buffer[i] = v;
             }
