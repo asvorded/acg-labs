@@ -23,6 +23,9 @@ namespace Lab1
     {
         private readonly OpenFileDialog ofd;
 
+        private Obj obj;
+        private Point oldPos;
+
         public MainWindow() {
             InitializeComponent();
 
@@ -41,19 +44,23 @@ namespace Lab1
         private void OnFileOpened(object? sender, CancelEventArgs e) {
             fileName.Text = string.Join(' ', Resources["fileString"].ToString(), ofd.FileName);
 
+            using FileStream fileStream = new(ofd.FileName, FileMode.Open);
+            obj = Parser.ParseObjFile(fileStream);
+            Draw();
+        }
+
+        private void Draw() {
             WriteableBitmap bitmap = new WriteableBitmap(
                 ((int)canvas.ActualWidth), ((int)canvas.ActualHeight), 96, 96, PixelFormats.Bgra32, null);
-            using FileStream fileStream = new(ofd.FileName, FileMode.Open);
-            Obj obj = Parser.ParseObjFile(fileStream);
             Renderer renderer = new Renderer(new Camera(), bitmap);
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
             bitmap.Lock();
-           // for(int i = 0; i < 50; i++)
-           // {
-                renderer.RenderCarcass(obj);
-           // }
-            bitmap.AddDirtyRect(new Int32Rect(0,0,bitmap.PixelWidth,bitmap.PixelHeight));
+            // for(int i = 0; i < 50; i++)
+            // {
+            renderer.RenderCarcass(obj);
+            // }
+            bitmap.AddDirtyRect(new Int32Rect(0, 0, bitmap.PixelWidth, bitmap.PixelHeight));
             bitmap.Unlock();
             stopwatch.Stop();
             canvas.Child = new Image { Source = bitmap };
@@ -63,6 +70,20 @@ namespace Lab1
             ofd.ShowDialog();
         }
 
+        private void Window_MouseDown(object sender, MouseButtonEventArgs e) {
+            Mouse.Capture(canvas);
+            oldPos = Mouse.GetPosition(canvas);
+        }
 
+        private void Window_MouseMove(object sender, MouseEventArgs e) {
+            if (e.LeftButton == MouseButtonState.Pressed && Mouse.Captured == canvas) {
+                Point newPos = Mouse.GetPosition(canvas);
+
+            }
+        }
+
+        private void Window_MouseUp(object sender, MouseButtonEventArgs e) {
+            Mouse.Capture(canvas, CaptureMode.None);
+        }
     }
 }

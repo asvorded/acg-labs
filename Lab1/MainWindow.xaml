@@ -6,7 +6,8 @@
         xmlns:system="clr-namespace:System;assembly=mscorlib"
         xmlns:local="clr-namespace:Lab1"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800" ThemeMode="System">
+        Title="MainWindow" Height="450" Width="800" ThemeMode="System"
+        >
     <Window.Resources>
         <system:String x:Key="openString">Open File...</system:String>
         <system:String x:Key="fileString">File:</system:String>
@@ -21,6 +22,7 @@
                     Click="ButtonOpenFile_Click" Content="{StaticResource openString}" />
             <TextBlock x:Name="fileName" VerticalAlignment="Center" Text="{StaticResource fileString}"/>
         </StackPanel>
-        <Border x:Name="canvas" Grid.Row="1" Margin="10" Background="Black"/>
+        <Border x:Name="canvas" Grid.Row="1" Margin="10" Background="Black"
+                MouseDown="Window_MouseDown" MouseUp="Window_MouseUp" MouseMove="Window_MouseMove"/>
     </Grid>
 </Window>
