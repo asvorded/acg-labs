@@ -22,21 +22,24 @@ namespace GraphicsLib
             for (int i = 0; i < buffer.Count; i++)
             {
                 Vector3 v = buffer[i];
-                Matrix4x4 view = Matrix4x4.CreateLookAt(new Vector3(0, 2000, 2000), Vector3.Zero, -Vector3.UnitY);
+                Matrix4x4 view = Matrix4x4.CreateLookAt(new Vector3(0, 0, 1000), Vector3.Zero, Vector3.UnitY);
                 v = Vector3.Transform(v, view);
                 buffer[i] = v;
             }
             for (int i = 0; i < buffer.Count; i++)
             {
                 Vector3 v = buffer[i];
-                Matrix4x4 projection = Matrix4x4.CreatePerspectiveFieldOfView((float)(Math.PI / 4), 16 / 9, 0.1f, 10000);
+                //Matrix4x4 projection = Matrix4x4.CreatePerspectiveFieldOfView(MathF.PI / 2, (float)(Bitmap.Width / Bitmap.Height), 0.1f, 10000);
+                Matrix4x4 projection = Matrix4x4.CreatePerspective(Bitmap.PixelWidth, Bitmap.PixelHeight, 1f, 10000f);
+                //Matrix4x4 x2 = Matrix4x4.CreatePerspectiveFieldOfView(40 * MathF.PI / 180, 1, 0.01f, 100);
+                //Matrix4x4 projection = Matrix4x4.CreateOrthographic((float)Bitmap.Width, (float)Bitmap.Height, 1f, 10000f);
                 v = Vector3.Transform(v, projection);
                 buffer[i] = v;
             }
             for (int i = 0; i < buffer.Count; i++)
             {
                 Vector3 v = buffer[i];
-                Matrix4x4 viewPort = Matrix4x4.CreateViewport(0, 0, 1920, 1080, 0, 200);
+                Matrix4x4 viewPort = Matrix4x4.CreateViewport(0, 0, Bitmap.PixelWidth, Bitmap.PixelHeight, 0.01f, 200);
                 v = Vector3.Transform(v, viewPort);
                 buffer[i] = v;
             }
@@ -45,13 +48,13 @@ namespace GraphicsLib
             {
                 Face face = faces[i];
                 int[] vIndices = face.vIndices;
-                for(int j = 0; j < vIndices.Length; j++)
+                for (int j = 0; j < vIndices.Length; j++)
                 {
                     int p1 = vIndices[j];
                     int p2 = vIndices[(j + 1) % 3];
                     Bitmap.DrawLine(new System.Drawing.Point((int)buffer[p1].X, (int)buffer[p1].Y),
                         new System.Drawing.Point((int)buffer[p2].X, (int)buffer[p2].Y), 0xFFFFFFFF);
-                }    
+                }
             }
         }
     }

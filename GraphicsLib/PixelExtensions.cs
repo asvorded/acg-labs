@@ -38,55 +38,68 @@ namespace Lab1
         }
         public static void DrawLine(this WriteableBitmap bitmap, System.Drawing.Point start, System.Drawing.Point finish, uint color)
         {
-            if (bitmap == null)
-                return;
-            int dx = (finish.X > start.X) ? (finish.X - start.X) : (start.X - finish.X);
-            int dy = (finish.Y > start.Y) ? (finish.Y - start.Y) : (start.Y - finish.Y);
-            int gradX = (finish.X >= start.X) ? 1 : -1;
-            int gradY = (finish.Y >= start.Y) ? 1 : -1;
-            if(dy < dx)
+            try
             {
-                if (finish.X < start.X)
-                {
-                    (start, finish) = (finish, start);
-                    gradY = -gradY;
-                }
 
-                int error = 0;
-                int deltaerr = dy + 1;
-                int y = start.Y;
-                for(int x = start.X; x < finish.X; x++)
+                int width = bitmap.PixelWidth;
+                int height = bitmap.PixelHeight;
+                if (bitmap == null)
+                    return;
+                int dx = (finish.X > start.X) ? (finish.X - start.X) : (start.X - finish.X);
+                int dy = (finish.Y > start.Y) ? (finish.Y - start.Y) : (start.Y - finish.Y);
+                int gradX = (finish.X >= start.X) ? 1 : -1;
+                int gradY = (finish.Y >= start.Y) ? 1 : -1;
+                if (dy < dx)
                 {
-                    bitmap.SetPixel(x, y, color);
-                    error += deltaerr;
-                    if(error > dx + 1)
+                    if (finish.X < start.X)
                     {
-                        y += gradY;
-                        error -= dx + 1;
+                        (start, finish) = (finish, start);
+                        gradY = -gradY;
+                    }
+
+                    int error = 0;
+                    int deltaerr = dy + 1;
+                    int y = start.Y;
+                    for (int x = start.X; x < finish.X; x++)
+                    {
+                        if (x >= 0 && x < width && y >= 0 && y < height)
+                            bitmap.SetPixel(x, y, color);
+                        error += deltaerr;
+                        if (error > dx + 1)
+                        {
+                            y += gradY;
+                            error -= dx + 1;
+                        }
+                    }
+                }
+                else
+                {
+                    if (finish.Y < start.Y)
+                    {
+                        (start, finish) = (finish, start);
+                        gradX = -gradX;
+                    }
+                    int error = 0;
+                    int deltaerr = dx + 1;
+                    int x = start.X;
+                    for (int y = start.Y; y < finish.Y; y++)
+                    {
+                        if (x >= 0 && x < width && y >= 0 && y < height)
+                            bitmap.SetPixel(x, y, color);
+                        error += deltaerr;
+                        if (error > dy + 1)
+                        {
+                            x += gradX;
+                            error -= dy + 1;
+                        }
                     }
                 }
             }
-            else
+            catch (Exception ex)
             {
-                if (finish.Y < start.Y)
-                {
-                    (start, finish) = (finish, start);
-                    gradX = -gradX;
-                }
-                int error = 0;
-                int deltaerr = dx + 1;
-                int x = start.X;
-                for (int y = start.Y; y < finish.Y; y++)
-                {
-                    bitmap.SetPixel(x, y, color);
-                    error += deltaerr;
-                    if (error > dy + 1)
-                    {
-                        x += gradX;
-                        error -= dy + 1;
-                    }
-                }
+                int z = 0;
             }
+
         }
     }
 }

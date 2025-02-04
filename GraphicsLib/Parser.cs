@@ -61,17 +61,17 @@ namespace GraphicsLib
                                     {
                                         faceParts = parts[i].Split('/');
                                         //vertices
-                                        indices[i - 1, 0] = int.Parse(faceParts[0], NumberStyles.Any, CultureInfo.InvariantCulture);
+                                        indices[i - 1, 0] = int.Parse(faceParts[0], NumberStyles.Any, CultureInfo.InvariantCulture) - 1;
                                         if (hasTextureIndices)
                                         {
                                             //textures
-                                            indices[i - 1, 1] = int.Parse(faceParts[1], NumberStyles.Any, CultureInfo.InvariantCulture);
+                                            indices[i - 1, 1] = int.Parse(faceParts[1], NumberStyles.Any, CultureInfo.InvariantCulture) - 1;
 
                                         }
                                         if (hasNormalIndices)
                                         {
                                             //normals
-                                            indices[i - 1, 2] = int.Parse(faceParts[2], NumberStyles.Any, CultureInfo.InvariantCulture);
+                                            indices[i - 1, 2] = int.Parse(faceParts[2], NumberStyles.Any, CultureInfo.InvariantCulture) - 1;
                                         }
                                     }
                                     //триангулируем

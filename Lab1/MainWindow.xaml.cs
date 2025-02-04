@@ -45,7 +45,9 @@ namespace Lab1
             using FileStream fileStream = new(ofd.FileName, FileMode.Open);
             Obj obj = Parser.ParseObjFile(fileStream);
             Renderer renderer = new Renderer(new Camera(), bitmap);
+            bitmap.Lock();
             renderer.RenderCarcass(obj);
+            bitmap.Unlock();
             canvas.Child = new Image { Source = bitmap };
         }
 
