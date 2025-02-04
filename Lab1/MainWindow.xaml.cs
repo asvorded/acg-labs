@@ -2,6 +2,7 @@
 using GraphicsLib.Types;
 using Microsoft.Win32;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -45,9 +46,12 @@ namespace Lab1
             using FileStream fileStream = new(ofd.FileName, FileMode.Open);
             Obj obj = Parser.ParseObjFile(fileStream);
             Renderer renderer = new Renderer(new Camera(), bitmap);
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
             bitmap.Lock();
             renderer.RenderCarcass(obj);
             bitmap.Unlock();
+            stopwatch.Stop();
             canvas.Child = new Image { Source = bitmap };
         }
 
