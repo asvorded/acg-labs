@@ -19,7 +19,7 @@ namespace GraphicsLib
         public void RenderCarcass(Obj obj)
         {
             List<Vector3> buffer = obj.vertices.ToList();
-            Matrix4x4 view = Matrix4x4.CreateLookAt(new Vector3(1000, 1000, 1000), Vector3.Zero, Vector3.UnitY);
+            Matrix4x4 view = Camera.ViewMatrix;
             for (int i = 0; i < buffer.Count; i++)
             {
                 Vector3 v = buffer[i];                
