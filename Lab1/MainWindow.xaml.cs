@@ -101,7 +101,7 @@ namespace Lab1
         private void Window_MouseWheel(object sender, MouseWheelEventArgs e)
         {
             float dz = (float)e.Delta;
-            camera.MoveTowardTarget(dz * 2);
+            camera.MoveTowardTarget(dz * 2f);
             Draw();
         }
     }

@@ -31,8 +31,6 @@ namespace Lab1
                 uint* ptr = (uint*)bitmap.BackBuffer;
                 ptr[y * bitmap.PixelWidth + x] = argb;
             }
-            defaultRect.X = x;
-            defaultRect.Y = y;
         }
 
         public static void EndLock(this WriteableBitmap bitmap)

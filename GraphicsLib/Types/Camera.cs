@@ -21,7 +21,7 @@ namespace GraphicsLib.Types
             Vector3 position = Position;
             Vector3 zAxis = Vector3.Normalize(position - Target);
             Vector3 xAxis = Vector3.Normalize(Vector3.Cross(Camera.up, zAxis));
-            Vector3 yAxis = -Vector3.Cross(xAxis, zAxis);
+            Vector3 yAxis = Vector3.Cross(zAxis, xAxis);
             Matrix4x4 view = new Matrix4x4(xAxis.X, yAxis.X, zAxis.X, 0,
                                            xAxis.Y, yAxis.Y, zAxis.Y, 0,
                                            xAxis.Z, yAxis.Z, zAxis.Z, 0,
@@ -29,19 +29,15 @@ namespace GraphicsLib.Types
                                            -Vector3.Dot(yAxis, position),
                                            -Vector3.Dot(zAxis, position),
                                            1);
-            //Matrix4x4 view = new Matrix4x4(xAxis.X, xAxis.Y, xAxis.Z, -Vector3.Dot(xAxis, position),
-                                           //yAxis.X, yAxis.Y, yAxis.Z, -Vector3.Dot(yAxis, position),
-                                           //zAxis.X, zAxis.Y, zAxis.Z, -Vector3.Dot(zAxis, position),
-                                           //0, 0, 0, 1);
-            return Matrix4x4.CreateLookAt(position, Target, up);
+            //return Matrix4x4.CreateLookAt(position, Target, up);
             return view;
         }
 
         public Camera()
         {
             Azimuth = 0;
-            Polar = 0;// MathF.PI / 4;
-            Distance = 1000;
+            Polar = MathF.PI / 4;
+            Distance = 2000;
             Target = Vector3.Zero;
         }
         public Camera(float azimuth, float polar, float distance, Vector3 target)
