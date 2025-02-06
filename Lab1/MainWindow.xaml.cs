@@ -52,7 +52,7 @@ namespace Lab1
             fileName.Text = string.Join(' ', Resources["fileString"].ToString(), ofd.FileName);
 
             using FileStream fileStream = new(ofd.FileName, FileMode.Open);
-            if (System.IO.Path.GetExtension(ofd.FileName).Equals("obj"))
+            if (System.IO.Path.GetExtension(ofd.FileName).Equals(".obj"))
                 obj = Parser.ParseObjFile(fileStream);
             else
                 obj = Parser.ParseGltfFile(fileStream, System.IO.Path.GetDirectoryName(ofd.FileName));

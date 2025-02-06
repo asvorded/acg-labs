@@ -96,9 +96,9 @@ namespace GraphicsLib
         {
             const String octetStreamMime = "data:application/octet-stream;";
             const String base64EncodingText = "base64,";
-            if (Path.Exists(String.Join(Path.PathSeparator, sourceFileDirectory,uri)))
+            if (Path.Exists(String.Join(Path.DirectorySeparatorChar, sourceFileDirectory,uri)))
             {
-                return File.ReadAllBytes(String.Join(Path.PathSeparator, sourceFileDirectory, uri));
+                return File.ReadAllBytes(String.Join(Path.DirectorySeparatorChar, sourceFileDirectory, uri));
             }
             if(uri.StartsWith(octetStreamMime, StringComparison.InvariantCulture))
             {
