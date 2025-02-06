@@ -11,6 +11,7 @@
     <Window.Resources>
         <system:String x:Key="openString">Open File...</system:String>
         <system:String x:Key="fileString">File:</system:String>
+        <system:String x:Key="debugString">Debug Info</system:String>
     </Window.Resources>
     <Grid>
         <Grid.RowDefinitions>
@@ -20,9 +21,14 @@
         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
             <Button Width="100" Height="30" Margin="15,0,15,0" HorizontalAlignment="Left"
                     Click="ButtonOpenFile_Click" Content="{StaticResource openString}" />
+            <TextBlock x:Name="DebugPanel" Text="{StaticResource debugString}" 
+                       VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,0,10,0" 
+                        />
             <TextBlock x:Name="fileName" VerticalAlignment="Center" Text="{StaticResource fileString}"/>
+            
         </StackPanel>
         <Border x:Name="canvas" Grid.Row="1" Margin="10" Background="Black"
-                MouseDown="Window_MouseDown" MouseUp="Window_MouseUp" MouseMove="Window_MouseMove" PreviewMouseWheel="Window_MouseWheel"/>
+                MouseDown="Window_MouseDown" MouseUp="Window_MouseUp" MouseMove="Window_MouseMove" PreviewMouseWheel="Window_MouseWheel">
+        </Border>
     </Grid>
 </Window>

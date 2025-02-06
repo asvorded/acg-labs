@@ -23,7 +23,7 @@ namespace Lab1
     {
         private readonly OpenFileDialog ofd;
 
-        private Obj obj;
+        private Obj? obj;
         private Camera camera;
         private Point oldPos;
 
@@ -34,20 +34,28 @@ namespace Lab1
                  CheckFileExists = true,
                  CheckPathExists = true,
                  Multiselect = false,
-                 Filter = "OBJ files (*.obj)|*.obj"
-             };
+                 ValidateNames = true,
+                 Filter = "OBJ files (*.obj)|*.obj|GLTF files(*.gltf)|*.gltf|All files (*.*)|*.*"
+            };
             ofd.FileOk += OnFileOpened;
-
             Height = SystemParameters.PrimaryScreenHeight / 1.25;
             Width = SystemParameters.PrimaryScreenWidth / 1.25;
             camera = new Camera();
+            #if DEBUG
+                DebugPanel.Visibility = Visibility.Visible;
+            #else
+                DebugPanel.Visibility = Visibility.Collapsed;
+            #endif
         }
 
         private void OnFileOpened(object? sender, CancelEventArgs e) {
             fileName.Text = string.Join(' ', Resources["fileString"].ToString(), ofd.FileName);
 
             using FileStream fileStream = new(ofd.FileName, FileMode.Open);
-            obj = Parser.ParseObjFile(fileStream);
+            if (System.IO.Path.GetExtension(ofd.FileName).Equals("obj"))
+                obj = Parser.ParseObjFile(fileStream);
+            else
+                obj = Parser.ParseGltfFile(fileStream, System.IO.Path.GetDirectoryName(ofd.FileName));
             Draw();
         }
 
@@ -58,14 +66,17 @@ namespace Lab1
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
             bitmap.Lock();
-            // for(int i = 0; i < 50; i++)
-            // {
-            renderer.RenderCarcass(obj);
-            // }
-            Debug.WriteLine($"Camera Azimuth: {camera.Azimuth}, Polar: {camera.Polar} Position: {camera.Position}");
+            //for (int i = 0; i < 50; i++)
+            //{
+            if (obj != null)
+            {
+                renderer.RenderCarcass(obj);
+            }
+            //});
             bitmap.AddDirtyRect(new Int32Rect(0, 0, bitmap.PixelWidth, bitmap.PixelHeight));
             bitmap.Unlock();
             stopwatch.Stop();
+            DebugPanel.Text = stopwatch.ElapsedMilliseconds.ToString();
             canvas.Child = new Image { Source = bitmap };
         }
 
@@ -101,7 +112,7 @@ namespace Lab1
         private void Window_MouseWheel(object sender, MouseWheelEventArgs e)
         {
             float dz = (float)e.Delta;
-            camera.MoveTowardTarget(dz * 2f);
+            camera.MoveTowardTarget(dz * 0.001f * camera.Distance);
             Draw();
         }
     }
