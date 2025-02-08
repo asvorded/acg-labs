@@ -50,13 +50,19 @@ namespace Lab1
 
         private void OnFileOpened(object? sender, CancelEventArgs e) {
             fileName.Text = string.Join(' ', Resources["fileString"].ToString(), ofd.FileName);
-
-            using FileStream fileStream = new(ofd.FileName, FileMode.Open);
-            if (System.IO.Path.GetExtension(ofd.FileName).Equals(".obj"))
-                obj = Parser.ParseObjFile(fileStream);
-            else
-                obj = Parser.ParseGltfFile(fileStream, System.IO.Path.GetDirectoryName(ofd.FileName));
-            Draw();
+            try
+            {
+                using FileStream fileStream = new(ofd.FileName, FileMode.Open);
+                if (System.IO.Path.GetExtension(ofd.FileName).Equals(".obj"))
+                    obj = Parser.ParseObjFile(fileStream);
+                else
+                    obj = Parser.ParseGltfFile(fileStream, System.IO.Path.GetDirectoryName(ofd.FileName));
+                Draw();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
         }
 
         private void Draw() {
@@ -112,7 +118,7 @@ namespace Lab1
         private void Window_MouseWheel(object sender, MouseWheelEventArgs e)
         {
             float dz = (float)e.Delta;
-            camera.MoveTowardTarget(dz * 0.001f * camera.Distance);
+            camera.MoveTowardTarget(dz * 0.0002f * camera.Distance);
             Draw();
         }
     }

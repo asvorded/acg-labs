@@ -1,13 +1,9 @@
 ﻿using GraphicsLib.Types;
+using Newtonsoft.Json;
+using System.Buffers.Text;
 using System.Globalization;
 using System.IO;
 using System.Numerics;
-using System.Text.Json.Serialization;
-using Newtonsoft.Json.Serialization;
-using Newtonsoft.Json.Linq;
-using Newtonsoft.Json;
-using System.Data;
-using System.Buffers.Text;
 using System.Text;
 namespace GraphicsLib
 {
@@ -71,7 +67,7 @@ namespace GraphicsLib
                             {
                                 faceParts = parts[i].Split('/');
                                 vertices[i - 1] = int.Parse(faceParts[0], NumberStyles.Any, CultureInfo.InvariantCulture) - 1;
-                                if (textures!=null)
+                                if (textures != null)
                                 {
                                     textures[i - 1] = int.Parse(faceParts[1], NumberStyles.Any, CultureInfo.InvariantCulture) - 1;
                                 }
@@ -90,17 +86,27 @@ namespace GraphicsLib
                         break;
                 }
             }
+            foreach (var face in obj.faces)
+            {
+                for (int i = 0; i < face.vIndices.Length; i++)
+                {
+                    int p = face.vIndices[i];
+                    if (p < 0)
+                        p = obj.vertices.Count + p + 1;
+                    face.vIndices[i] = p;
+                }
+            }
             return obj;
         }
         public static byte[] GetBufferData(String uri, String sourceFileDirectory)
         {
             const String octetStreamMime = "data:application/octet-stream;";
             const String base64EncodingText = "base64,";
-            if (Path.Exists(String.Join(Path.DirectorySeparatorChar, sourceFileDirectory,uri)))
+            if (Path.Exists(String.Join(Path.DirectorySeparatorChar, sourceFileDirectory, uri)))
             {
                 return File.ReadAllBytes(String.Join(Path.DirectorySeparatorChar, sourceFileDirectory, uri));
             }
-            if(uri.StartsWith(octetStreamMime, StringComparison.InvariantCulture))
+            if (uri.StartsWith(octetStreamMime, StringComparison.InvariantCulture))
             {
                 int dataIndex = octetStreamMime.Length;
                 if (uri.IndexOf(base64EncodingText, dataIndex, base64EncodingText.Length) != -1)
@@ -109,7 +115,7 @@ namespace GraphicsLib
                     int bytesConsumed = 0;
                     int bytesWritten = 0;
                     Base64.DecodeFromUtf8(UTF8Encoding.UTF8.GetBytes(uri.Substring(dataIndex + base64EncodingText.Length)),
-                                            bytes,out bytesConsumed, out bytesWritten); 
+                                            bytes, out bytesConsumed, out bytesWritten);
                     byte[] result = new byte[bytesWritten];
                     for (int i = 0; i < bytesWritten; i++)
                     {
@@ -122,8 +128,6 @@ namespace GraphicsLib
         }
         public static Obj ParseGltfFile(Stream source, String sourceFileDirectory)
         {
-            try
-            {
                 Obj obj = new();
                 using StreamReader sr = new(source);
                 String data = sr.ReadToEnd();
@@ -131,19 +135,12 @@ namespace GraphicsLib
                 List<byte[]> buffers = [];
                 if (gltfData == null)
                     throw new FormatException("invalid json file");
-                foreach(var buffer in gltfData.buffers)
+                foreach (var buffer in gltfData.buffers)
                 {
                     String uri = buffer.uri;
                     buffers.Add(GetBufferData(uri, sourceFileDirectory));
-                }    
+                }
                 return obj;
-            }
-            catch (Exception ex)
-            {
-                throw;
-            }
-
         }
-
     }
 }
