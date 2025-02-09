@@ -1,9 +1,11 @@
 ﻿using GraphicsLib.Types;
 using Newtonsoft.Json;
+using System;
 using System.Buffers.Text;
 using System.Globalization;
 using System.IO;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Text;
 namespace GraphicsLib
 {
@@ -19,6 +21,10 @@ namespace GraphicsLib
         static readonly string GL_VEC3_TYPE = "VEC3";
         static readonly string GL_SCALAR_TYPE = "SCALAR";
         static readonly int GL_VEC3_SIZE = sizeof(Single) * 3;
+        static readonly int GL_UNSIGNED_SHORT = 5123;
+        static readonly int GL_INT = 5124;
+        static readonly int GL_UNSIGNED_INT = 5125;
+        static readonly int GL_FLOAT = 5126;
         static readonly int GL_SCALAR_SIZE = sizeof(GL_SCALAR);
         /// <summary>
         /// Загружает модель из текста формата Wavefront Obj
@@ -158,7 +164,7 @@ namespace GraphicsLib
                 {
                     buffer = buffers[(int)bufferView.buffer],
                     bufferView.byteLength,
-                    bufferView.byteOffset,
+                    byteOffset = bufferView.byteOffset ?? 0,
                     bufferView.target
                 });
             }
@@ -200,19 +206,42 @@ namespace GraphicsLib
             }
             return obj;
         }
-        private static GL_SCALAR ParseGlScalarFromBytes(byte[] bytes, int offset)
+        private static object ParseGlScalarFromBytes(Type type, byte[] bytes, int offset)
         {
-            return BitConverter.ToInt16(bytes, offset);
+            if(type == typeof(UInt16))
+                return BitConverter.ToUInt16(bytes, offset);
+            if(type == typeof(UInt32))
+                return BitConverter.ToUInt32(bytes, offset);
+            if(type == typeof(Int32))
+                return BitConverter.ToInt32(bytes, offset);
+            if(type == typeof(Single))
+                return BitConverter.ToSingle(bytes, offset);
+            throw new Exception($"parse unsupported type{type.FullName}");
+        }
+        private static Type? ResolveGlType(int componentType)
+        {
+            if (componentType == GL_UNSIGNED_SHORT)
+                return typeof(UInt16);
+            if (componentType == GL_UNSIGNED_INT)
+                return typeof(UInt32);
+            if (componentType == GL_INT)
+                return typeof(Int32);
+            if (componentType == GL_FLOAT)
+                return typeof(Single);
+            return null;
         }
         private static void AddFaces(List<Face> faces, dynamic accessor, int mode, int vIndexOffset)
         {
             string type = accessor.type;
-            if (!type.Equals("SCALAR"))
+            if (!type.Equals(GL_SCALAR_TYPE))
             {
                 throw new Exception("accessor type missmatch");
             }
             int offset = accessor.byteOffset ?? 0;
             int count = accessor.count;
+            int componentType = accessor.componentType;
+            Type scalarType = ResolveGlType(componentType) ?? throw new Exception($"unresolved type {componentType}");
+            int scalarTypeSize = Marshal.SizeOf(scalarType);
             var bufferView = accessor.bufferView;
             int target = bufferView.target;
             if (!target.Equals(GL_ELEMENT_ARRAY_BUFFER))
@@ -220,7 +249,7 @@ namespace GraphicsLib
                 throw new Exception("bufferView target missmatch");
             }
             int byteLength = bufferView.byteLength;
-            if (!(byteLength >= offset + GL_SCALAR_SIZE * count))
+            if (!(byteLength >= offset + scalarTypeSize * count))
             {
                 throw new Exception("bufferView is not long enough");
             }
@@ -230,21 +259,21 @@ namespace GraphicsLib
             {
                 for (int i = 0; i < count; i += 3)
                 {
-                    int[] vIndices = [ ParseGlScalarFromBytes(buffer, offset) + vIndexOffset,
-                                       ParseGlScalarFromBytes(buffer, offset + 1 * GL_SCALAR_SIZE) + vIndexOffset,
-                                       ParseGlScalarFromBytes(buffer, offset + 2 * GL_SCALAR_SIZE) + vIndexOffset ];
+                    int[] vIndices = [ (int)ParseGlScalarFromBytes(scalarType, buffer, offset) + vIndexOffset,
+                                       (int)ParseGlScalarFromBytes(scalarType, buffer, offset + 1 * scalarTypeSize) + vIndexOffset,
+                                       (int)ParseGlScalarFromBytes(scalarType, buffer, offset + 2 * scalarTypeSize) + vIndexOffset ];
                     Face face = new(vIndices, null, null);
                     faces.Add(face);
-                    offset += 3 * GL_SCALAR_SIZE;
+                    offset += 3 * scalarTypeSize;
                 }
             }
             else if (mode == GL_TRIANGLE_STRIP)//HACK {1 2 3}  drawing order is (2 1 3) to maintain proper winding
             {
                 for (int i = 2; i < count; i++)
                 {
-                    int[] vIndices = [ ParseGlScalarFromBytes(buffer, offset) + vIndexOffset,
-                                       ParseGlScalarFromBytes(buffer, offset + 1 * GL_SCALAR_SIZE) + vIndexOffset,
-                                       ParseGlScalarFromBytes(buffer, offset + 2 * GL_SCALAR_SIZE) + vIndexOffset ];
+                    int[] vIndices = [ (int)ParseGlScalarFromBytes(scalarType, buffer, offset) + vIndexOffset,
+                                       (int)ParseGlScalarFromBytes(scalarType, buffer, offset + 1 * GL_SCALAR_SIZE) + vIndexOffset,
+                                       (int)ParseGlScalarFromBytes(scalarType, buffer, offset + 2 * GL_SCALAR_SIZE) + vIndexOffset ];
                     Face face = new(vIndices, null, null);
                     faces.Add(face);
                     offset += GL_SCALAR_SIZE;
@@ -252,12 +281,12 @@ namespace GraphicsLib
             }
             else if (mode == GL_TRIANGLE_FAN)
             {
-                GL_SCALAR startIndex = ParseGlScalarFromBytes(buffer, offset) + vIndexOffset;
+                int startIndex = (int)ParseGlScalarFromBytes(scalarType, buffer, offset) + vIndexOffset;
                 for (int i = 2; i < count; i++)
                 {
                     int[] vIndices = [ startIndex,
-                                       ParseGlScalarFromBytes(buffer, offset + 1 * GL_SCALAR_SIZE) + vIndexOffset,
-                                       ParseGlScalarFromBytes(buffer, offset + 2 * GL_SCALAR_SIZE) + vIndexOffset ];
+                                       (int)ParseGlScalarFromBytes(scalarType, buffer, offset + 1 * GL_SCALAR_SIZE) + vIndexOffset,
+                                       (int)ParseGlScalarFromBytes(scalarType, buffer, offset + 2 * GL_SCALAR_SIZE) + vIndexOffset ];
                     Face face = new(vIndices, null, null);
                     faces.Add(face);
                     offset += GL_SCALAR_SIZE;
