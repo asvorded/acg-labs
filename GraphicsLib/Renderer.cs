@@ -41,6 +41,8 @@ namespace GraphicsLib
             if (obj == null)
                 return;
             ResizeBuffer(obj);
+            //Преобразование в мировое пространство
+            Matrix4x4 worldTransform = obj.transform;
             //Преобразование в пространство камеры
             Matrix4x4 view = Camera.ViewMatrix;
             //Преобразование в пространство проекции
@@ -80,7 +82,7 @@ namespace GraphicsLib
             sw.Stop();
             MessageBox.Show($"finalTransform{sw.ElapsedTicks}");
             sw.Restart();*/
-            Matrix4x4 fullProjection = projection * viewPort;
+            Matrix4x4 fullProjection = worldTransform * projection * viewPort;
             for (int i = 0; i < bufferLength; i++)
             {
                 Vector4 v = new Vector4(obj.vertices[i], 1);

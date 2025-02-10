@@ -1,6 +1,5 @@
 ﻿using GraphicsLib.Types;
 using Newtonsoft.Json;
-using System;
 using System.Buffers.Text;
 using System.Globalization;
 using System.IO;
@@ -151,11 +150,15 @@ namespace GraphicsLib
             List<byte[]> buffers = [];
             List<dynamic> bufferViews = [];
             List<dynamic> accessors = [];
+            List<dynamic> meshes = [];
+            Dictionary<int, Matrix4x4> parentTransforms = [];
+            //retreive binary data from buffer URI
             foreach (var buffer in gltfData.buffers)
             {
                 String uri = buffer.uri;
                 buffers.Add(GetBufferData(uri, sourceFileDirectory));
             }
+            //get bufferViews with pointers to buffers
             foreach (var bufferView in gltfData.bufferViews)
             {
                 bufferViews.Add(new
@@ -166,6 +169,7 @@ namespace GraphicsLib
                     bufferView.target
                 });
             }
+            //get accessors with pointers to bufferViews
             foreach (var accessor in gltfData.accessors)
             {
                 accessors.Add(new
@@ -179,40 +183,117 @@ namespace GraphicsLib
             }
             foreach (var mesh in gltfData.meshes)
             {
-                foreach (var primitive in mesh.primitives)
+                meshes.Add(new
                 {
-                    int vIndexOffset = obj.vertices.Count;
-                    if (primitive.attributes.POSITION != null)
-                    {
-                        var accessor = accessors[(int)primitive.attributes.POSITION];
-                        AddVectors(obj.vertices, accessor);
-                    }
-                    if (primitive.attributes.NORMAL != null)
-                    {
-                        var accessor = accessors[(int)primitive.attributes.NORMAL];
-                        AddVectors(obj.normals, accessor);
-                    }
-                    int mode = primitive.mode ?? GL_TRIANGLES;
-                    if (mode == GL_TRIANGLES || mode == GL_TRIANGLE_STRIP || mode == GL_TRIANGLE_FAN)
-                    {
-                        var accessor = accessors[(int)primitive.indices];
-                        AddFaces(obj.faces, accessor, mode, vIndexOffset);
-                        continue;
-                    }
-                    throw new NotImplementedException($"wtf is this primitive: {mode}");
-                }
+                    mesh.primitives,
+                    mesh.name
+                });
             }
+            int nodeIndex = 0;
+            foreach (var node in gltfData.nodes)
+            {
+                Matrix4x4 parentTransform = default;
+                if (!parentTransforms.TryGetValue(nodeIndex, out parentTransform))
+                {
+                    parentTransform = Matrix4x4.Identity;
+                }
+                Matrix4x4 transform = Matrix4x4.Identity;
+                if (node.transform != null)
+                {
+                    transform = node.transform;
+                }
+                if (node.translation != null)
+                {
+                    Vector3 translation = new((Single)node.translation[0],
+                                           (Single)(node.translation[1]),
+                                            (Single)(node.translation[2]));
+                    transform = Matrix4x4.CreateTranslation(translation);
+                }
+                if (node.rotation != null)
+                {
+                    Quaternion rotation = new((Single)(node.rotation[0]),
+                                             (Single)(node.rotation[1]),
+                                             (Single)(node.rotation[2]),
+                                             (Single)(node.rotation[3]));
+                    transform *= Matrix4x4.CreateFromQuaternion(rotation);
+                }
+                if (node.scale != null)
+                {
+                    Vector3 scale = new((Single)(node.scale[0]),
+                        (Single)(node.scale[1]),
+                        (Single)(node.scale[2]));
+                    transform *= Matrix4x4.CreateScale(scale);
+                }
+                Matrix4x4 finalTransform = transform * parentTransform;
+                if (node.children != null)
+                {
+                    foreach (var child in node.children)
+                    {
+                        parentTransforms.Add((int)child, parentTransform);
+                    }
+                }
+                if (node.mesh != null)
+                {
+                    var mesh = meshes[(int)node.mesh];
+                    foreach (var primitive in mesh.primitives)
+                    {
+                        int vIndexOffset = obj.vertices.Count;
+                        if (primitive.attributes.POSITION != null)
+                        {
+                            var accessor = accessors[(int)primitive.attributes.POSITION];
+                            AddVectors(finalTransform, obj.vertices, accessor);
+                        }
+                        if (primitive.attributes.NORMAL != null)
+                        {
+                            var accessor = accessors[(int)primitive.attributes.NORMAL];
+                            AddVectors(finalTransform, obj.normals, accessor);
+                        }
+                        int mode = primitive.mode ?? GL_TRIANGLES;
+                        if (mode == GL_TRIANGLES || mode == GL_TRIANGLE_STRIP || mode == GL_TRIANGLE_FAN)
+                        {
+                            var accessor = accessors[(int)primitive.indices];
+                            AddFaces(obj.faces, accessor, mode, vIndexOffset);
+                            continue;
+                        }
+                        throw new NotImplementedException($"wtf is this primitive: {mode}");
+                    }
+                }
+                nodeIndex++;
+            }
+            //foreach (var primitive in mesh.primitives)
+            //{
+            //    int vIndexOffset = obj.vertices.Count;
+            //    if (primitive.attributes.POSITION != null)
+            //    {
+            //        var accessor = accessors[(int)primitive.attributes.POSITION];
+            //        AddVectors(obj.vertices, accessor);
+            //    }
+            //    if (primitive.attributes.NORMAL != null)
+            //    {
+            //        var accessor = accessors[(int)primitive.attributes.NORMAL];
+            //        AddVectors(obj.normals, accessor);
+            //    }
+            //    int mode = primitive.mode ?? GL_TRIANGLES;
+            //    if (mode == GL_TRIANGLES || mode == GL_TRIANGLE_STRIP || mode == GL_TRIANGLE_FAN)
+            //    {
+            //        var accessor = accessors[(int)primitive.indices];
+            //        AddFaces(obj.faces, accessor, mode, vIndexOffset);
+            //        continue;
+            //    }
+            //    throw new NotImplementedException($"wtf is this primitive: {mode}");
+            //}
+            //}
             return obj;
         }
         private static object ParseGlScalarFromBytes(Type type, byte[] bytes, int offset)
         {
-            if(type == typeof(UInt16))
+            if (type == typeof(UInt16))
                 return BitConverter.ToUInt16(bytes, offset);
-            if(type == typeof(UInt32))
+            if (type == typeof(UInt32))
                 return BitConverter.ToUInt32(bytes, offset);
-            if(type == typeof(Int32))
+            if (type == typeof(Int32))
                 return BitConverter.ToInt32(bytes, offset);
-            if(type == typeof(Single))
+            if (type == typeof(Single))
                 return BitConverter.ToSingle(bytes, offset);
             throw new Exception($"parse unsupported type{type.FullName}");
         }
@@ -291,7 +372,7 @@ namespace GraphicsLib
                 }
             }
         }
-        private static void AddVectors(List<Vector3> vectors, dynamic accessor)
+        private static void AddVectors(Matrix4x4 transform, List<Vector3> vectors, dynamic accessor)
         {
             string type = accessor.type;
             if (!type.Equals(GL_VEC3_TYPE))
@@ -318,7 +399,7 @@ namespace GraphicsLib
                 Vector3 v = new(BitConverter.ToSingle(buffer, offset),
                                 BitConverter.ToSingle(buffer, offset + sizeof(Single)),
                                 BitConverter.ToSingle(buffer, offset + 2 * sizeof(Single)));
-                vectors.Add(v);
+                vectors.Add(Vector3.Transform(v, transform));
                 offset += 3 * sizeof(Single);
             }
         }
