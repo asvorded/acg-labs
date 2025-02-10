@@ -198,9 +198,13 @@ namespace GraphicsLib
                     parentTransform = Matrix4x4.Identity;
                 }
                 Matrix4x4 transform = Matrix4x4.Identity;
-                if (node.transform != null)
+                if (node.matrix != null)
                 {
-                    transform = node.transform;
+                    transform = new Matrix4x4((Single)node.matrix[0], (Single)node.matrix[1], (Single)node.matrix[2],
+                        (Single)node.matrix[3], (Single)node.matrix[4], (Single)node.matrix[5], (Single)node.matrix[6],
+                        (Single)node.matrix[7], (Single)node.matrix[8], (Single)node.matrix[9], (Single)node.matrix[10],
+                        (Single)node.matrix[11], (Single)node.matrix[12], (Single)node.matrix[13], (Single)node.matrix[14],
+                        (Single)node.matrix[15]);
                 }
                 if (node.translation != null)
                 {
@@ -229,7 +233,7 @@ namespace GraphicsLib
                 {
                     foreach (var child in node.children)
                     {
-                        parentTransforms.Add((int)child, parentTransform);
+                        parentTransforms.Add((int)child, finalTransform);
                     }
                 }
                 if (node.mesh != null)
@@ -260,29 +264,6 @@ namespace GraphicsLib
                 }
                 nodeIndex++;
             }
-            //foreach (var primitive in mesh.primitives)
-            //{
-            //    int vIndexOffset = obj.vertices.Count;
-            //    if (primitive.attributes.POSITION != null)
-            //    {
-            //        var accessor = accessors[(int)primitive.attributes.POSITION];
-            //        AddVectors(obj.vertices, accessor);
-            //    }
-            //    if (primitive.attributes.NORMAL != null)
-            //    {
-            //        var accessor = accessors[(int)primitive.attributes.NORMAL];
-            //        AddVectors(obj.normals, accessor);
-            //    }
-            //    int mode = primitive.mode ?? GL_TRIANGLES;
-            //    if (mode == GL_TRIANGLES || mode == GL_TRIANGLE_STRIP || mode == GL_TRIANGLE_FAN)
-            //    {
-            //        var accessor = accessors[(int)primitive.indices];
-            //        AddFaces(obj.faces, accessor, mode, vIndexOffset);
-            //        continue;
-            //    }
-            //    throw new NotImplementedException($"wtf is this primitive: {mode}");
-            //}
-            //}
             return obj;
         }
         private static object ParseGlScalarFromBytes(Type type, byte[] bytes, int offset)
@@ -322,11 +303,6 @@ namespace GraphicsLib
             Type scalarType = ResolveGlType(componentType) ?? throw new Exception($"unresolved type {componentType}");
             int scalarTypeSize = Marshal.SizeOf(scalarType);
             var bufferView = accessor.bufferView;
-            int target = bufferView.target;
-            if (!target.Equals(GL_ELEMENT_ARRAY_BUFFER))
-            {
-                throw new Exception("bufferView target missmatch");
-            }
             int byteLength = bufferView.byteLength;
             if (!(byteLength >= offset + scalarTypeSize * count))
             {
@@ -348,11 +324,15 @@ namespace GraphicsLib
             }
             else if (mode == GL_TRIANGLE_STRIP)//HACK {1 2 3}  drawing order is (2 1 3) to maintain proper winding
             {
+                bool switchPoints = false;
                 for (int i = 2; i < count; i++)
                 {
                     int[] vIndices = [ (int)ParseGlScalarFromBytes(scalarType, buffer, offset) + vIndexOffset,
                                        (int)ParseGlScalarFromBytes(scalarType, buffer, offset + 1 * scalarTypeSize) + vIndexOffset,
                                        (int)ParseGlScalarFromBytes(scalarType, buffer, offset + 2 * scalarTypeSize) + vIndexOffset ];
+                    if(switchPoints)
+                        (vIndices[0], vIndices[1]) = (vIndices[1],  vIndices[0]);
+                    switchPoints = !switchPoints;
                     Face face = new(vIndices, null, null);
                     faces.Add(face);
                     offset += scalarTypeSize;
@@ -382,11 +362,6 @@ namespace GraphicsLib
             int offset = accessor.byteOffset ?? 0;
             int count = accessor.count;
             var bufferView = accessor.bufferView;
-            int target = bufferView.target;
-            if (!target.Equals(GL_ARRAY_BUFFER))
-            {
-                throw new Exception("bufferView target missmatch");
-            }
             int byteLength = bufferView.byteLength;
             if (!(byteLength >= offset + sizeof(Single) * count))
             {
