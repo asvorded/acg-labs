@@ -48,7 +48,7 @@ namespace Lab1
             #if DEBUG
                 DebugPanel.Visibility = Visibility.Visible;
             #else
-                DebugPanel.Visibility = Visibility.Collapsed;
+                DebugPanel.Visibility = Visibility.Visible;
             #endif
         }
 

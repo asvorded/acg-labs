@@ -1,6 +1,5 @@
 ﻿using GraphicsLib.Types;
 using Lab1;
-using System.Collections;
 using System.Diagnostics;
 using System.Numerics;
 using System.Windows.Media.Imaging;
@@ -11,29 +10,26 @@ namespace GraphicsLib
     {
         public Camera Camera { get; set; }
         public WriteableBitmap Bitmap { get; set; }
-        private Vector4[] cameraSpaceBuffer;
+        private Vector4[] projectionSpaceBuffer;
         private int bufferLength;
         private Vector4[] projectionBuffer;
-        private BitArray cullingArray;
 
         public Renderer(Camera camera, WriteableBitmap bitmap)
         {
             Camera = camera;
             Bitmap = bitmap;
-            cameraSpaceBuffer = [];
+            projectionSpaceBuffer = [];
             bufferLength = 0;
             projectionBuffer = [];
-            cullingArray = new BitArray(0);
         }
         private void ResizeBuffer(Obj obj)
         {
             int vertexCount = obj.vertices.Count;
-            if(bufferLength < vertexCount )
+            if (bufferLength < vertexCount)
             {
                 bufferLength = vertexCount;
-                cameraSpaceBuffer = new Vector4[bufferLength];
+                projectionSpaceBuffer = new Vector4[bufferLength];
                 projectionBuffer = new Vector4[bufferLength];
-                cullingArray = new BitArray(bufferLength);
             }
         }
         public void RenderCarcass(Obj obj)
@@ -44,16 +40,16 @@ namespace GraphicsLib
             //Преобразование в мировое пространство
             Matrix4x4 worldTransform = obj.transform;
             //Преобразование в пространство камеры
-            Matrix4x4 view = Camera.ViewMatrix;
+            Matrix4x4 cameraTransform = Camera.ViewMatrix;
             //Преобразование в пространство проекции
             int width = Bitmap.PixelWidth;
             int height = Bitmap.PixelHeight;
             float aspectRatio = (float)width / height;
             float fovVertical = MathF.PI / 3 / aspectRatio;
             float nearPlaneDistance = 0.1f;
-            float farPlaneDistance = float.PositiveInfinity;
+            float farPlaneDistance = 10000f;
             float zCoeff = (float.IsPositiveInfinity(farPlaneDistance) ? -1f : farPlaneDistance / (nearPlaneDistance - farPlaneDistance));
-            Matrix4x4 projection = new Matrix4x4(1 / MathF.Tan(fovVertical * 0.5f) / aspectRatio, 0, 0, 0,
+            Matrix4x4 projectionTransform = new Matrix4x4(1 / MathF.Tan(fovVertical * 0.5f) / aspectRatio, 0, 0, 0,
                                                  0, 1 / MathF.Tan(fovVertical * 0.5f), 0, 0,
                                                  0, 0, zCoeff, -1,
                                                  0, 0, zCoeff * nearPlaneDistance, 0);
@@ -61,40 +57,21 @@ namespace GraphicsLib
             //Преобразование в пространство окна
             float leftCornerX = 0;
             float leftCornerY = 0;
-            Matrix4x4 viewPort = new Matrix4x4((float)width / 2, 0, 0, 0,
+            Matrix4x4 viewPortTransform = new Matrix4x4((float)width / 2, 0, 0, 0,
                                                0, -(float)height / 2, 0, 0,
                                                0, 0, 1, 0,
                                                leftCornerX + (float)width / 2, leftCornerY + (float)height / 2, 0, 1);
             //Matrix4x4 viewPort1 = Matrix4x4.CreateViewport(leftCornerX, leftCornerY, width, height, 0, 1);
             Stopwatch sw = Stopwatch.StartNew();
-            /*Matrix4x4 finalTransform = view * projection * viewPort;
+            Matrix4x4 modelToProjection = worldTransform * cameraTransform * projectionTransform;
             for (int i = 0; i < bufferLength; i++)
             {
-                Vector4 v = new Vector4(obj.vertices[i], 1);
-                v = Vector4.Transform(v, finalTransform);
-                if (v.W < nearPlaneDistance || v.W > farPlaneDistance)
-                    cullingArray[i] = true;
-                v *= (1 / v.W);
-                if ((v.X < 0f || v.X > width) || (v.Y < 0f || v.Y > height))
-                   cullingArray[i] = true;
-                projectionBuffer[i] = v;
-            }
-            sw.Stop();
-            MessageBox.Show($"finalTransform{sw.ElapsedTicks}");
-            sw.Restart();*/
-            Matrix4x4 fullProjection = worldTransform * projection * viewPort;
-            for (int i = 0; i < bufferLength; i++)
-            {
-                Vector4 v = new Vector4(obj.vertices[i], 1);
-                v = Vector4.Transform(v, view);
-                cameraSpaceBuffer[i] = v;
-                v = Vector4.Transform(v, fullProjection);
-                if (v.W < nearPlaneDistance || v.W > farPlaneDistance)
-                    cullingArray[i] = true;
-                v *= (1 / v.W);
-                if ((v.X < 0f || v.X > width) || (v.Y < 0f || v.Y > height))
-                    cullingArray[i] = true;
-                projectionBuffer[i] = v;
+                Vector4 v = new(obj.vertices[i], 1);
+                v = Vector4.Transform(v, modelToProjection);
+                projectionSpaceBuffer[i] = v;
+                //v = Vector4.Transform(v, viewPortTransform);
+                //v *= (1 / v.W);
+                //projectionBuffer[i] = v;
             }
             sw.Stop();
             Stopwatch stopwatch = Stopwatch.StartNew();
@@ -106,14 +83,48 @@ namespace GraphicsLib
                 int[] vIndices = face.vIndices;
                 for (int j = 0; j < vIndices.Length; j++)
                 {
-                    int p1 = vIndices[j];
-                    int p2 = vIndices[(j + 1) % vIndices.Length];
-                    /*if (!(cullingArray[p1] && cullingArray[p2]))
-                        Bitmap.DrawLine(width, height, new System.Drawing.Point((int)projectionBuffer[p1].X, (int)projectionBuffer[p1].Y),
+                    int p0 = vIndices[j];
+                    int p1 = vIndices[(j + 1) % vIndices.Length];
+                    Vector4 v0 = projectionSpaceBuffer[p0];
+                    Vector4 v1 = projectionSpaceBuffer[p1];
+                    if (v0.X > v0.W && v1.X > v1.W)
+                        continue;
+                    if (v0.X < -v0.W && v1.X < -v1.W)
+                        continue;
+                    if (v0.Y > v0.W && v1.Y > v1.W)
+                        continue;
+                    if (v0.Y < -v0.W && v1.Y < -v1.W)
+                        continue;
+                    if (v0.Z > v0.W && v1.Z > v1.W)
+                        continue;
+                    if (v0.Z < 0 && v1.Z < 0)
+                        continue;
+                    uint color = 0xFFFFFFFF;
+                    if (v0.Z < 0)
+                    {
+                        InterpolateV0(ref v0, ref v1);
+                        color = 0xFF0000FF;
+                    }
+                    else if(v1.Z < 0)
+                    {
+                        InterpolateV0(ref v1, ref v0);
+                        color = 0xFF0000FF;
+                    }
+                    void InterpolateV0(ref Vector4 v0,ref Vector4 v1)
+                    {
+                        float coeff = (-v0.Z) / (v1.Z - v0.Z);
+                        v0 = Vector4.Lerp(v0, v1, coeff);
+                    }
+                    v0 = Vector4.Transform(v0, viewPortTransform);
+                    v0 *= (1 / v0.W);
+                    v1 = Vector4.Transform(v1, viewPortTransform);
+                    v1 *= (1 / v1.W);
+                    /*Bitmap.DrawLine(width, height, new System.Drawing.Point((int)projectionBuffer[p1].X, (int)projectionBuffer[p1].Y),
                             new System.Drawing.Point((int)projectionBuffer[p2].X, (int)projectionBuffer[p2].Y), 0xFFFFFFFF);*/
-                    if (!(cullingArray[p1] && cullingArray[p2]))
-                        Bitmap.DrawLine(width, height, (int)projectionBuffer[p1].X, (int)projectionBuffer[p1].Y,
-                           (int)projectionBuffer[p2].X, (int)projectionBuffer[p2].Y, 0xFFFFFFFF);
+                    Bitmap.DrawLine(width, height, (int)v0.X, (int)v0.Y,
+                       (int)v1.X, (int)v1.Y, color);
+                    /*Bitmap.DrawLine(width, height, (int)projectionBuffer[p0].X, (int)projectionBuffer[p0].Y,
+                       (int)projectionBuffer[p1].X, (int)projectionBuffer[p1].Y, 0xFFFFFFFF);*/
                 }
             }
             stopwatch.Stop();

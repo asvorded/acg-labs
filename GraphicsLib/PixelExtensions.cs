@@ -1,7 +1,9 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Media.Media3D;
 
 namespace Lab1
 {
@@ -101,11 +103,74 @@ namespace Lab1
                 }
             }
         }
-    
-        public static void DrawLine(this WriteableBitmap bitmap, int width, int height, int x0, int y0, int x1, int y1, uint color)
+        const int INSIDE = 0;
+        const int LEFT = 1;
+        const int RIGHT = 2;
+        const int BOTTOM = 4;
+        const int TOP = 8;
+        static int ComputeOutCode(int x, int y, int xmax, int ymax)
         {
-            if (bitmap == null)
-                return;
+   
+            int code = INSIDE;
+
+            if (x < 0)       
+                code |= LEFT;
+            else if (x > xmax)  
+                code |= RIGHT;
+            if (y < 0)       
+                code |= BOTTOM;
+            else if (y > ymax)  
+                code |= TOP;
+
+            return code;
+        }
+        public static void DrawLine(this WriteableBitmap bitmap, int bitmapWidth, int bitmapHeight, int x0, int y0, int x1, int y1, uint color)
+        {
+            int outcode0 = ComputeOutCode(x0, y0, bitmapWidth, bitmapHeight);
+            int outcode1 = ComputeOutCode(x1, y1, bitmapWidth, bitmapHeight);
+            while (true)
+            {
+                if ((outcode0 | outcode1) == 0)
+                    break;
+                color = 0xFFFF0000;
+                if ((outcode0 & outcode1) != 0)
+                    return;
+                int outcodeOut = (outcode0 != 0) ? outcode0 : outcode1;
+                int x;
+                int y;
+                if ((outcodeOut & TOP) != 0)
+                {
+                    x = x0 + (x1 - x0) * (bitmapHeight - y0) / (y1 - y0);
+                    y = bitmapHeight;
+                }
+                else if ((outcodeOut & BOTTOM) != 0)
+                {
+                    x = x0 + (x1 - x0) * (0 - y0) / (y1 - y0);
+                    y = 0;
+                }
+                else if ((outcodeOut & RIGHT) != 0)
+                {
+                    y = y0 + (y1 - y0) * (bitmapWidth - x0) / (x1 - x0);
+                    x = bitmapWidth;
+                }
+                else
+                {
+                    y = y0 + (y1 - y0) * (0 - x0) / (x1 - x0);
+                    x = 0;
+                }
+                if (outcodeOut == outcode0)
+                {
+                    x0 = x;
+                    y0 = y;
+                    outcode0 = ComputeOutCode(x0, y0, bitmapWidth, bitmapHeight);
+                }
+                else
+                {
+                    x1 = x;
+                    y1 = y;
+                    outcode1 = ComputeOutCode(x1, y1, bitmapWidth, bitmapHeight);
+                }
+            }
             int dx = (x1 > x0) ? (x1 - x0) : (x0 - x1);
             int dy = (y1 > y0) ? (y1 - y0) : (y0 - y1);
             int gradX = (x1 >= x0) ? 1 : -1;
@@ -124,7 +189,7 @@ namespace Lab1
                 int y = y0;
                 for (int x = x0; x < x1; x++)
                 {
-                    if (x >= 0 && x < width && y >= 0 && y < height)
+                    if (x >= 0 && x < bitmapWidth && y >= 0 && y < bitmapHeight)
                         bitmap.SetPixelLockedNoDirty(x, y, color);
                     error += deltaerr;
                     if (error > dx + 1)
@@ -147,7 +212,7 @@ namespace Lab1
                 int x = x0;
                 for (int y = y0; y < y1; y++)
                 {
-                    if (x >= 0 && x < width && y >= 0 && y < height)
+                    if (x >= 0 && x < bitmapWidth && y >= 0 && y < bitmapHeight)
                         bitmap.SetPixelLockedNoDirty(x, y, color);
                     error += deltaerr;
                     if (error > dy + 1)
