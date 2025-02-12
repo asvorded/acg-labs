@@ -99,7 +99,8 @@ namespace GraphicsLib
             sw.Stop();
             Stopwatch stopwatch = Stopwatch.StartNew();
             List<Face> faces = obj.faces;
-            for (int i = 0; i < faces.Count; i++)
+            int facesCount = faces.Count;
+            for (int i = 0; i < facesCount; i++)
             {
                 Face face = faces[i];
                 int[] vIndices = face.vIndices;
@@ -107,9 +108,12 @@ namespace GraphicsLib
                 {
                     int p1 = vIndices[j];
                     int p2 = vIndices[(j + 1) % vIndices.Length];
-                    if (!(cullingArray[p1] && cullingArray[p2]))
+                    /*if (!(cullingArray[p1] && cullingArray[p2]))
                         Bitmap.DrawLine(width, height, new System.Drawing.Point((int)projectionBuffer[p1].X, (int)projectionBuffer[p1].Y),
-                            new System.Drawing.Point((int)projectionBuffer[p2].X, (int)projectionBuffer[p2].Y), 0xFFFFFFFF);
+                            new System.Drawing.Point((int)projectionBuffer[p2].X, (int)projectionBuffer[p2].Y), 0xFFFFFFFF);*/
+                    if (!(cullingArray[p1] && cullingArray[p2]))
+                        Bitmap.DrawLine(width, height, (int)projectionBuffer[p1].X, (int)projectionBuffer[p1].Y,
+                           (int)projectionBuffer[p2].X, (int)projectionBuffer[p2].Y, 0xFFFFFFFF);
                 }
             }
             stopwatch.Stop();

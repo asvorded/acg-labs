@@ -206,12 +206,12 @@ namespace GraphicsLib
                         (Single)node.matrix[11], (Single)node.matrix[12], (Single)node.matrix[13], (Single)node.matrix[14],
                         (Single)node.matrix[15]);
                 }
-                if (node.translation != null)
+                if (node.scale != null)
                 {
-                    Vector3 translation = new((Single)node.translation[0],
-                                           (Single)(node.translation[1]),
-                                            (Single)(node.translation[2]));
-                    transform = Matrix4x4.CreateTranslation(translation);
+                    Vector3 scale = new((Single)(node.scale[0]),
+                        (Single)(node.scale[1]),
+                        (Single)(node.scale[2]));
+                    transform *= Matrix4x4.CreateScale(scale);
                 }
                 if (node.rotation != null)
                 {
@@ -221,12 +221,12 @@ namespace GraphicsLib
                                              (Single)(node.rotation[3]));
                     transform *= Matrix4x4.CreateFromQuaternion(rotation);
                 }
-                if (node.scale != null)
+                if (node.translation != null)
                 {
-                    Vector3 scale = new((Single)(node.scale[0]),
-                        (Single)(node.scale[1]),
-                        (Single)(node.scale[2]));
-                    transform *= Matrix4x4.CreateScale(scale);
+                    Vector3 translation = new((Single)node.translation[0],
+                                           (Single)(node.translation[1]),
+                                            (Single)(node.translation[2]));
+                    transform = Matrix4x4.CreateTranslation(translation);
                 }
                 Matrix4x4 finalTransform = transform * parentTransform;
                 if (node.children != null)
