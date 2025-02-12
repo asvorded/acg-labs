@@ -12,6 +12,7 @@ namespace GraphicsLib.Types
         public List<Vector3> vertices = new();
         public List<Vector3> normals = new();
         public List<Face> faces = new();
+        public Matrix4x4 transform = Matrix4x4.Identity;
         public Obj() { }
     }
 }
