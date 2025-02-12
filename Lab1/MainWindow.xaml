@@ -7,7 +7,7 @@
         xmlns:local="clr-namespace:Lab1"
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800" ThemeMode="System"
-        >
+        SizeChanged="Window_SizeChanged">
     <Window.Resources>
         <system:String x:Key="openString">Open File...</system:String>
         <system:String x:Key="fileString">File:</system:String>
@@ -28,6 +28,7 @@
             
         </StackPanel>
         <Border x:Name="canvas" Grid.Row="1" Margin="10" Background="Black"
+                Mouse.GotMouseCapture="canvas_GotMouseCapture" Mouse.LostMouseCapture="canvas_LostMouseCapture"
                 MouseDown="Window_MouseDown" MouseUp="Window_MouseUp" MouseMove="Window_MouseMove" PreviewMouseWheel="Window_MouseWheel">
         </Border>
     </Grid>

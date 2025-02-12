@@ -27,6 +27,10 @@ namespace Lab1
         private Camera camera;
         private Point oldPos;
 
+        private (char, EventHandler)[] keyHandlers = [
+
+        ];
+
         public MainWindow() {
             InitializeComponent();
 
@@ -120,6 +124,18 @@ namespace Lab1
             float dz = (float)e.Delta;
             camera.MoveTowardTarget(dz * 0.0002f * camera.Distance);
             Draw();
+        }
+
+        private void Window_SizeChanged(object sender, SizeChangedEventArgs e) {
+            Draw();
+        }
+
+        private void canvas_GotMouseCapture(object sender, MouseEventArgs e) {
+            
+        }
+
+        private void canvas_LostMouseCapture(object sender, MouseEventArgs e) {
+
         }
     }
 }
