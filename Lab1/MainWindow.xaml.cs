@@ -25,6 +25,7 @@ namespace Lab1
 
         private static Obj? obj;
         private Camera camera;
+        private Renderer renderer;
         private Point oldPos;
 
         public MainWindow() {
@@ -41,6 +42,7 @@ namespace Lab1
             Height = SystemParameters.PrimaryScreenHeight / 1.25;
             Width = SystemParameters.PrimaryScreenWidth / 1.25;
             camera = new Camera();
+            renderer = new Renderer(camera);
 #if DEBUG
             DebugPanel.Visibility = Visibility.Visible;
 #else
@@ -66,8 +68,8 @@ namespace Lab1
         private void Draw() {
             WriteableBitmap bitmap = new WriteableBitmap(
                 ((int)canvas.ActualWidth), ((int)canvas.ActualHeight), 96, 96, PixelFormats.Bgra32, null);
-            Renderer renderer = new Renderer(camera, bitmap);
-            Stopwatch stopwatch = new Stopwatch();
+            renderer.Bitmap = bitmap;
+            Stopwatch stopwatch = new();
             stopwatch.Start();
             bitmap.Lock();
             //for (int i = 0; i < 50; i++)
@@ -81,6 +83,7 @@ namespace Lab1
             stopwatch.Stop();
             DebugPanel.Text = stopwatch.ElapsedMilliseconds.ToString();
             canvas.Child = new Image { Source = bitmap };
+            renderer.Bitmap = null;
         }
 
         private void ButtonOpenFile_Click(object sender, RoutedEventArgs e) {

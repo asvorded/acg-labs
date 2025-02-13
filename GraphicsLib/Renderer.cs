@@ -9,18 +9,18 @@ namespace GraphicsLib
     public class Renderer
     {
         public Camera Camera { get; set; }
-        public WriteableBitmap Bitmap { get; set; }
+        public WriteableBitmap? Bitmap { get; set; }
         private Vector4[] projectionSpaceBuffer;
         private int bufferLength;
         private Vector4[] projectionBuffer;
 
-        public Renderer(Camera camera, WriteableBitmap bitmap)
+        public Renderer(Camera camera)
         {
             Camera = camera;
-            Bitmap = bitmap;
             projectionSpaceBuffer = [];
             bufferLength = 0;
             projectionBuffer = [];
+            Bitmap = default;
         }
         private void ResizeBuffer(Obj obj)
         {
@@ -34,6 +34,8 @@ namespace GraphicsLib
         }
         public void RenderCarcass(Obj obj)
         {
+            if (Bitmap == null)
+                return;
             if (obj == null)
                 return;
             ResizeBuffer(obj);
