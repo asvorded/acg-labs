@@ -1,6 +1,7 @@
 ﻿using GraphicsLib;
 using GraphicsLib.Types;
 using Microsoft.Win32;
+using Newtonsoft.Json;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -19,52 +20,45 @@ namespace Lab1
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window
-    {
+    public partial class MainWindow : Window {
         private readonly OpenFileDialog ofd;
 
-        private Obj? obj;
+        private static Obj? obj;
         private Camera camera;
         private Point oldPos;
-
-        private (char, EventHandler)[] keyHandlers = [
-
-        ];
 
         public MainWindow() {
             InitializeComponent();
 
             ofd = new OpenFileDialog {
-                 CheckFileExists = true,
-                 CheckPathExists = true,
-                 Multiselect = false,
-                 ValidateNames = true,
-                 Filter = "OBJ files (*.obj)|*.obj|GLTF files(*.gltf)|*.gltf|All files (*.*)|*.*"
+                CheckFileExists = true,
+                CheckPathExists = true,
+                Multiselect = false,
+                ValidateNames = true,
+                Filter = "OBJ files (*.obj)|*.obj|GLTF files(*.gltf)|*.gltf|All files (*.*)|*.*"
             };
             ofd.FileOk += OnFileOpened;
             Height = SystemParameters.PrimaryScreenHeight / 1.25;
             Width = SystemParameters.PrimaryScreenWidth / 1.25;
             camera = new Camera();
-            #if DEBUG
+#if DEBUG
+            DebugPanel.Visibility = Visibility.Visible;
+#else
                 DebugPanel.Visibility = Visibility.Visible;
-            #else
-                DebugPanel.Visibility = Visibility.Visible;
-            #endif
+#endif
         }
 
         private void OnFileOpened(object? sender, CancelEventArgs e) {
             fileName.Text = string.Join(' ', Resources["fileString"].ToString(), ofd.FileName);
-            try
-            {
+            try {
                 using FileStream fileStream = new(ofd.FileName, FileMode.Open);
                 if (System.IO.Path.GetExtension(ofd.FileName).Equals(".obj"))
                     obj = Parser.ParseObjFile(fileStream);
                 else
-                    obj = Parser.ParseGltfFile(fileStream, System.IO.Path.GetDirectoryName(ofd.FileName));
+                    obj = Parser.ParseGltfFile(fileStream, System.IO.Path.GetDirectoryName(ofd.FileName)!);
+                obj.Transformation.Reset();
                 Draw();
-            }
-            catch (Exception ex)
-            {
+            } catch (Exception ex) {
                 MessageBox.Show(ex.Message);
             }
         }
@@ -78,8 +72,7 @@ namespace Lab1
             bitmap.Lock();
             //for (int i = 0; i < 50; i++)
             //{
-            if (obj != null)
-            {
+            if (obj != null) {
                 renderer.RenderCarcass(obj);
             }
             //});
@@ -108,10 +101,8 @@ namespace Lab1
                 camera.RotateAroundTargetVertical((float)(-dy * MathF.PI / canvas.ActualHeight));
                 Draw();
                 oldPos = newPos;
-            }
-            else
-            {
-                oldPos = new Point(-1 , -1);
+            } else {
+                oldPos = new Point(-1, -1);
             }
         }
 
@@ -119,10 +110,11 @@ namespace Lab1
             Mouse.Capture(canvas, CaptureMode.None);
             oldPos = new Point(-1, -1);
         }
-        private void Window_MouseWheel(object sender, MouseWheelEventArgs e)
-        {
+
+        private void Window_MouseWheel(object sender, MouseWheelEventArgs e) {
             float dz = (float)e.Delta;
-            camera.MoveTowardTarget(dz * 0.0002f * camera.Distance);
+            float step = Keyboard.Modifiers == ModifierKeys.Control ? 0.002f : 0.0005f;
+            camera.MoveTowardTarget(dz * step * camera.Distance);
             Draw();
         }
 
@@ -130,12 +122,42 @@ namespace Lab1
             Draw();
         }
 
-        private void canvas_GotMouseCapture(object sender, MouseEventArgs e) {
-            
-        }
+        private void canvas_GotMouseCapture(object sender, MouseEventArgs e) { }
 
-        private void canvas_LostMouseCapture(object sender, MouseEventArgs e) {
+        private void canvas_LostMouseCapture(object sender, MouseEventArgs e) { }
 
+        private static float speed = 0.5f;
+        private Dictionary<Key, Action> keyActions = new() {
+            {
+                Key.Left, () => { obj!.Transformation.Offset.X += speed; } 
+            },
+            {
+                Key.Right, () => { obj!.Transformation.Offset.X -= speed; }
+            },
+            { 
+                Key.Up, () => {
+                    if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
+                        obj!.Transformation.Offset.Z += speed;
+                    else
+                        obj!.Transformation.Offset.Y += speed;
+                }
+            },
+            {
+                Key.Down, () => {
+                    if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
+                        obj!.Transformation.Offset.Z -= speed;
+                    else
+                        obj!.Transformation.Offset.Y -= speed;
+                }
+            },
+        };
+
+        private void canvas_KeyDown(object sender, KeyEventArgs e) {
+            if (keyActions.TryGetValue(e.Key, out Action? action)) {
+                speed = (Keyboard.Modifiers & ModifierKeys.Control) != 0 ? 1f : 0.25f;
+                action();
+                Draw();
+            }
         }
     }
 }
