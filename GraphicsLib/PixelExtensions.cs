@@ -171,6 +171,7 @@ namespace Lab1
                     outcode1 = ComputeOutCode(x1, y1, bitmapWidth, bitmapHeight);
                 }
             }
+
             int dx = (x1 > x0) ? (x1 - x0) : (x0 - x1);
             int dy = (y1 > y0) ? (y1 - y0) : (y0 - y1);
             int gradX = (x1 >= x0) ? 1 : -1;

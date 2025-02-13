@@ -7,7 +7,8 @@
         xmlns:local="clr-namespace:Lab1"
         mc:Ignorable="d"
         Title="MainWindow" Height="450" Width="800" ThemeMode="System"
-        SizeChanged="Window_SizeChanged">
+        SizeChanged="Window_SizeChanged" WindowState="Maximized"
+        Keyboard.KeyDown="canvas_KeyDown">
     <Window.Resources>
         <system:String x:Key="openString">Open File...</system:String>
         <system:String x:Key="fileString">File:</system:String>

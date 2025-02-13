@@ -37,11 +37,14 @@ namespace GraphicsLib
             if (obj == null)
                 return;
             ResizeBuffer(obj);
-            //Преобразование в мировое пространство
-            Matrix4x4 worldTransform = obj.transform;
-            //Преобразование в пространство камеры
+            
+            // Преобразование в мировое пространство
+            Matrix4x4 worldTransform = obj.Transformation.Matrix;
+            
+            // Преобразование в пространство камеры
             Matrix4x4 cameraTransform = Camera.ViewMatrix;
-            //Преобразование в пространство проекции
+
+            // Преобразование в пространство проекции
             int width = Bitmap.PixelWidth;
             int height = Bitmap.PixelHeight;
             float aspectRatio = (float)width / height;
@@ -49,31 +52,34 @@ namespace GraphicsLib
             float nearPlaneDistance = 0.1f;
             float farPlaneDistance = 10000f;
             float zCoeff = (float.IsPositiveInfinity(farPlaneDistance) ? -1f : farPlaneDistance / (nearPlaneDistance - farPlaneDistance));
-            Matrix4x4 projectionTransform = new Matrix4x4(1 / MathF.Tan(fovVertical * 0.5f) / aspectRatio, 0, 0, 0,
-                                                 0, 1 / MathF.Tan(fovVertical * 0.5f), 0, 0,
-                                                 0, 0, zCoeff, -1,
-                                                 0, 0, zCoeff * nearPlaneDistance, 0);
-            //Matrix4x4 projection = Matrix4x4.CreatePerspectiveFieldOfView(fovVertical, aspectRatio, nearPlaneDistance, farPlaneDistance);
-            //Преобразование в пространство окна
+            Matrix4x4 projectionTransform = new Matrix4x4(
+                1 / MathF.Tan(fovVertical * 0.5f) / aspectRatio, 0, 0, 0,
+                0, 1 / MathF.Tan(fovVertical * 0.5f), 0, 0,
+                0, 0, zCoeff, -1,
+                0, 0, zCoeff * nearPlaneDistance, 0
+            );
+            
+            // Преобразование в пространство окна
             float leftCornerX = 0;
             float leftCornerY = 0;
             Matrix4x4 viewPortTransform = new Matrix4x4((float)width / 2, 0, 0, 0,
                                                0, -(float)height / 2, 0, 0,
                                                0, 0, 1, 0,
                                                leftCornerX + (float)width / 2, leftCornerY + (float)height / 2, 0, 1);
-            //Matrix4x4 viewPort1 = Matrix4x4.CreateViewport(leftCornerX, leftCornerY, width, height, 0, 1);
+            
             Stopwatch sw = Stopwatch.StartNew();
+            
+            // Creating final trasformation matrix
             Matrix4x4 modelToProjection = worldTransform * cameraTransform * projectionTransform;
             for (int i = 0; i < bufferLength; i++)
             {
                 Vector4 v = new(obj.vertices[i], 1);
                 v = Vector4.Transform(v, modelToProjection);
                 projectionSpaceBuffer[i] = v;
-                //v = Vector4.Transform(v, viewPortTransform);
-                //v *= (1 / v.W);
-                //projectionBuffer[i] = v;
             }
             sw.Stop();
+
+            // Drawing
             Stopwatch stopwatch = Stopwatch.StartNew();
             List<Face> faces = obj.faces;
             int facesCount = faces.Count;
@@ -119,12 +125,9 @@ namespace GraphicsLib
                     v0 *= (1 / v0.W);
                     v1 = Vector4.Transform(v1, viewPortTransform);
                     v1 *= (1 / v1.W);
-                    /*Bitmap.DrawLine(width, height, new System.Drawing.Point((int)projectionBuffer[p1].X, (int)projectionBuffer[p1].Y),
-                            new System.Drawing.Point((int)projectionBuffer[p2].X, (int)projectionBuffer[p2].Y), 0xFFFFFFFF);*/
+
                     Bitmap.DrawLine(width, height, (int)v0.X, (int)v0.Y,
                        (int)v1.X, (int)v1.Y, color);
-                    /*Bitmap.DrawLine(width, height, (int)projectionBuffer[p0].X, (int)projectionBuffer[p0].Y,
-                       (int)projectionBuffer[p1].X, (int)projectionBuffer[p1].Y, 0xFFFFFFFF);*/
                 }
             }
             stopwatch.Stop();
