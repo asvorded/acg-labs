@@ -13,24 +13,34 @@
         <system:String x:Key="openString">Open File...</system:String>
         <system:String x:Key="fileString">File:</system:String>
         <system:String x:Key="debugString">Debug Info</system:String>
+
+        <system:String x:Key="mode_move">Move</system:String>
+        <system:String x:Key="mode_rotate">Rotate</system:String>
     </Window.Resources>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="40"/>
             <RowDefinition/>
         </Grid.RowDefinitions>
-        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-            <Button Width="100" Height="30" Margin="15,0,15,0" HorizontalAlignment="Left"
+        <DockPanel>
+            <StackPanel Orientation="Horizontal">
+                <Button Width="100" Height="30" Margin="15,0,15,0" HorizontalAlignment="Left"
                     Click="ButtonOpenFile_Click" Content="{StaticResource openString}" />
-            <TextBlock x:Name="DebugPanel" Text="{StaticResource debugString}" 
+                <TextBlock x:Name="DebugPanel" Text="{StaticResource debugString}" 
                        VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,0,10,0" 
                         />
-            <TextBlock x:Name="fileName" VerticalAlignment="Center" Text="{StaticResource fileString}"/>
-            
-        </StackPanel>
+                <TextBlock x:Name="fileName" VerticalAlignment="Center" Text="{StaticResource fileString}"/>
+            </StackPanel>
+            <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+                <TextBlock Margin="0,0,20,0" Text="Edit mode:" VerticalAlignment="Center"/>
+                <RadioButton GroupName="TransformMode" Content="Move" IsChecked="True"
+                             Checked="RadioButton_Checked"/>
+                <RadioButton GroupName="TransformMode" Content="Rotate"
+                             Checked="RadioButton_Checked"/>
+            </StackPanel>
+        </DockPanel>
         <Border x:Name="canvas" Grid.Row="1" Margin="10" Background="Black"
-                Mouse.GotMouseCapture="canvas_GotMouseCapture" Mouse.LostMouseCapture="canvas_LostMouseCapture"
-                MouseDown="Window_MouseDown" MouseUp="Window_MouseUp" MouseMove="Window_MouseMove" PreviewMouseWheel="Window_MouseWheel">
-        </Border>
+                    MouseDown="Window_MouseDown" MouseUp="Window_MouseUp" MouseMove="Window_MouseMove"
+                    PreviewMouseWheel="Window_MouseWheel"/>
     </Grid>
 </Window>

@@ -126,8 +126,14 @@ namespace Lab1
 
         private void canvas_LostMouseCapture(object sender, MouseEventArgs e) { }
 
+        private string mode = "Move";
+
+        private void RadioButton_Checked(object sender, RoutedEventArgs e) {
+            mode = ((RadioButton)sender).Content.ToString()!;
+        }
+
         private static float speed = 0.5f;
-        private Dictionary<Key, Action> keyActions = new() {
+        private Dictionary<Key, Action> moveActions = new() {
             {
                 Key.Left, () => { obj!.Transformation.Offset.X += speed; } 
             },
@@ -150,10 +156,60 @@ namespace Lab1
                         obj!.Transformation.Offset.Y -= speed;
                 }
             },
+            {
+                Key.OemPlus, MakeLarger
+            },
+            {
+                Key.OemMinus, MakeSmaller
+            }
         };
 
+        private Dictionary<Key, Action> rotateActions = new() {
+            {
+                Key.Up, () => { obj!.Transformation.AngleX += speed; }
+            },
+            {
+                Key.Down, () => { obj!.Transformation.AngleX -= speed; }
+            },
+            {
+                Key.Left, () => {
+                    if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
+                        obj!.Transformation.AngleY += speed;
+                    else
+                        obj!.Transformation.AngleZ += speed;
+                }
+            },
+            {
+                Key.Right, () => {
+                    if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
+                        obj!.Transformation.AngleY -= speed;
+                    else
+                        obj!.Transformation.AngleZ -= speed;
+                }
+            },
+            {
+                Key.OemPlus, MakeLarger
+            },
+            {
+                Key.OemMinus, MakeSmaller
+            }
+        };
+
+        private static void MakeLarger() {
+            obj!.Transformation.Scale += speed;
+        }
+
+        private static void MakeSmaller() {
+            obj!.Transformation.Scale -= speed / 5.0f;
+        }
+
         private void canvas_KeyDown(object sender, KeyEventArgs e) {
-            if (keyActions.TryGetValue(e.Key, out Action? action)) {
+            Dictionary<Key, Action> handlers = moveActions;
+            if (mode == "Rotate") {
+                handlers = rotateActions;
+            }
+
+            if (handlers.TryGetValue(e.Key, out Action? action)) {
                 speed = (Keyboard.Modifiers & ModifierKeys.Control) != 0 ? 1f : 0.25f;
                 action();
                 Draw();
