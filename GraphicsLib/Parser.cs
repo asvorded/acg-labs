@@ -226,7 +226,7 @@ namespace GraphicsLib
                     Vector3 translation = new((Single)node.translation[0],
                                            (Single)(node.translation[1]),
                                             (Single)(node.translation[2]));
-                    transform = Matrix4x4.CreateTranslation(translation);
+                    transform *= Matrix4x4.CreateTranslation(translation);
                 }
                 Matrix4x4 finalTransform = transform * parentTransform;
                 if (node.children != null)
