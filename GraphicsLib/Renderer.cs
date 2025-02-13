@@ -69,9 +69,6 @@ namespace GraphicsLib
                 Vector4 v = new(obj.vertices[i], 1);
                 v = Vector4.Transform(v, modelToProjection);
                 projectionSpaceBuffer[i] = v;
-                //v = Vector4.Transform(v, viewPortTransform);
-                //v *= (1 / v.W);
-                //projectionBuffer[i] = v;
             }
             sw.Stop();
             Stopwatch stopwatch = Stopwatch.StartNew();
@@ -119,12 +116,8 @@ namespace GraphicsLib
                     v0 *= (1 / v0.W);
                     v1 = Vector4.Transform(v1, viewPortTransform);
                     v1 *= (1 / v1.W);
-                    /*Bitmap.DrawLine(width, height, new System.Drawing.Point((int)projectionBuffer[p1].X, (int)projectionBuffer[p1].Y),
-                            new System.Drawing.Point((int)projectionBuffer[p2].X, (int)projectionBuffer[p2].Y), 0xFFFFFFFF);*/
                     Bitmap.DrawLine(width, height, (int)v0.X, (int)v0.Y,
                        (int)v1.X, (int)v1.Y, color);
-                    /*Bitmap.DrawLine(width, height, (int)projectionBuffer[p0].X, (int)projectionBuffer[p0].Y,
-                       (int)projectionBuffer[p1].X, (int)projectionBuffer[p1].Y, 0xFFFFFFFF);*/
                 }
             }
             stopwatch.Stop();
