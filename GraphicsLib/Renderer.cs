@@ -46,8 +46,8 @@ namespace GraphicsLib
             int height = Bitmap.PixelHeight;
             float aspectRatio = (float)width / height;
             float fovVertical = MathF.PI / 3 / aspectRatio;
-            float nearPlaneDistance = 0.1f;
-            float farPlaneDistance = 10000f;
+            float nearPlaneDistance = 1f;
+            float farPlaneDistance = float.PositiveInfinity;
             float zCoeff = (float.IsPositiveInfinity(farPlaneDistance) ? -1f : farPlaneDistance / (nearPlaneDistance - farPlaneDistance));
             Matrix4x4 projectionTransform = new Matrix4x4(1 / MathF.Tan(fovVertical * 0.5f) / aspectRatio, 0, 0, 0,
                                                  0, 1 / MathF.Tan(fovVertical * 0.5f), 0, 0,

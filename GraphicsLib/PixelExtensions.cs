@@ -1,10 +1,5 @@
-﻿using System.Diagnostics;
-using System.Runtime.CompilerServices;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Media;
+﻿using System.Windows;
 using System.Windows.Media.Imaging;
-using System.Windows.Media.Media3D;
 
 namespace Lab1
 {
@@ -37,6 +32,14 @@ namespace Lab1
                 ptr[y * bitmap.PixelWidth + x] = argb;
             }
         }
+        public static unsafe void SetPixelLockedNoDirty(this WriteableBitmap bitmap, int width, int x, int y, uint argb)
+        {
+            unsafe
+            {
+                uint* ptr = (uint*)bitmap.BackBuffer;
+                ptr[y * width + x] = argb;
+            }
+        }
 
         public static void EndLock(this WriteableBitmap bitmap)
         {
@@ -50,6 +53,7 @@ namespace Lab1
             bitmap.WritePixels(defaultRect, BitConverter.GetBytes(color), 4, 0);
         }
 
+        [Obsolete("Use function with explicit x and y parameters")]
         public static void DrawLine(this WriteableBitmap bitmap, int width, int height, System.Drawing.Point start, System.Drawing.Point finish, uint color)
         {
             if (bitmap == null)
@@ -111,16 +115,16 @@ namespace Lab1
         const int TOP = 8;
         static int ComputeOutCode(int x, int y, int xmax, int ymax)
         {
-   
+
             int code = INSIDE;
 
-            if (x < 0)       
+            if (x < 0)
                 code |= LEFT;
-            else if (x > xmax)  
+            else if (x > xmax)
                 code |= RIGHT;
-            if (y < 0)       
+            if (y < 0)
                 code |= BOTTOM;
-            else if (y > ymax)  
+            else if (y > ymax)
                 code |= TOP;
 
             return code;
@@ -196,7 +200,7 @@ namespace Lab1
                 int y = y0;
                 for (int x = x0; x < x1; x++)
                 {
-                        bitmap.SetPixelLockedNoDirty(x, y, color);
+                    bitmap.SetPixelLockedNoDirty(bitmapWidth, x, y, color);
                     error += deltaerr;
                     if (error > dx + 1)
                     {
@@ -218,7 +222,7 @@ namespace Lab1
                 int x = x0;
                 for (int y = y0; y < y1; y++)
                 {
-                        bitmap.SetPixelLockedNoDirty(x, y, color);
+                    bitmap.SetPixelLockedNoDirty(bitmapWidth, x, y, color);
                     error += deltaerr;
                     if (error > dy + 1)
                     {
