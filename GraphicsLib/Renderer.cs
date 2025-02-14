@@ -12,25 +12,22 @@ namespace GraphicsLib
         public WriteableBitmap? Bitmap { get; set; }
         private Vector4[] projectionSpaceBuffer;
         private int bufferLength;
-        private Vector4[] projectionBuffer;
 
         public Renderer(Camera camera)
         {
             Camera = camera;
             projectionSpaceBuffer = [];
             bufferLength = 0;
-            projectionBuffer = [];
             Bitmap = default;
         }
         private void ResizeBuffer(Obj obj)
         {
             int vertexCount = obj.vertices.Count;
-            if (bufferLength < vertexCount)
+            if (projectionSpaceBuffer.Length < vertexCount)
             {
-                bufferLength = vertexCount;
-                projectionSpaceBuffer = new Vector4[bufferLength];
-                projectionBuffer = new Vector4[bufferLength];
+                projectionSpaceBuffer = new Vector4[vertexCount];
             }
+            bufferLength = vertexCount;
         }
         public void RenderCarcass(Obj obj)
         {
@@ -51,7 +48,7 @@ namespace GraphicsLib
             int height = Bitmap.PixelHeight;
             float aspectRatio = (float)width / height;
             float fovVertical = MathF.PI / 3 / aspectRatio;
-            float nearPlaneDistance = 1f;
+            float nearPlaneDistance = 0.01f;
             float farPlaneDistance = float.PositiveInfinity;
             float zCoeff = (float.IsPositiveInfinity(farPlaneDistance) ? -1f : farPlaneDistance / (nearPlaneDistance - farPlaneDistance));
             Matrix4x4 projectionTransform = new Matrix4x4(
@@ -60,14 +57,16 @@ namespace GraphicsLib
                 0, 0, zCoeff, -1,
                 0, 0, zCoeff * nearPlaneDistance, 0
             );
+            Matrix4x4.CreatePerspectiveFieldOfView(fovVertical, aspectRatio, nearPlaneDistance, farPlaneDistance);
             
             // Преобразование в пространство окна
             float leftCornerX = 0;
             float leftCornerY = 0;
-            Matrix4x4 viewPortTransform = new Matrix4x4((float)width / 2, 0, 0, 0,
-                                               0, -(float)height / 2, 0, 0,
-                                               0, 0, 1, 0,
-                                               leftCornerX + (float)width / 2, leftCornerY + (float)height / 2, 0, 1);
+            Matrix4x4 viewPortTransform = new Matrix4x4(
+                (float)width / 2, 0, 0, 0,
+                0, -(float)height / 2, 0, 0,
+                0, 0, 1, 0,
+                leftCornerX + (float)width / 2, leftCornerY + (float)height / 2, 0, 1);
             
             Stopwatch sw = Stopwatch.StartNew();
             
@@ -110,24 +109,35 @@ namespace GraphicsLib
                     uint color = 0xFFFFFFFF;
                     if (v0.Z < 0)
                     {
+/*                        float coeff = (-v0.Z) / (v1.Z - v0.Z);
+                        v0 = Vector4.Transform(obj.vertices[p0], worldTransform * cameraTransform);
+                        v1 = Vector4.Transform(obj.vertices[p1], worldTransform * cameraTransform);
+                        v0 = Vector4.Lerp(v0, v1, coeff);
+                        v0 = Vector4.Transform(v0, projectionTransform);
+                        v1 = Vector4.Transform(v1, projectionTransform);*/
                         InterpolateV0(ref v0, ref v1);
                         color = 0xFF0000FF;
                     }
                     else if(v1.Z < 0)
                     {
+/*                        float coeff = (-v1.Z) / (v0.Z - v1.Z);
+                        v0 = Vector4.Transform(obj.vertices[p0], worldTransform * cameraTransform);
+                        v1 = Vector4.Transform(obj.vertices[p1], worldTransform * cameraTransform);
+                        v1 = Vector4.Lerp(v1, v0, coeff);
+                        v0 = Vector4.Transform(v0, projectionTransform);
+                        v1 = Vector4.Transform(v1, projectionTransform);*/
                         InterpolateV0(ref v1, ref v0);
                         color = 0xFF0000FF;
                     }
-                    void InterpolateV0(ref Vector4 v0,ref Vector4 v1)
+                    static void InterpolateV0(ref Vector4 v0,ref Vector4 v1)
                     {
                         float coeff = (-v0.Z) / (v1.Z - v0.Z);
                         v0 = Vector4.Lerp(v0, v1, coeff);
                     }
                     v0 = Vector4.Transform(v0, viewPortTransform);
-                    v0 *= (1 / v0.W);
+                    v0 *= (1 / v0.W);        
                     v1 = Vector4.Transform(v1, viewPortTransform);
                     v1 *= (1 / v1.W);
-
                     Bitmap.DrawLine(width, height, (int)v0.X, (int)v0.Y,
                        (int)v1.X, (int)v1.Y, color);
                 }

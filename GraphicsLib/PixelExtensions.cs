@@ -141,7 +141,7 @@ namespace Lab1
                 {
                     break;
                 }
-                color = 0xFFFF0000;
+                //color = 0xFFFF0000;
                 if ((outcode0 & outcode1) != 0)
                 {
                     return;
@@ -151,22 +151,22 @@ namespace Lab1
                 int y;
                 if ((outcodeOut & TOP) != 0)
                 {
-                    x = x0 + (x1 - x0) * (ymax - y0) / (y1 - y0);
+                    x = (int)(x0 + (long)(x1 - x0) * (ymax - y0) / (y1 - y0));
                     y = ymax;
                 }
                 else if ((outcodeOut & BOTTOM) != 0)
                 {
-                    x = x0 + (x1 - x0) * (0 - y0) / (y1 - y0);
+                    x = (int)(x0 + (long)(x1 - x0) * (0 - y0) / (y1 - y0));
                     y = 0;
                 }
                 else if ((outcodeOut & RIGHT) != 0)
                 {
-                    y = y0 + (y1 - y0) * (xmax - x0) / (x1 - x0);
+                    y = (int)(y0 + (long)(y1 - y0) * (xmax - x0) / (x1 - x0));
                     x = xmax;
                 }
                 else
                 {
-                    y = y0 + (y1 - y0) * (0 - x0) / (x1 - x0);
+                    y = (int)(y0 + (long)(y1 - y0) * (0 - x0) / (x1 - x0));
                     x = 0;
                 }
                 if (outcodeOut == outcode0)
