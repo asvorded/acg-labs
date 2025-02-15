@@ -45,13 +45,13 @@ namespace GraphicsLib
                     case "v":
                         {
                             Vector3 newVertex;
-                            newVertex.X = Single.Parse(parts[1], NumberStyles.Any, CultureInfo.InvariantCulture);
-                            newVertex.Y = Single.Parse(parts[2], NumberStyles.Any, CultureInfo.InvariantCulture);
-                            newVertex.Z = Single.Parse(parts[3], NumberStyles.Any, CultureInfo.InvariantCulture);
+                            newVertex.X = Single.Parse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture);
+                            newVertex.Y = Single.Parse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture);
+                            newVertex.Z = Single.Parse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture);
                             if (parts.Length == 5)
                             {
                                 //Нормализуем
-                                Single w = Single.Parse(parts[4], NumberStyles.Any, CultureInfo.InvariantCulture);
+                                Single w = Single.Parse(parts[4], NumberStyles.Float, CultureInfo.InvariantCulture);
                                 newVertex /= w;
                             }
                             obj.vertices.Add(newVertex);
@@ -60,9 +60,9 @@ namespace GraphicsLib
                     case "vn":
                         {
                             Vector3 newNormal;
-                            newNormal.X = Single.Parse(parts[1], NumberStyles.Any, CultureInfo.InvariantCulture);
-                            newNormal.Y = Single.Parse(parts[2], NumberStyles.Any, CultureInfo.InvariantCulture);
-                            newNormal.Z = Single.Parse(parts[3], NumberStyles.Any, CultureInfo.InvariantCulture);
+                            newNormal.X = Single.Parse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture);
+                            newNormal.Y = Single.Parse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture);
+                            newNormal.Z = Single.Parse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture);
                             //нормаль может быть не нормализована. нормализуем
                             newNormal = Vector3.Normalize(newNormal);
                             obj.normals.Add(newNormal);
@@ -80,14 +80,14 @@ namespace GraphicsLib
                             for (int i = 1; i < parts.Length; i++)
                             {
                                 faceParts = parts[i].Split('/');
-                                vertices[i - 1] = int.Parse(faceParts[0], NumberStyles.Any, CultureInfo.InvariantCulture) - 1;
+                                vertices[i - 1] = int.Parse(faceParts[0], NumberStyles.Integer, CultureInfo.InvariantCulture) - 1;
                                 if (textures != null)
                                 {
-                                    textures[i - 1] = int.Parse(faceParts[1], NumberStyles.Any, CultureInfo.InvariantCulture) - 1;
+                                    textures[i - 1] = int.Parse(faceParts[1], NumberStyles.Integer, CultureInfo.InvariantCulture) - 1;
                                 }
                                 if (normals != null)
                                 {
-                                    normals[i - 1] = int.Parse(faceParts[2], NumberStyles.Any, CultureInfo.InvariantCulture) - 1;
+                                    normals[i - 1] = int.Parse(faceParts[2], NumberStyles.Integer, CultureInfo.InvariantCulture) - 1;
                                 }
                             }
                             Face newFace = new(vertices, textures, normals);
