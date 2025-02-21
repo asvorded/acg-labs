@@ -182,56 +182,63 @@ namespace Lab1
                     outcode1 = ComputeOutCode(x1, y1, xmax, ymax);
                 }
             }
-
-            int dx = (x1 > x0) ? (x1 - x0) : (x0 - x1);
-            int dy = (y1 > y0) ? (y1 - y0) : (y0 - y1);
-            int gradX = (x1 >= x0) ? 1 : -1;
-            int gradY = (y1 >= y0) ? 1 : -1;
-            if (dy < dx)
+            unsafe
             {
-                if (x1 < x0)
+                uint* ptr = (uint*)bitmap.BackBuffer;
+                
+                int dx = (x1 > x0) ? (x1 - x0) : (x0 - x1);
+                int dy = (y1 > y0) ? (y1 - y0) : (y0 - y1);
+                int gradX = (x1 >= x0) ? 1 : -1;
+                int gradY = (y1 >= y0) ? 1 : -1;
+                if (dy < dx)
                 {
-                    (x0, x1) = (x1, x0);
-                    (y0, y1) = (y1, y0);
-                    gradY = -gradY;
-                }
-
-                int error = 0;
-                int deltaerr = dy + 1;
-                int y = y0;
-                for (int x = x0; x < x1; x++)
-                {
-                    bitmap.SetPixelLockedNoDirty(bitmapWidth, x, y, color);
-                    error += deltaerr;
-                    if (error > dx + 1)
+                    if (x1 < x0)
                     {
-                        y += gradY;
-                        error -= dx + 1;
+                        (x0, x1) = (x1, x0);
+                        (y0, y1) = (y1, y0);
+                        gradY = -gradY;
+                    }
+
+                    int error = 0;
+                    int deltaerr = dy + 1;
+                    int y = y0;
+                    for (int x = x0; x < x1; x++)
+                    {
+                        ptr[y * bitmapWidth + x] = color;
+                        //bitmap.SetPixelLockedNoDirty(bitmapWidth, x, y, color);
+                        error += deltaerr;
+                        if (error > dx + 1)
+                        {
+                            y += gradY;
+                            error -= dx + 1;
+                        }
                     }
                 }
-            }
-            else
-            {
-                if (y1 < y0)
+                else
                 {
-                    (x0, x1) = (x1, x0);
-                    (y0, y1) = (y1, y0);
-                    gradX = -gradX;
-                }
-                int error = 0;
-                int deltaerr = dx + 1;
-                int x = x0;
-                for (int y = y0; y < y1; y++)
-                {
-                    bitmap.SetPixelLockedNoDirty(bitmapWidth, x, y, color);
-                    error += deltaerr;
-                    if (error > dy + 1)
+                    if (y1 < y0)
                     {
-                        x += gradX;
-                        error -= dy + 1;
+                        (x0, x1) = (x1, x0);
+                        (y0, y1) = (y1, y0);
+                        gradX = -gradX;
+                    }
+                    int error = 0;
+                    int deltaerr = dx + 1;
+                    int x = x0;
+                    for (int y = y0; y < y1; y++)
+                    {
+                        ptr[y * bitmapWidth + x] = color;
+                        //bitmap.SetPixelLockedNoDirty(bitmapWidth, x, y, color);
+                        error += deltaerr;
+                        if (error > dy + 1)
+                        {
+                            x += gradX;
+                            error -= dy + 1;
+                        }
                     }
                 }
             }
         }
+        
     }
 }

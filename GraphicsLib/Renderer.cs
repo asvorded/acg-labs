@@ -109,23 +109,11 @@ namespace GraphicsLib
                     uint color = 0xFFFFFFFF;
                     if (v0.Z < 0)
                     {
-/*                        float coeff = (-v0.Z) / (v1.Z - v0.Z);
-                        v0 = Vector4.Transform(obj.vertices[p0], worldTransform * cameraTransform);
-                        v1 = Vector4.Transform(obj.vertices[p1], worldTransform * cameraTransform);
-                        v0 = Vector4.Lerp(v0, v1, coeff);
-                        v0 = Vector4.Transform(v0, projectionTransform);
-                        v1 = Vector4.Transform(v1, projectionTransform);*/
                         InterpolateV0(ref v0, ref v1);
                         color = 0xFF0000FF;
                     }
                     else if(v1.Z < 0)
                     {
-/*                        float coeff = (-v1.Z) / (v0.Z - v1.Z);
-                        v0 = Vector4.Transform(obj.vertices[p0], worldTransform * cameraTransform);
-                        v1 = Vector4.Transform(obj.vertices[p1], worldTransform * cameraTransform);
-                        v1 = Vector4.Lerp(v1, v0, coeff);
-                        v0 = Vector4.Transform(v0, projectionTransform);
-                        v1 = Vector4.Transform(v1, projectionTransform);*/
                         InterpolateV0(ref v1, ref v0);
                         color = 0xFF0000FF;
                     }
