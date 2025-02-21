@@ -6,33 +6,23 @@ using System.Buffers.Text;
 using System.Globalization;
 using System.IO;
 using System.Numerics;
+using System.Security.Cryptography;
 using System.Text;
 namespace GraphicsLib
 {
     public static class Parser
     {
 
-        /*static readonly int GL_ARRAY_BUFFER = 34962;
-        static readonly int GL_ELEMENT_ARRAY_BUFFER = 34963;
-        static readonly int GL_TRIANGLES = 4;
-        static readonly int GL_TRIANGLE_STRIP = 5;
-        static readonly int GL_TRIANGLE_FAN = 6;
-        static readonly string GL_VEC3_TYPE = "VEC3";
-        static readonly string GL_SCALAR_TYPE = "SCALAR";
-        static readonly int GL_VEC3_SIZE = sizeof(Single) * 3;
-        static readonly int GL_UNSIGNED_SHORT = 5123;
-        static readonly int GL_INT = 5124;
-        static readonly int GL_UNSIGNED_INT = 5125;
-        static readonly int GL_FLOAT = 5126;*/
         /// <summary>
         /// Загружает модель из текста формата Wavefront Obj
         /// </summary>
         /// <param name="source">Входной текст</param>
         /// <returns>Модель</returns>
-        public static Obj ParseObjFile(Stream source)
+        public static Obj ParseObjFile(string filePath)
         {
             Obj obj = new();
-            using StreamReader sr = new(source);
+            using FileStream fileStream = new(filePath, FileMode.Open);
+            using StreamReader sr = new(fileStream);
             while (!sr.EndOfStream)
             {
                 string? line = sr.ReadLine();
@@ -113,108 +103,48 @@ namespace GraphicsLib
             }
             return obj;
         }
-        public static byte[] GetBufferData(String uri, String sourceFileDirectory)
-        {
-            const String octetStreamMime = "data:application/octet-stream;";
-            const String base64EncodingText = "base64,";
-            if (Path.Exists(String.Join(Path.DirectorySeparatorChar, sourceFileDirectory, uri)))
-            {
-                return File.ReadAllBytes(String.Join(Path.DirectorySeparatorChar, sourceFileDirectory, uri));
-            }
-            if (uri.StartsWith(octetStreamMime, StringComparison.InvariantCulture))
-            {
-                int dataIndex = octetStreamMime.Length;
-                if (uri.IndexOf(base64EncodingText, dataIndex, base64EncodingText.Length) != -1)
-                {
-                    byte[] bytes = new byte[uri.Length * sizeof(char)];
-                    int bytesConsumed = 0;
-                    int bytesWritten = 0;
-                    Base64.DecodeFromUtf8(UTF8Encoding.UTF8.GetBytes(uri.Substring(dataIndex + base64EncodingText.Length)),
-                                            bytes, out bytesConsumed, out bytesWritten);
-                    byte[] result = new byte[bytesWritten];
-                    for (int i = 0; i < bytesWritten; i++)
-                    {
-                        result[i] = bytes[i];
-                    }
-                    return result;
-                }
-            }
-            throw new Exception("failed to retreive data");
-        }
-        public static Obj ParseGltfFile(Stream source, string sourceFileDirectory)
+        public static Obj ParseGltfFile(string filePath)
         {
             Obj obj = new();
-            using StreamReader sr = new(source);
+            using FileStream fileStream = new(filePath, FileMode.Open);
+            using StreamReader sr = new(fileStream);
             string data = sr.ReadToEnd();
-            GltfRoot gltfRoot = JsonConvert.DeserializeObject<GltfRoot>(data, GltfSerializerSettings.Settings)
+            string sourceDirectory = Path.GetDirectoryName(filePath)!;
+            GltfRoot gltfRoot = JsonConvert.DeserializeObject<GltfRoot>(data, GltfSerializerSettings.GetSettings(sourceDirectory))
                 ?? throw new FormatException("invalid json gltf");
-            Dictionary<int, Matrix4x4> parentTransforms = [];
-            int nodeIndex = 0;
-            /*foreach if (gltfRoot.Nodes != null)
-                  (var node in gltfRoot.Nodes)
-                 {
-                     Matrix4x4 parentTransform = default;
-                     if (!parentTransforms.TryGetValue(nodeIndex, out parentTransform))
-                     {
-                         parentTransform = Matrix4x4.Identity;
-                     }
-                     Matrix4x4 transform = Matrix4x4.Identity;
-                     if (node.Matrix.HasValue)
-                     {
-                         transform = node.Matrix.Value;
-                     }
-                     if (node.Scale.HasValue)
-                     {
-                         Vector3 scale = node.Scale.Value;
-                         transform *= Matrix4x4.CreateScale(scale);
-                     }
-                     if (node.Rotation.HasValue)
-                     {
-                         Quaternion rotation = node.Rotation.Value;
-                         transform *= Matrix4x4.CreateFromQuaternion(rotation);
-                     }
-                     if (node.Translation.HasValue)
-                     {
-                         Vector3 translation = node.Translation.Value;
-                         transform *= Matrix4x4.CreateTranslation(translation);
-                     }
-                     Matrix4x4 finalTransform = transform * parentTransform;
-                     if (node.Children != null)
-                     {
-                         foreach (var child in node.Children)
-                         {
-                             parentTransforms.Add((int)child, finalTransform);
-                         }
-                     }
-                     if (node.Mesh.HasValue)
-                     {
-                         var mesh = gltfRoot.Meshes![node.Mesh.Value];
-                         foreach (var primitive in mesh.Primitives)
-                         {
-                             var attributes = primitive.Attributes;
-                             int vIndexOffset = obj.vertices.Count;
-                             if (attributes.ContainsKey("POSITION"))
-                             {
-                                 var accessor = gltfRoot.Accessors![attributes["POSITION"]];
-                                 AddVectors(finalTransform, obj.vertices, accessor);
-                             }
-                             if (primitive.attributes.NORMAL != null)
-                             {
-                                 var accessor = accessors[(int)primitive.attributes.NORMAL];
-                                 AddVectors(finalTransform, obj.normals, accessor);
-                             }
-                             int mode = primitive.mode ?? GL_TRIANGLES;
-                             if (mode == GL_TRIANGLES || mode == GL_TRIANGLE_STRIP || mode == GL_TRIANGLE_FAN)
-                             {
-                                 var accessor = accessors[(int)primitive.indices];
-                                 AddFaces(obj.faces, accessor, mode, vIndexOffset);
-                                 continue;
-                             }
-                             throw new NotImplementedException($"wtf is this primitive: {mode}");
-                         }
-                     }
-                     nodeIndex++;
-                 }*/
+            if (gltfRoot.Nodes != null)
+                foreach (var node in gltfRoot.Nodes)
+                {
+                    Matrix4x4 transform = node.GlobalTransform;
+                    if (node.Mesh.HasValue)
+                    {
+                        var mesh = gltfRoot.Meshes![node.Mesh.Value];
+                        foreach (var primitive in mesh.Primitives)
+                        {
+                            var mode = primitive.Mode;
+                            var attributes = primitive.Attributes;
+                            int vIndexOffset = obj.vertices.Count;
+                            /*if (attributes.ContainsKey("POSITION"))
+                            {
+                                var accessor = gltfRoot.Accessors![attributes["POSITION"]];
+                                AddVectors(finalTransform, obj.vertices, accessor);
+                            }
+                            if (primitive.attributes.NORMAL != null)
+                            {
+                                var accessor = accessors[(int)primitive.attributes.NORMAL];
+                                AddVectors(finalTransform, obj.normals, accessor);
+                            }
+                            int mode = primitive.mode ?? GL_TRIANGLES;
+                            if (mode == GL_TRIANGLES || mode == GL_TRIANGLE_STRIP || mode == GL_TRIANGLE_FAN)
+                            {
+                                var accessor = accessors[(int)primitive.indices];
+                                AddFaces(obj.faces, accessor, mode, vIndexOffset);
+                                continue;
+                            }*/
+                            //throw new NotImplementedException($"wtf is this primitive: {mode}");
+                        }
+                    }
+                }
 
             return obj;
         }

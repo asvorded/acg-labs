@@ -28,6 +28,9 @@ namespace GraphicsLib.Types.GltfTypes
         public Dictionary<string, object>? Extensions { get; set; }
         [JsonProperty("extras")]
         public object? Extras { get; set; }
+
+        [JsonIgnore]
+        public GltfBufferView? BufferViewObject { get; set; }
     }
 
     public class GltfSparse

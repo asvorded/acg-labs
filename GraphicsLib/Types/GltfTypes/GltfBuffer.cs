@@ -1,4 +1,6 @@
 ﻿using Newtonsoft.Json;
+using System.Buffers;
+using System.Buffers.Text;
 using System.Configuration;
 using System.IO;
 
@@ -8,7 +10,7 @@ namespace GraphicsLib.Types.GltfTypes
     {
 
         [JsonProperty("uri")]
-        public Uri? Uri { get; set; }
+        public string? UriString { get; set; }
         [JsonProperty("byteLength")]
         public required int ByteLength { get; set; }
         [JsonProperty("name")]
@@ -17,32 +19,45 @@ namespace GraphicsLib.Types.GltfTypes
         public Dictionary<string, object>? Extensions { get; set; }
         [JsonProperty("extras")]
         public object? Extras { get; set; }
+        [JsonIgnore]
 
         private byte[]? _data;
+        [JsonIgnore]
+        public string? SourceDirectory { get; set; }
         public byte[] Data
         {
             get
             {
                 if (_data == null)
                 {
-                    if (Uri == null)
+                    if (UriString == null)
                     {
-                        throw new ConfigurationErrorsException("Uri is null");
+                        throw new ConfigurationErrorsException("Uri is null and Data is null");
                     }
-                    string dataType = Uri.GetComponents(UriComponents.Path | UriComponents.Query, UriFormat.UriEscaped);
-                    string data = Uri.GetComponents(UriComponents.Fragment, UriFormat.UriEscaped);
-                    if (dataType.StartsWith("data:application/octet-stream;base64,"))
+                    if (UriString.StartsWith("data:application/octet-stream;base64,"))
                     {
-                        string base64Data = data.Substring("data:application/octet-stream;base64,".Length);
-                        _data = Convert.FromBase64String(base64Data);
+                        int offset = "data:application/octet-stream;base64,".Length;
+                        int length = UriString.Length - offset;
+
+                        // Allocate a buffer for the decoded data
+                        _data = new byte[Base64.GetMaxDecodedFromUtf8Length(length)];
+
+                        // Decode directly from the substring
+                        if (!Convert.TryFromBase64Chars(UriString.AsSpan(offset, length), _data, out _))
+                        {
+                            throw new FormatException("Invalid base64 string");
+                        }
                     }
                     else
                     {
-                        File.ReadAllBytes(Uri.AbsolutePath);
+                        if (SourceDirectory == null)
+                            throw new ConfigurationErrorsException("SourceDirectory for buffer is null. Check serializer settings.");
+                        _data = File.ReadAllBytes(Path.Combine(SourceDirectory, UriString));
                     }
                 }
                 return _data;
             }
-        }
+            set => _data = value;
+        }  
     }
 }

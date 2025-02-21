@@ -1,10 +1,5 @@
 ﻿using GraphicsLib.Types.GltfTypes;
 using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GraphicsLib.Types.JsonConverters
 {
@@ -12,10 +7,15 @@ namespace GraphicsLib.Types.JsonConverters
     {
         public override GltfRoot? ReadJson(JsonReader reader, Type objectType, GltfRoot? existingValue, bool hasExistingValue, JsonSerializer serializer)
         {
-            GltfRoot? gltfRoot = serializer.Deserialize<GltfRoot>(reader);
+            JsonSerializerSettings settings = new JsonSerializerSettings
+            {
+                Converters = [.. serializer.Converters.Where(c => c != this)]
+            };
+
+            GltfRoot? gltfRoot = JsonSerializer.CreateDefault(settings).Deserialize<GltfRoot>(reader);
             if (gltfRoot is not null)
             {
-                
+                GltfUtils.PreprocessGltfRoot(gltfRoot);
             }
             return gltfRoot;
         }

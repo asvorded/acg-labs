@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using System.Numerics;
+using System.Xml.Linq;
 
 namespace GraphicsLib.Types.GltfTypes
 {
@@ -29,5 +30,51 @@ namespace GraphicsLib.Types.GltfTypes
         public Dictionary<string, object>? Extensions { get; set; }
         [JsonProperty("extras")]
         public object? Extras { get; set; }
+        [JsonIgnore]
+        public GltfNode? Parent { get; set; }
+        [JsonIgnore]
+        public Matrix4x4 GlobalTransform { get => GetGlobalTransform(); }
+        [JsonIgnore]
+        public Matrix4x4 LocalTransform { get => GetLocalTransform(); }
+
+        private Matrix4x4 GetLocalTransform()
+        {
+            if (Matrix.HasValue)
+            {
+                return Matrix.Value;
+            }
+            else
+            {
+                var transform = Matrix4x4.Identity;
+                if (Scale.HasValue)
+                {
+                    Vector3 scale = Scale.Value;
+                    transform *= Matrix4x4.CreateScale(scale);
+                }
+                if (Rotation.HasValue)
+                {
+                    Quaternion rotation = Rotation.Value;
+                    transform *= Matrix4x4.CreateFromQuaternion(rotation);
+                }
+                if (Translation.HasValue)
+                {
+                    Vector3 translation = Translation.Value;
+                    transform *= Matrix4x4.CreateTranslation(translation);
+                }
+                return transform;
+            }
+        }
+
+        private Matrix4x4 GetGlobalTransform()
+        {
+            if (Parent == null)
+            {
+                return LocalTransform;
+            }
+            else
+            {
+                return LocalTransform * Parent.GlobalTransform;
+            }
+        }
     }
 }
