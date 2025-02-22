@@ -1,10 +1,12 @@
 ﻿using GraphicsLib;
+using GraphicsLib.Primitives;
 using GraphicsLib.Types;
 using Microsoft.Win32;
 using Newtonsoft.Json;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Numerics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -76,6 +78,13 @@ namespace Lab1
             bitmap.Lock();
             if (obj != null) {
                 renderer.RenderCarcass(obj);
+            } else {
+                //bitmap.DrawTriangle((int)bitmap.Width, (int)bitmap.Height,
+                //    new Vector4(476, 384, 0, 0),
+                //    new Vector4(373, 779, 0, 0),
+                //    new Vector4(1502, 748, 0, 0),
+                //    0xFFFFFFFF
+                //);
             }
             bitmap.AddDirtyRect(new Int32Rect(0, 0, bitmap.PixelWidth, bitmap.PixelHeight));
             bitmap.Unlock();

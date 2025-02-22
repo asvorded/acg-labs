@@ -12,7 +12,7 @@ namespace GraphicsLib.Types
         public float Azimuth { get => azimuth; set => SetAzimuth(value); }
         public float Polar { get => polar; set => SetPolar(value); }
         public Vector3 Position { get => GetPosition(); }
-        public float Distance { get => distance; set => distance = value >= 0 ? value : 0; }
+        public float Distance { get => distance; set => distance = value > 0 ? value : 1; }
         public Vector3 Target { get; set; }
         public Matrix4x4 ViewMatrix { get => GetViewMatrix(); }
 

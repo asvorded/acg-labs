@@ -127,17 +127,19 @@ namespace GraphicsLib {
                     v0 *= (1 / v0.W);
                     v1 = Vector4.Transform(v1, viewPortTransform);
                     v1 *= (1 / v1.W);
-                    staticTriangle.Vertices[j] = v1;
+                    staticTriangle.Vertices[j] = v0;
                     Bitmap.DrawLine(width, height, (int)v0.X, (int)v0.Y,
                        (int)v1.X, (int)v1.Y, color);
                 }
                 // Draw triangle
-                Bitmap.DrawTriangle(width, height,
-                    staticTriangle.Vertices[0],
-                    staticTriangle.Vertices[1],
-                    staticTriangle.Vertices[2],
-                    color
-                );
+                if (true) {
+                    Bitmap.DrawTriangle(width, height,
+                        staticTriangle.Vertices[0],
+                        staticTriangle.Vertices[1],
+                        staticTriangle.Vertices[2],
+                        color
+                    );
+                }
             }
             stopwatch.Stop();
         }

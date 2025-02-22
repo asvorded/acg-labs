@@ -27,7 +27,7 @@ namespace GraphicsLib.Primitives {
             if (v1Y == v2Y) {
                 return v2X - v1X;
             }
-            return (v1X - v2X) / (v1Y - v2Y);
+            return (double)(v1X - v2X) / (v1Y - v2Y);
         }
 
         /// <summary>
@@ -93,7 +93,6 @@ namespace GraphicsLib.Primitives {
                     ++y;
                 }
 
-                yMax = Math.Min(yMin, bitmapHeight);
                 while (y <= yMax) {
                     xToMid += kBetweenIncrement;
                     xToMax += kToMaxIncrement;
@@ -107,7 +106,7 @@ namespace GraphicsLib.Primitives {
                     }
 
                     for (int x = (int)x1; x <= x2; ++x) {
-                        if (x >= 0 && x <= bitmapWidth && y >= 0 && y <= bitmapHeight) {
+                        if (x >= 0 && x < bitmapWidth && y >= 0 && y < bitmapHeight) {
                             ptr[y * bitmapWidth + x] = color;
                         }
                     }
