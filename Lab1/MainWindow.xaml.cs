@@ -74,12 +74,9 @@ namespace Lab1
             Stopwatch stopwatch = new();
             stopwatch.Start();
             bitmap.Lock();
-            //for (int i = 0; i < 50; i++)
-            //{
             if (obj != null) {
                 renderer.RenderCarcass(obj);
             }
-            //});
             bitmap.AddDirtyRect(new Int32Rect(0, 0, bitmap.PixelWidth, bitmap.PixelHeight));
             bitmap.Unlock();
             stopwatch.Stop();

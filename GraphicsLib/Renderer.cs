@@ -1,11 +1,10 @@
-﻿using GraphicsLib.Types;
-using Lab1;
+﻿using GraphicsLib.Primitives;
+using GraphicsLib.Types;
 using System.Diagnostics;
 using System.Numerics;
 using System.Windows.Media.Imaging;
 
-namespace GraphicsLib
-{
+namespace GraphicsLib {
     public class Renderer
     {
         public Camera Camera { get; set; }
@@ -84,12 +83,14 @@ namespace GraphicsLib
             Stopwatch stopwatch = Stopwatch.StartNew();
             List<Face> faces = obj.faces;
             int facesCount = faces.Count;
-            for (int i = 0; i < facesCount; i++)
-            {
+            StaticTriangle staticTriangle = new StaticTriangle();
+            uint color = 0xFFFFFFFF;
+
+            for (int i = 0; i < facesCount; i++) {
                 Face face = faces[i];
                 int[] vIndices = face.vIndices;
-                for (int j = 0; j < vIndices.Length; j++)
-                {
+
+                for (int j = 0; j < vIndices.Length; j++) {
                     int p0 = vIndices[j];
                     int p1 = vIndices[(j + 1) % vIndices.Length];
                     Vector4 v0 = projectionSpaceBuffer[p0];
@@ -106,7 +107,7 @@ namespace GraphicsLib
                         continue;
                     if (v0.Z < 0 && v1.Z < 0)
                         continue;
-                    uint color = 0xFFFFFFFF;
+                    
                     if (v0.Z < 0)
                     {
                         InterpolateV0(ref v0, ref v1);
@@ -123,12 +124,20 @@ namespace GraphicsLib
                         v0 = Vector4.Lerp(v0, v1, coeff);
                     }
                     v0 = Vector4.Transform(v0, viewPortTransform);
-                    v0 *= (1 / v0.W);        
+                    v0 *= (1 / v0.W);
                     v1 = Vector4.Transform(v1, viewPortTransform);
                     v1 *= (1 / v1.W);
+                    staticTriangle.Vertices[j] = v1;
                     Bitmap.DrawLine(width, height, (int)v0.X, (int)v0.Y,
                        (int)v1.X, (int)v1.Y, color);
                 }
+                // Draw triangle
+                Bitmap.DrawTriangle(width, height,
+                    staticTriangle.Vertices[0],
+                    staticTriangle.Vertices[1],
+                    staticTriangle.Vertices[2],
+                    color
+                );
             }
             stopwatch.Stop();
         }
