@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 
 namespace GraphicsLib.Types.JsonConverters
 {
@@ -18,7 +19,11 @@ namespace GraphicsLib.Types.JsonConverters
                           new Vector2NullableConverter(),
                           new GltfBufferConverter(sourceDirectory)
             },
-
+            ContractResolver = new DefaultContractResolver {
+                NamingStrategy = new CamelCaseNamingStrategy {
+                    OverrideSpecifiedNames = true
+                }
+            }
         };
     }
 }
