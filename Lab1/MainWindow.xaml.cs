@@ -56,11 +56,10 @@ namespace Lab1
         private void OnFileOpened(object? sender, CancelEventArgs e) {
             fileName.Text = string.Join(' ', Resources["fileString"].ToString(), ofd.FileName);
             try {
-                using FileStream fileStream = new(ofd.FileName, FileMode.Open);
                 if (System.IO.Path.GetExtension(ofd.FileName).Equals(".obj"))
-                    obj = Parser.ParseObjFile(fileStream);
+                    obj = Parser.ParseObjFile(ofd.FileName);
                 else
-                    obj = Parser.ParseGltfFile(fileStream, System.IO.Path.GetDirectoryName(ofd.FileName)!);
+                    obj = Parser.ParseGltfFile(ofd.FileName);
                 obj.Transformation.Reset();
                 Draw();
             } catch (Exception ex) {
