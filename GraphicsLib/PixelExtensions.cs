@@ -197,16 +197,16 @@ namespace Lab1
                 }
 
                 int error = 0;
-                int deltaerr = dy + 1;
+                int deltaerr = dy;
                 int y = y0;
                 for (int x = x0; x < x1; x++)
                 {
                     bitmap.SetPixelLockedNoDirty(bitmapWidth, x, y, color);
                     error += deltaerr;
-                    if (error > dx + 1)
+                    if (error > dx / 2)
                     {
                         y += gradY;
-                        error -= dx + 1;
+                        error -= dx;
                     }
                 }
             }
@@ -219,16 +219,16 @@ namespace Lab1
                     gradX = -gradX;
                 }
                 int error = 0;
-                int deltaerr = dx + 1;
+                int deltaerr = dx;
                 int x = x0;
                 for (int y = y0; y < y1; y++)
                 {
                     bitmap.SetPixelLockedNoDirty(bitmapWidth, x, y, color);
                     error += deltaerr;
-                    if (error > dy + 1)
+                    if (error > dy / 2)
                     {
                         x += gradX;
-                        error -= dy + 1;
+                        error -= dy;
                     }
                 }
             }

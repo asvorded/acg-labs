@@ -6,6 +6,8 @@ using System.IO;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
+using GraphicsLib.Types.Gltf.Mesh;
+
 namespace GraphicsLib
 {
     public static class Parser
@@ -13,9 +15,6 @@ namespace GraphicsLib
 
         static readonly int GL_ARRAY_BUFFER = 34962;
         static readonly int GL_ELEMENT_ARRAY_BUFFER = 34963;
-        static readonly int GL_TRIANGLES = 4;
-        static readonly int GL_TRIANGLE_STRIP = 5;
-        static readonly int GL_TRIANGLE_FAN = 6;
         static readonly string GL_VEC3_TYPE = "VEC3";
         static readonly string GL_SCALAR_TYPE = "SCALAR";
         static readonly int GL_VEC3_SIZE = sizeof(Single) * 3;
@@ -252,8 +251,10 @@ namespace GraphicsLib
                             var accessor = accessors[(int)primitive.attributes.NORMAL];
                             AddVectors(finalTransform, obj.normals, accessor);
                         }
-                        int mode = primitive.mode ?? GL_TRIANGLES;
-                        if (mode == GL_TRIANGLES || mode == GL_TRIANGLE_STRIP || mode == GL_TRIANGLE_FAN)
+                        int mode = primitive.mode ?? PrimitiveModes.TRIANGLES;
+                        if (mode == PrimitiveModes.TRIANGLES || 
+                            mode == PrimitiveModes.TRIANGLE_STRIP || 
+                            mode == PrimitiveModes.TRIANGLE_FAN)
                         {
                             var accessor = accessors[(int)primitive.indices];
                             AddFaces(obj.faces, accessor, mode, vIndexOffset);
@@ -310,7 +311,7 @@ namespace GraphicsLib
             }
             offset += (int)bufferView.byteOffset;
             var buffer = bufferView.buffer;
-            if (mode == GL_TRIANGLES)
+            if (mode == PrimitiveModes.TRIANGLES)
             {
                 for (int i = 0; i < count; i += 3)
                 {
@@ -322,7 +323,7 @@ namespace GraphicsLib
                     offset += 3 * scalarTypeSize;
                 }
             }
-            else if (mode == GL_TRIANGLE_STRIP)//HACK {1 2 3}  drawing order is (2 1 3) to maintain proper winding
+            else if (mode == PrimitiveModes.TRIANGLE_STRIP)//HACK {1 2 3}  drawing order is (2 1 3) to maintain proper winding
             {
                 bool switchPoints = false;
                 for (int i = 2; i < count; i++)
@@ -338,7 +339,7 @@ namespace GraphicsLib
                     offset += scalarTypeSize;
                 }
             }
-            else if (mode == GL_TRIANGLE_FAN)
+            else if (mode == PrimitiveModes.TRIANGLE_FAN)
             {
                 int startIndex = (int)ParseGlScalarFromBytes(scalarType, buffer, offset) + vIndexOffset;
                 for (int i = 2; i < count; i++)

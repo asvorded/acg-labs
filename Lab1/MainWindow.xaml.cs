@@ -24,9 +24,13 @@ namespace Lab1
         private readonly OpenFileDialog ofd;
 
         private static Obj? obj;
-        private Camera camera;
+        private static Camera camera;
         private Renderer renderer;
         private Point oldPos;
+
+        static MainWindow() {
+            camera = new Camera();
+        }
 
         public MainWindow() {
             InitializeComponent();
@@ -41,7 +45,6 @@ namespace Lab1
             ofd.FileOk += OnFileOpened;
             Height = SystemParameters.PrimaryScreenHeight / 1.25;
             Width = SystemParameters.PrimaryScreenWidth / 1.25;
-            camera = new Camera();
             renderer = new Renderer(camera);
 #if DEBUG
             DebugPanel.Visibility = Visibility.Visible;
@@ -199,11 +202,11 @@ namespace Lab1
         };
 
         private static void MakeLarger() {
-            obj!.Transformation.Scale += speed;
+            obj!.Transformation.Scale += speed / 10.0f;
         }
 
         private static void MakeSmaller() {
-            obj!.Transformation.Scale -= speed / 5.0f;
+            obj!.Transformation.Scale -= speed / 10.0f;
         }
 
         private void canvas_KeyDown(object sender, KeyEventArgs e) {
@@ -214,6 +217,9 @@ namespace Lab1
 
             if (handlers.TryGetValue(e.Key, out Action? action)) {
                 speed = (Keyboard.Modifiers & ModifierKeys.Control) != 0 ? 1f : 0.25f;
+                if (mode == "Move") {
+                    speed *= camera.Distance / 500;
+                }
                 action();
                 Draw();
             }
