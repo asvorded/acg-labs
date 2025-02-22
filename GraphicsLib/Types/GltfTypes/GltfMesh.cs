@@ -1,4 +1,6 @@
 ﻿using Newtonsoft.Json;
+using System.Configuration;
+using System.Numerics;
 
 namespace GraphicsLib.Types.GltfTypes
 {
@@ -32,6 +34,52 @@ namespace GraphicsLib.Types.GltfTypes
         public Dictionary<string, object>? Extensions { get; set; }
         [JsonProperty("extras")]
         public object? Extras { get; set; }
+
+        [JsonIgnore]
+        public GltfRoot? Root { get; set; }
+        [JsonIgnore]
+        public Vector3[]? Position { get => GetPosition(); }
+
+        private Vector3[]? GetPosition()
+        {
+            Vector3[]? vectors = null;
+            if (Attributes.ContainsKey("POSITION"))
+            {
+                if (Root == null)
+                {
+                    throw new ConfigurationErrorsException("Root is null.");
+                }
+                var accessor = Root.Accessors![Attributes["POSITION"]];
+                object[] uncastedData = GltfUtils.GetAccessorData(accessor);
+                vectors = new Vector3[accessor.Count];
+                for (int i = 0; i < accessor.Count; i++)
+                {
+                    vectors[i] = (Vector3)uncastedData[i];
+                }
+            }
+            return vectors;
+        }
+        public int[]? PointIndices { get => GetPointIndices(); }
+
+        private int[]? GetPointIndices()
+        {
+            int[]? indices = null;
+            if (Indices.HasValue)
+            {
+                if (Root == null)
+                {
+                    throw new ConfigurationErrorsException("Root is null.");
+                }
+                var accessor = Root.Accessors![Indices.Value];
+                object[] uncastedData = GltfUtils.GetAccessorData(accessor);
+                indices = new int[accessor.Count];
+                for (int i = 0; i < accessor.Count; i++)
+                {
+                    indices[i] = (int)uncastedData[i];
+                }
+            }
+            return indices;
+        }
     }
     public enum GltfMeshMode
     {

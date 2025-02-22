@@ -2,12 +2,9 @@
 using GraphicsLib.Types.GltfTypes;
 using GraphicsLib.Types.JsonConverters;
 using Newtonsoft.Json;
-using System.Buffers.Text;
 using System.Globalization;
 using System.IO;
 using System.Numerics;
-using System.Security.Cryptography;
-using System.Text;
 namespace GraphicsLib
 {
     public static class Parser
@@ -124,6 +121,42 @@ namespace GraphicsLib
                             var mode = primitive.Mode;
                             var attributes = primitive.Attributes;
                             int vIndexOffset = obj.vertices.Count;
+                            Vector3[]? vertices = primitive.Position;
+                            if (vertices != null)
+                            {
+                                foreach (var v in vertices)
+                                {
+                                    Vector3 transformed = Vector3.Transform(v, transform);
+                                    obj.vertices.Add(transformed);
+                                }
+                            }
+                            int[]? indicies = primitive.PointIndices;
+                            if (indicies != null)
+                            {
+                                if(mode == GltfMeshMode.TRIANGLES)
+                                {
+                                    for (int i = 0; i < indicies.Length; i += 3)
+                                    {
+                                        Face newFace = new([indicies[i] + vIndexOffset, indicies[i + 1] + vIndexOffset, indicies[i + 2] + vIndexOffset], null, null);
+                                        obj.faces.Add(newFace);
+                                    }
+                                }else if (mode == GltfMeshMode.TRIANGLE_STRIP)
+                                {
+                                    for (int i = 0; i < indicies.Length - 2; i++)
+                                    {
+                                        Face newFace = new([indicies[i] + vIndexOffset, indicies[i + 1] + vIndexOffset, indicies[i + 2] + vIndexOffset], null, null);
+                                        obj.faces.Add(newFace);
+                                    }
+                                }
+                            else if (mode == GltfMeshMode.TRIANGLE_FAN)
+                            {
+                                for (int i = 0; i < indicies.Length - 2; i++)
+                                {
+                                    Face newFace = new([indicies[0] + vIndexOffset, indicies[i + 1] + vIndexOffset, indicies[i + 2] + vIndexOffset], null, null);
+                                    obj.faces.Add(newFace);
+                                }
+                            }
+                        }
                             /*if (attributes.ContainsKey("POSITION"))
                             {
                                 var accessor = gltfRoot.Accessors![attributes["POSITION"]];
