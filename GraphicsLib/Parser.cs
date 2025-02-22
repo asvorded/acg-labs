@@ -9,19 +9,6 @@ namespace GraphicsLib
 {
     public static class Parser
     {
-
-        static readonly int GL_INT = 5124;
-        static readonly int GL_UNSIGNED_INT = 5125;
-        static readonly int GL_FLOAT = 5126;
-        static readonly int GL_INT = 5124;
-        static readonly int GL_UNSIGNED_INT = 5125;
-        static readonly int GL_FLOAT = 5126;
-        static readonly int GL_INT = 5124;
-        static readonly int GL_UNSIGNED_INT = 5125;
-        static readonly int GL_FLOAT = 5126;
-        static readonly int GL_INT = 5124;
-        static readonly int GL_UNSIGNED_INT = 5125;
-        static readonly int GL_FLOAT = 5126;
         /// <summary>
         /// Загружает модель из текста формата Wavefront Obj
         /// </summary>
