@@ -1,5 +1,4 @@
 ﻿using GraphicsLib;
-using GraphicsLib.Primitives;
 using GraphicsLib.Types;
 using Microsoft.Win32;
 using Newtonsoft.Json;
@@ -77,14 +76,11 @@ namespace Lab1
             stopwatch.Start();
             bitmap.Lock();
             if (obj != null) {
-                renderer.RenderCarcass(obj);
+                renderer.RenderSolid(obj);
+                //renderer.RenderCarcass(obj);
+                
             } else {
-                //bitmap.DrawTriangle((int)bitmap.Width, (int)bitmap.Height,
-                //    new Vector4(476, 384, 0, 0),
-                //    new Vector4(373, 779, 0, 0),
-                //    new Vector4(1502, 748, 0, 0),
-                //    0xFFFFFFFF
-                //);
+                
             }
             bitmap.AddDirtyRect(new Int32Rect(0, 0, bitmap.PixelWidth, bitmap.PixelHeight));
             bitmap.Unlock();
