@@ -12,6 +12,7 @@ namespace GraphicsLib {
         public WriteableBitmap? Bitmap { get; set; }
         private Vector4[] projectionSpaceBuffer;
         private int bufferLength;
+        private Zbuffer? zbuffer;
 
         public Renderer(Camera camera)
         {
@@ -19,6 +20,7 @@ namespace GraphicsLib {
             projectionSpaceBuffer = [];
             bufferLength = 0;
             Bitmap = default;
+            zbuffer = default;
         }
         private void ResizeBuffer(Obj obj)
         {
@@ -29,6 +31,31 @@ namespace GraphicsLib {
             }
             bufferLength = vertexCount;
         }
+        private void ResizeAndClearZBuffer()
+        {
+            if(Bitmap == null)
+            {
+                return;
+            }
+            if (zbuffer == null)
+            {
+                zbuffer = new Zbuffer(Bitmap.PixelWidth, Bitmap.PixelHeight);
+            }
+            else
+            {
+                int width = Bitmap.PixelWidth;
+                int height = Bitmap.PixelHeight;
+                if (zbuffer.Width != width && zbuffer.Height != height)
+                {
+                    zbuffer = new Zbuffer(Bitmap.PixelWidth, Bitmap.PixelHeight);
+                }
+                else
+                {
+                    zbuffer.Clear();
+                }
+            }
+
+        }
         public void RenderSolid(Obj obj)
         {
             if (Bitmap == null)
@@ -36,7 +63,7 @@ namespace GraphicsLib {
             if (obj == null)
                 return;
             //ResizeBuffer(obj);
-
+            ResizeAndClearZBuffer();
             // Преобразование в мировое пространство
             Matrix4x4 worldTransform = obj.Transformation.Matrix;
 
@@ -89,17 +116,22 @@ namespace GraphicsLib {
                     continue;
                 if (p0.Z < 0 && p1.Z < 0 && p2.Z < 0)
                     continue;
-                p1 *= (1 / p1.W);
-                p2 *= (1 / p2.W);
-                p0 *= (1 / p0.W);
-                p0 = Vector4.Transform(p0, viewPortTransform);
-                p1 = Vector4.Transform(p1, viewPortTransform);
-                p2 = Vector4.Transform(p2, viewPortTransform);
-
+                Transform(ref p0);
+                Transform(ref p1);
+                Transform(ref p2);
+                void Transform(ref Vector4 vertex)
+                {
+                    float invZ = (1 / vertex.W);
+                    vertex *= invZ;
+                    vertex.Z = -invZ;
+                    vertex = Vector4.Transform(vertex, viewPortTransform);
+                    
+                }
                 uint color = 0xFFFFFFFF;
                 uint rgb = (uint)(illumination * 0xFF);
                 color &= (uint)((0xFF << 24) | (rgb << 16) | (rgb << 8) | rgb);
-                Bitmap.DrawTriangle(width, height, p0, p1, p2, color);
+                Bitmap.DrawTriangleWithZBuffer(width, height, p0, p1, p2, color, zbuffer);
+                //Bitmap.DrawTriangle(width, height, p0, p1, p2, color);
             }
         }
         public void RenderCarcass(Obj obj)

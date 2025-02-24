@@ -41,7 +41,7 @@ namespace Lab1
                 CheckPathExists = true,
                 Multiselect = false,
                 ValidateNames = true,
-                Filter = "OBJ files (*.obj)|*.obj|GLTF files(*.gltf)|*.gltf|All files (*.*)|*.*"
+                Filter = "GLTF files(*.gltf)|*.gltf|OBJ files (*.obj)|*.obj|All files (*.*)|*.*"
             };
             ofd.FileOk += OnFileOpened;
             Height = SystemParameters.PrimaryScreenHeight / 1.25;
