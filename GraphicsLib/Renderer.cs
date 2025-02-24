@@ -98,7 +98,7 @@ namespace GraphicsLib {
                 p2 = Vector4.Transform(p2, modelToCamera);
                 Vector4 normal = Vector3.Cross((p2 - p0).AsVector3(), (p1 - p0).AsVector3()).AsVector4();
                 float illumination = Vector4.Dot(normal, p0);
-                if (illumination < 0)
+                if (illumination <= 0)
                     continue;
                 illumination /= normal.Length() * p0.Length();
                 p0 = Vector4.Transform(p0, projectionTransform);
@@ -122,10 +122,10 @@ namespace GraphicsLib {
                 void Transform(ref Vector4 vertex)
                 {
                     float invZ = (1 / vertex.W);
-                    vertex *= invZ;
-                    vertex.Z = -invZ;
+                    float z = vertex.W;
+                    vertex *= invZ;          
                     vertex = Vector4.Transform(vertex, viewPortTransform);
-                    
+                    vertex.W = z;
                 }
                 uint color = 0xFFFFFFFF;
                 uint rgb = (uint)(illumination * 0xFF);

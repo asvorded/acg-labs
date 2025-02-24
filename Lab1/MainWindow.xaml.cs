@@ -1,27 +1,21 @@
 ﻿using GraphicsLib;
 using GraphicsLib.Types;
 using Microsoft.Win32;
-using Newtonsoft.Json;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.IO;
-using System.Numerics;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace Lab1
 {
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window {
+    public partial class MainWindow : Window
+    {
         private readonly OpenFileDialog ofd;
 
         private static Obj? obj;
@@ -29,14 +23,17 @@ namespace Lab1
         private Renderer renderer;
         private Point oldPos;
 
-        static MainWindow() {
+        static MainWindow()
+        {
             camera = new Camera();
         }
 
-        public MainWindow() {
+        public MainWindow()
+        {
             InitializeComponent();
 
-            ofd = new OpenFileDialog {
+            ofd = new OpenFileDialog
+            {
                 CheckFileExists = true,
                 CheckPathExists = true,
                 Multiselect = false,
@@ -54,53 +51,67 @@ namespace Lab1
 #endif
         }
 
-        private void OnFileOpened(object? sender, CancelEventArgs e) {
+        private void OnFileOpened(object? sender, CancelEventArgs e)
+        {
             fileName.Text = string.Join(' ', Resources["fileString"].ToString(), ofd.FileName);
-            try {
-                if (System.IO.Path.GetExtension(ofd.FileName).Equals(".obj"))
-                    obj = Parser.ParseObjFile(ofd.FileName);
+
+            if (System.IO.Path.GetExtension(ofd.FileName).Equals(".obj"))
+                obj = Parser.ParseObjFile(ofd.FileName);
+            else
+                obj = Parser.ParseGltfFile(ofd.FileName);
+            obj.Transformation.Reset();
+            Draw();
+
+        }
+
+        private void Draw()
+        {
+            try
+            {
+                WriteableBitmap bitmap = new WriteableBitmap(
+                ((int)canvas.ActualWidth), ((int)canvas.ActualHeight), 96, 96, PixelFormats.Bgra32, null);
+                renderer.Bitmap = bitmap;
+                Stopwatch stopwatch = new();
+                stopwatch.Start();
+                bitmap.Lock();
+                if (obj != null)
+                {
+                    renderer.RenderSolid(obj);
+                    //renderer.RenderCarcass(obj);
+
+                }
                 else
-                    obj = Parser.ParseGltfFile(ofd.FileName);
-                obj.Transformation.Reset();
-                Draw();
-            } catch (Exception ex) {
+                {
+
+                }
+                bitmap.AddDirtyRect(new Int32Rect(0, 0, bitmap.PixelWidth, bitmap.PixelHeight));
+                bitmap.Unlock();
+                stopwatch.Stop();
+                DebugPanel.Text = stopwatch.ElapsedMilliseconds.ToString();
+                canvas.Child = new Image { Source = bitmap };
+                renderer.Bitmap = null;
+            }
+            catch (Exception ex)
+            {
                 MessageBox.Show(ex.Message);
             }
         }
 
-        private void Draw() {
-            WriteableBitmap bitmap = new WriteableBitmap(
-                ((int)canvas.ActualWidth), ((int)canvas.ActualHeight), 96, 96, PixelFormats.Bgra32, null);
-            renderer.Bitmap = bitmap;
-            Stopwatch stopwatch = new();
-            stopwatch.Start();
-            bitmap.Lock();
-            if (obj != null) {
-                renderer.RenderSolid(obj);
-                //renderer.RenderCarcass(obj);
-                
-            } else {
-                
-            }
-            bitmap.AddDirtyRect(new Int32Rect(0, 0, bitmap.PixelWidth, bitmap.PixelHeight));
-            bitmap.Unlock();
-            stopwatch.Stop();
-            DebugPanel.Text = stopwatch.ElapsedMilliseconds.ToString();
-            canvas.Child = new Image { Source = bitmap };
-            renderer.Bitmap = null;
-        }
-
-        private void ButtonOpenFile_Click(object sender, RoutedEventArgs e) {
+        private void ButtonOpenFile_Click(object sender, RoutedEventArgs e)
+        {
             ofd.ShowDialog();
         }
 
-        private void Window_MouseDown(object sender, MouseButtonEventArgs e) {
+        private void Window_MouseDown(object sender, MouseButtonEventArgs e)
+        {
             Mouse.Capture(canvas);
             oldPos = Mouse.GetPosition(canvas);
         }
 
-        private void Window_MouseMove(object sender, MouseEventArgs e) {
-            if (e.LeftButton == MouseButtonState.Pressed && Mouse.Captured == canvas && oldPos.X != -1) {
+        private void Window_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (e.LeftButton == MouseButtonState.Pressed && Mouse.Captured == canvas && oldPos.X != -1)
+            {
                 Point newPos = Mouse.GetPosition(canvas);
                 float dx = (float)(newPos.X - oldPos.X);
                 float dy = (float)(newPos.Y - oldPos.Y);
@@ -108,24 +119,29 @@ namespace Lab1
                 camera.RotateAroundTargetVertical((float)(-dy * MathF.PI / canvas.ActualHeight));
                 Draw();
                 oldPos = newPos;
-            } else {
+            }
+            else
+            {
                 oldPos = new Point(-1, -1);
             }
         }
 
-        private void Window_MouseUp(object sender, MouseButtonEventArgs e) {
+        private void Window_MouseUp(object sender, MouseButtonEventArgs e)
+        {
             Mouse.Capture(canvas, CaptureMode.None);
             oldPos = new Point(-1, -1);
         }
 
-        private void Window_MouseWheel(object sender, MouseWheelEventArgs e) {
+        private void Window_MouseWheel(object sender, MouseWheelEventArgs e)
+        {
             float dz = (float)e.Delta;
             float step = Keyboard.Modifiers == ModifierKeys.Control ? 0.002f : 0.0005f;
             camera.MoveTowardTarget(dz * step * camera.Distance);
             Draw();
         }
 
-        private void Window_SizeChanged(object sender, SizeChangedEventArgs e) {
+        private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
             Draw();
         }
 
@@ -135,19 +151,20 @@ namespace Lab1
 
         private string mode = "Move";
 
-        private void RadioButton_Checked(object sender, RoutedEventArgs e) {
+        private void RadioButton_Checked(object sender, RoutedEventArgs e)
+        {
             mode = ((RadioButton)sender).Content.ToString()!;
         }
 
         private static float speed = 0.5f;
         private Dictionary<Key, Action> moveActions = new() {
             {
-                Key.Left, () => { obj!.Transformation.Offset.X += speed; } 
+                Key.Left, () => { obj!.Transformation.Offset.X += speed; }
             },
             {
                 Key.Right, () => { obj!.Transformation.Offset.X -= speed; }
             },
-            { 
+            {
                 Key.Up, () => {
                     if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
                         obj!.Transformation.Offset.Z += speed;
@@ -202,23 +219,29 @@ namespace Lab1
             }
         };
 
-        private static void MakeLarger() {
+        private static void MakeLarger()
+        {
             obj!.Transformation.Scale += speed / 10.0f;
         }
 
-        private static void MakeSmaller() {
+        private static void MakeSmaller()
+        {
             obj!.Transformation.Scale -= speed / 10.0f;
         }
 
-        private void canvas_KeyDown(object sender, KeyEventArgs e) {
+        private void canvas_KeyDown(object sender, KeyEventArgs e)
+        {
             Dictionary<Key, Action> handlers = moveActions;
-            if (mode == "Rotate") {
+            if (mode == "Rotate")
+            {
                 handlers = rotateActions;
             }
 
-            if (handlers.TryGetValue(e.Key, out Action? action)) {
+            if (handlers.TryGetValue(e.Key, out Action? action))
+            {
                 speed = (Keyboard.Modifiers & ModifierKeys.Control) != 0 ? 1f : 0.25f;
-                if (mode == "Move") {
+                if (mode == "Move")
+                {
                     speed *= camera.Distance / 500;
                 }
                 action();

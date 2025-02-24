@@ -230,8 +230,10 @@ namespace GraphicsLib.Primitives {
             {
                 (mid, max) = (max, mid);
             }
+            
             if (min.Y == mid.Y)
             {
+                //flat top
                 if (mid.X < min.X)
                 {
                     (min, mid) = (mid, min);
@@ -240,11 +242,12 @@ namespace GraphicsLib.Primitives {
             }
             else if (max.Y == mid.Y)
             {
+                //flat bottom
                 if (max.X < mid.X)
                 {
                     (mid, max) = (max, mid);
                 }
-                bitmap.DrawFlatTopTriangleWithZBuffer(bitmapWidth, bitmapHeight, min, mid, max, color, zbuffer);
+                bitmap.DrawFlatBottomTriangleWithZBuffer(bitmapWidth, bitmapHeight, min, mid, max, color, zbuffer);
             }
             else
             {
@@ -299,11 +302,16 @@ namespace GraphicsLib.Primitives {
                 float dx = rightPoint.X - leftPoint.X;
                 Vector4 diLine = (rightPoint - leftPoint) / dx;
                 iLine += diLine * (xStart - leftPoint.X);
-                for (int x = xStart; x <= xEnd; x++)
+                for (int x = xStart; x < xEnd; x++)
                 {
-                    if (zbuffer.TestAndSet(x, y, iLine.Z)){
+                    float z = iLine.W;
+                    if (zbuffer.TestAndSet(x, y, z)){
                         unsafe
                         {
+                            if((color & 0xFF) == 0)
+                            {
+                                color = 0xFFFF0000;
+                            }
                             uint* ptr = (uint*)bitmap.BackBuffer;
                             ptr[y * bitmapWidth + x] = color;
                         }
@@ -313,6 +321,7 @@ namespace GraphicsLib.Primitives {
                 leftPoint += dp0;
                 rightPoint += dp1;
             }
+            
         }
 
     }
