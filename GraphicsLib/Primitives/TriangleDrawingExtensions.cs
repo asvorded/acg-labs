@@ -214,7 +214,7 @@ namespace GraphicsLib.Primitives
             {
                 int xStart = Math.Max((int)Math.Ceiling(leftPoint.X), 0);
                 int xEnd = Math.Min((int)Math.Ceiling(rightPoint.X), bitmapWidth - 1);
-                for (int x = xStart; x <= xEnd; x++)
+                for (int x = xStart; x < xEnd; x++)
                 {
                     unsafe
                     {

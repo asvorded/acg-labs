@@ -105,9 +105,9 @@ namespace GraphicsLib
                 p1 = Vector4.Transform(p1, projectionTransform);
                 p2 = Vector4.Transform(p2, projectionTransform);
                 if (p0.X > p0.W && p1.X > p1.W && p2.X > p2.W)
-                    return;
+                    continue;
                 if (p0.X < -p0.W && p1.X < -p1.W && p2.X < -p2.W)
-                    return;
+                    continue;
                 if (p0.Y > p0.W && p1.Y > p1.W && p2.Y > p2.W)
                     continue;
                 if (p0.Y < -p0.W && p1.Y < -p1.W && p2.Y < -p2.W)
