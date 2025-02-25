@@ -6,7 +6,7 @@
         xmlns:system="clr-namespace:System;assembly=mscorlib"
         xmlns:local="clr-namespace:Lab1"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800" ThemeMode="System"
+        Title="MainWindow" Height="450" Width="1174" ThemeMode="System"
         SizeChanged="Window_SizeChanged" WindowState="Maximized"
         Keyboard.KeyDown="canvas_KeyDown">
     <Window.Resources>
@@ -23,7 +23,7 @@
             <RowDefinition/>
         </Grid.RowDefinitions>
         <DockPanel>
-            <StackPanel Orientation="Horizontal">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
                 <Button Width="100" Height="30" Margin="15,0,15,0" HorizontalAlignment="Left"
                     Click="ButtonOpenFile_Click" Content="{StaticResource openString}" />
                 <TextBlock x:Name="DebugPanel" Text="{StaticResource debugString}" 
@@ -31,12 +31,19 @@
                         />
                 <TextBlock x:Name="fileName" VerticalAlignment="Center" Text="{StaticResource fileString}"/>
             </StackPanel>
-            <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
-                <TextBlock Margin="0,0,20,0" Text="Edit mode:" VerticalAlignment="Center"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" DockPanel.Dock="Right">
+                <TextBlock Margin="20,0,20,0" Text="Edit mode:" VerticalAlignment="Center"/>
                 <RadioButton GroupName="TransformMode" Content="Move" IsChecked="True"
                              Checked="RadioButton_Checked"/>
                 <RadioButton GroupName="TransformMode" Content="Rotate"
                              Checked="RadioButton_Checked"/>
+            </StackPanel>
+            <StackPanel HorizontalAlignment="Right" Orientation="Horizontal" DockPanel.Dock="Right">
+                <TextBlock Margin="20,0,20,0" Text="Rendering mode:" VerticalAlignment="Center"/>
+                <RadioButton GroupName="RenderingMode" Content="Flat" IsChecked="True"
+                     Checked="RadioButton_Checked" VerticalAlignment="Center"/>
+                <RadioButton GroupName="RenderingMode" Content="Wireframe"
+                     Checked="RadioButton_Checked"/>
             </StackPanel>
         </DockPanel>
         <Border x:Name="canvas" Grid.Row="1" Margin="10" Background="Black"

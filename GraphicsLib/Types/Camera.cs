@@ -36,8 +36,8 @@ namespace GraphicsLib.Types
         public Camera()
         {
             Azimuth = 0;
-            Polar = 0;
-            Distance = 10;
+            Polar = float.Pi / 3;
+            Distance = 1000;
             Target = Vector3.Zero;
         }
         public Camera(float azimuth, float polar, float distance, Vector3 target)

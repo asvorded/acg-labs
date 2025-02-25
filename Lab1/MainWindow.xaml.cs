@@ -66,28 +66,32 @@ namespace Lab1
 
         private void Draw()
         {
+            if(renderer == null)
+                return;
             try
             {
+                Stopwatch stopwatch = Stopwatch.StartNew();
                 WriteableBitmap bitmap = new WriteableBitmap(
                 ((int)canvas.ActualWidth), ((int)canvas.ActualHeight), 96, 96, PixelFormats.Bgra32, null);
                 renderer.Bitmap = bitmap;
-                Stopwatch stopwatch = new();
-                stopwatch.Start();
-                bitmap.Lock();
+
                 if (obj != null)
                 {
-                    renderer.RenderSolid(obj);
-                    //renderer.RenderCarcass(obj);
+                    if (renderMode == "Flat")
+                        renderer.RenderSolid(obj);
+                    else
+                        renderer.RenderCarcass(obj);
 
                 }
                 else
                 {
 
                 }
+                bitmap.Lock();
                 bitmap.AddDirtyRect(new Int32Rect(0, 0, bitmap.PixelWidth, bitmap.PixelHeight));
                 bitmap.Unlock();
                 stopwatch.Stop();
-                DebugPanel.Text = stopwatch.ElapsedMilliseconds.ToString();
+                DebugPanel.Text = (TimeSpan.TicksPerSecond / stopwatch.ElapsedTicks).ToString() + " fps";
                 canvas.Child = new Image { Source = bitmap };
                 renderer.Bitmap = null;
             }
@@ -149,11 +153,25 @@ namespace Lab1
 
         private void canvas_LostMouseCapture(object sender, MouseEventArgs e) { }
 
-        private string mode = "Move";
+        private string transformMode = "Move";
+        private string renderMode = "Flat";
 
         private void RadioButton_Checked(object sender, RoutedEventArgs e)
         {
-            mode = ((RadioButton)sender).Content.ToString()!;
+            if (sender is RadioButton radioButton && radioButton.IsChecked == true)
+            {
+                switch (radioButton.GroupName)
+                {
+                    case "TransformMode":
+                        transformMode = ((RadioButton)sender).Content.ToString()!;
+                        break;
+                    case "RenderingMode":
+                        renderMode = ((RadioButton)sender).Content.ToString()!;
+                        Draw();
+                        break;
+                }
+            }
+            
         }
 
         private static float speed = 0.5f;
@@ -232,7 +250,7 @@ namespace Lab1
         private void canvas_KeyDown(object sender, KeyEventArgs e)
         {
             Dictionary<Key, Action> handlers = moveActions;
-            if (mode == "Rotate")
+            if (transformMode == "Rotate")
             {
                 handlers = rotateActions;
             }
@@ -240,7 +258,7 @@ namespace Lab1
             if (handlers.TryGetValue(e.Key, out Action? action))
             {
                 speed = (Keyboard.Modifiers & ModifierKeys.Control) != 0 ? 1f : 0.25f;
-                if (mode == "Move")
+                if (transformMode == "Move")
                 {
                     speed *= camera.Distance / 500;
                 }

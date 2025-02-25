@@ -2,10 +2,10 @@
 using GraphicsLib.Types;
 using System.Diagnostics;
 using System.Numerics;
-using System.Security.Cryptography.Pkcs;
 using System.Windows.Media.Imaging;
 
-namespace GraphicsLib {
+namespace GraphicsLib
+{
     public class Renderer
     {
         public Camera Camera { get; set; }
@@ -77,7 +77,7 @@ namespace GraphicsLib {
             int height = Bitmap.PixelHeight;
             float aspectRatio = (float)width / height;
             float fovVertical = MathF.PI / 3 / aspectRatio;
-            float nearPlaneDistance = 0.01f;
+            float nearPlaneDistance = 0.1f;
             float farPlaneDistance = float.PositiveInfinity;
             Matrix4x4 projectionTransform = Matrix4x4.CreatePerspectiveFieldOfView(fovVertical, aspectRatio, nearPlaneDistance, farPlaneDistance);
 
@@ -105,9 +105,9 @@ namespace GraphicsLib {
                 p1 = Vector4.Transform(p1, projectionTransform);
                 p2 = Vector4.Transform(p2, projectionTransform);
                 if (p0.X > p0.W && p1.X > p1.W && p2.X > p2.W)
-                    continue;
+                    return;
                 if (p0.X < -p0.W && p1.X < -p1.W && p2.X < -p2.W)
-                    continue;
+                    return;
                 if (p0.Y > p0.W && p1.Y > p1.W && p2.Y > p2.W)
                     continue;
                 if (p0.Y < -p0.W && p1.Y < -p1.W && p2.Y < -p2.W)
@@ -116,23 +116,82 @@ namespace GraphicsLib {
                     continue;
                 if (p0.Z < 0 && p1.Z < 0 && p2.Z < 0)
                     continue;
-                Transform(ref p0);
-                Transform(ref p1);
-                Transform(ref p2);
-                void Transform(ref Vector4 vertex)
-                {
-                    float invZ = (1 / vertex.W);
-                    float z = vertex.W;
-                    vertex *= invZ;          
-                    vertex = Vector4.Transform(vertex, viewPortTransform);
-                    vertex.W = z;
-                }
                 uint color = 0xFFFFFFFF;
-                uint rgb = (uint)(illumination * 0xFF);
-                color &= (uint)((0xFF << 24) | (rgb << 16) | (rgb << 8) | rgb);
-                Bitmap.DrawTriangleWithZBuffer(width, height, p0, p1, p2, color, zbuffer);
-                //Bitmap.DrawTriangle(width, height, p0, p1, p2, color);
-            }
+                if (p0.Z < 0)
+                {
+                    color = 0xFF00FF00;
+                    if (p1.Z < 0)
+                    {
+                        ClipTriangleIntoOne(p0, p1, p2);
+                    }
+                    else if (p2.Z < 0)
+                    {
+                        ClipTriangleIntoOne(p0, p2, p1);
+                    }
+                    else
+                    {
+                        ClipTriangleIntoTwo(p0, p1, p2);
+                    }
+                }
+                else if (p1.Z < 0)
+                {
+                    color = 0xFF00FF00;
+                    if (p2.Z < 0)
+                    {
+                        ClipTriangleIntoOne(p1, p2, p0);
+                    }
+                    else
+                    {
+                        ClipTriangleIntoTwo(p1, p0, p2);
+                    }
+                }
+                else if (p2.Z < 0)
+                {
+                    color = 0xFF00FF00;
+                    ClipTriangleIntoTwo(p2, p0, p1);
+                }
+                else
+                {
+                    ProcessTriangle(p0, p1, p2);
+                }
+
+
+                void ClipTriangleIntoTwo(Vector4 pointBehind, Vector4 p1, Vector4 p2)
+                {
+                    float c0 = (-pointBehind.Z) / (p1.Z - pointBehind.Z);
+                    float c1 = (-pointBehind.Z) / (p2.Z - pointBehind.Z);
+                    Vector4 leftInterpolant = Vector4.Lerp(pointBehind, p1, c0);
+                    Vector4 rightInterpolant = Vector4.Lerp(pointBehind, p2, c1);
+                    ProcessTriangle(leftInterpolant, p1, p2);
+                    ProcessTriangle(rightInterpolant, leftInterpolant, p2);
+                }
+                void ClipTriangleIntoOne(Vector4 leftPointBehind, Vector4 rightPointBehind, Vector4 p2)
+                {
+                    float c0 = (-leftPointBehind.Z) / (p2.Z - leftPointBehind.Z);
+                    float c1 = (-rightPointBehind.Z) / (p2.Z - rightPointBehind.Z);
+                    Vector4 p0a = Vector4.Lerp(leftPointBehind, p2, c0);
+                    Vector4 p0b = Vector4.Lerp(rightPointBehind, p2, c1);
+                    ProcessTriangle(p0a, p0b, p2);
+                }
+                void ProcessTriangle(Vector4 p0, Vector4 p1, Vector4 p2)
+                {
+                    Transform(ref p0);
+                    Transform(ref p1);
+                    Transform(ref p2);
+                    void Transform(ref Vector4 vertex)
+                    {
+                        float invZ = (1 / vertex.W);
+                        float z = vertex.W;
+                        vertex *= invZ;
+                        vertex = Vector4.Transform(vertex, viewPortTransform);
+                        vertex.W = z;
+                    }
+
+                    uint rgb = (uint)((illumination / 1.5f + 1f / 3) * 0xFF);
+                    color &= (uint)((0xFF << 24) | (rgb << 16) | (rgb << 8) | rgb);
+                    Bitmap.DrawTriangleWithZBuffer(width, height, p0, p1, p2, color, zbuffer!);
+                }
+            }  
         }
         public void RenderCarcass(Obj obj)
         {
@@ -141,10 +200,10 @@ namespace GraphicsLib {
             if (obj == null)
                 return;
             ResizeBuffer(obj);
-            
+
             // Преобразование в мировое пространство
             Matrix4x4 worldTransform = obj.Transformation.Matrix;
-            
+
             // Преобразование в пространство камеры
             Matrix4x4 cameraTransform = Camera.ViewMatrix;
 
@@ -163,7 +222,7 @@ namespace GraphicsLib {
                 0, 0, zCoeff * nearPlaneDistance, 0
             );
             Matrix4x4.CreatePerspectiveFieldOfView(fovVertical, aspectRatio, nearPlaneDistance, farPlaneDistance);
-            
+
             // Преобразование в пространство окна
             float leftCornerX = 0;
             float leftCornerY = 0;
@@ -172,9 +231,9 @@ namespace GraphicsLib {
                 0, -(float)height / 2, 0, 0,
                 0, 0, 1, 0,
                 leftCornerX + (float)width / 2, leftCornerY + (float)height / 2, 0, 1);
-            
+
             Stopwatch sw = Stopwatch.StartNew();
-            
+
             // Creating final trasformation matrix
             Matrix4x4 modelToProjection = worldTransform * cameraTransform * projectionTransform;
             for (int i = 0; i < bufferLength; i++)
@@ -191,11 +250,13 @@ namespace GraphicsLib {
             int facesCount = faces.Count;
             uint color = 0xFFFF0000;
 
-            for (int i = 0; i < facesCount; i++) {
+            for (int i = 0; i < facesCount; i++)
+            {
                 Face face = faces[i];
                 int[] vIndices = face.vIndices;
 
-                for (int j = 0; j < vIndices.Length; j++) {
+                for (int j = 0; j < vIndices.Length; j++)
+                {
                     int p0 = vIndices[j];
                     int p1 = vIndices[(j + 1) % vIndices.Length];
                     Vector4 v0 = projectionSpaceBuffer[p0];
@@ -212,18 +273,18 @@ namespace GraphicsLib {
                         continue;
                     if (v0.Z < 0 && v1.Z < 0)
                         continue;
-                    
+
                     if (v0.Z < 0)
                     {
                         InterpolateV0(ref v0, ref v1);
                         color = 0xFF0000FF;
                     }
-                    else if(v1.Z < 0)
+                    else if (v1.Z < 0)
                     {
                         InterpolateV0(ref v1, ref v0);
                         color = 0xFF0000FF;
                     }
-                    static void InterpolateV0(ref Vector4 v0,ref Vector4 v1)
+                    static void InterpolateV0(ref Vector4 v0, ref Vector4 v1)
                     {
                         float coeff = (-v0.Z) / (v1.Z - v0.Z);
                         v0 = Vector4.Lerp(v0, v1, coeff);
