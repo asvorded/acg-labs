@@ -47,7 +47,7 @@ namespace Lab1
 #if DEBUG
             DebugPanel.Visibility = Visibility.Visible;
 #else
-                DebugPanel.Visibility = Visibility.Visible;
+            DebugPanel.Visibility = Visibility.Visible;
 #endif
         }
 
@@ -66,7 +66,7 @@ namespace Lab1
 
         private void Draw()
         {
-            if(renderer == null)
+            if (renderer == null)
                 return;
             try
             {
@@ -171,31 +171,45 @@ namespace Lab1
                         break;
                 }
             }
-            
+
         }
 
         private static float speed = 0.5f;
         private Dictionary<Key, Action> moveActions = new() {
             {
-                Key.Left, () => { obj!.Transformation.Offset.X += speed; }
+                Key.Left, () => { if (obj != null) obj.Transformation.Offset.X += speed; }
             },
             {
-                Key.Right, () => { obj!.Transformation.Offset.X -= speed; }
+                Key.Right, () => { if (obj != null) obj!.Transformation.Offset.X -= speed; }
             },
             {
                 Key.Up, () => {
                     if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
-                        obj!.Transformation.Offset.Z += speed;
+                    {
+                        if (obj != null)
+                            obj.Transformation.Offset.Z += speed;
+                    }
                     else
-                        obj!.Transformation.Offset.Y += speed;
+                    {
+                        if (obj != null)
+                            obj.Transformation.Offset.Y += speed;
+                    }
+
                 }
             },
             {
                 Key.Down, () => {
                     if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
-                        obj!.Transformation.Offset.Z -= speed;
+                    {
+                        if (obj != null)
+                            obj.Transformation.Offset.Z -= speed;
+                    }
+
                     else
-                        obj!.Transformation.Offset.Y -= speed;
+                    {
+                        if (obj != null)
+                            obj.Transformation.Offset.Y -= speed;
+                    }
                 }
             },
             {
@@ -239,12 +253,14 @@ namespace Lab1
 
         private static void MakeLarger()
         {
-            obj!.Transformation.Scale += speed / 10.0f;
+            if(obj != null)
+                obj.Transformation.Scale += speed / 10.0f;
         }
 
         private static void MakeSmaller()
         {
-            obj!.Transformation.Scale -= speed / 10.0f;
+            if (obj != null)
+                obj.Transformation.Scale -= speed / 10.0f;
         }
 
         private void canvas_KeyDown(object sender, KeyEventArgs e)

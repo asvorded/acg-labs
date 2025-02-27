@@ -62,17 +62,19 @@ namespace GraphicsLib
                 return;
             if (obj == null)
                 return;
-            //ResizeBuffer(obj);
+            
+            // prepare zbuffer
             ResizeAndClearZBuffer();
-            // Преобразование в мировое пространство
+
+            // transform from model space to world space
             Matrix4x4 worldTransform = obj.Transformation.Matrix;
 
-            // Преобразование в пространство камеры
+            // transform from world space to camera space
             Matrix4x4 cameraTransform = Camera.ViewMatrix;
 
             Matrix4x4 modelToCamera = worldTransform * cameraTransform;
 
-            // Преобразование в пространство проекции
+            // transform from camera space to clipping space (divide by W to get to NDC space)
             int width = Bitmap.PixelWidth;
             int height = Bitmap.PixelHeight;
             float aspectRatio = (float)width / height;
@@ -81,12 +83,12 @@ namespace GraphicsLib
             float farPlaneDistance = float.PositiveInfinity;
             Matrix4x4 projectionTransform = Matrix4x4.CreatePerspectiveFieldOfView(fovVertical, aspectRatio, nearPlaneDistance, farPlaneDistance);
 
-            // Преобразование в пространство окна
+            // transform from NDC space to viewport space
             float leftCornerX = 0;
             float leftCornerY = 0;
             Matrix4x4 viewPortTransform = Matrix4x4.CreateViewport(leftCornerX, leftCornerY, width, height, 0, 1);
 
-            //Matrix4x4 modelToProjection = worldTransform * cameraTransform * projectionTransform;
+
             for (int i = 0; i < obj.faces.Count; i++)
             {
                 Face triangle = obj.faces[i];
@@ -98,12 +100,14 @@ namespace GraphicsLib
                 p2 = Vector4.Transform(p2, modelToCamera);
                 Vector4 normal = Vector3.Cross((p2 - p0).AsVector3(), (p1 - p0).AsVector3()).AsVector4();
                 float illumination = Vector4.Dot(normal, p0);
+                //Cull triangle if its orientation is facing away from the camera
                 if (illumination <= 0)
                     continue;
                 illumination /= normal.Length() * p0.Length();
                 p0 = Vector4.Transform(p0, projectionTransform);
                 p1 = Vector4.Transform(p1, projectionTransform);
                 p2 = Vector4.Transform(p2, projectionTransform);
+                //Cull triangle if it is not in frustum and all points are on the same side from it
                 if (p0.X > p0.W && p1.X > p1.W && p2.X > p2.W)
                     continue;
                 if (p0.X < -p0.W && p1.X < -p1.W && p2.X < -p2.W)
@@ -117,6 +121,7 @@ namespace GraphicsLib
                 if (p0.Z < 0 && p1.Z < 0 && p2.Z < 0)
                     continue;
                 uint color = 0xFFFFFFFF;
+                //Clipping triangle if it intersects near plane
                 if (p0.Z < 0)
                 {
                     color = 0xFF00FF00;
@@ -156,6 +161,14 @@ namespace GraphicsLib
                 }
 
 
+                //Clip triangle into two
+                //            |    p1
+                //            li    |
+                //            | \   |
+                //      pb    |  \  |
+                //            ri  \ |
+                //            |    p2
+                //            |
                 void ClipTriangleIntoTwo(Vector4 pointBehind, Vector4 p1, Vector4 p2)
                 {
                     float c0 = (-pointBehind.Z) / (p1.Z - pointBehind.Z);
@@ -165,19 +178,28 @@ namespace GraphicsLib
                     ProcessTriangle(leftInterpolant, p1, p2);
                     ProcessTriangle(rightInterpolant, leftInterpolant, p2);
                 }
+                //Clip triangle into one
+                //     lpb    | 
+                //            li    
+                //            | 
+                //            |     p2
+                //            ri  
+                //     rpb    |   
+                //            |
                 void ClipTriangleIntoOne(Vector4 leftPointBehind, Vector4 rightPointBehind, Vector4 p2)
                 {
                     float c0 = (-leftPointBehind.Z) / (p2.Z - leftPointBehind.Z);
                     float c1 = (-rightPointBehind.Z) / (p2.Z - rightPointBehind.Z);
-                    Vector4 p0a = Vector4.Lerp(leftPointBehind, p2, c0);
-                    Vector4 p0b = Vector4.Lerp(rightPointBehind, p2, c1);
-                    ProcessTriangle(p0a, p0b, p2);
+                    Vector4 leftInterpolant = Vector4.Lerp(leftPointBehind, p2, c0);
+                    Vector4 rightInterpolant = Vector4.Lerp(rightPointBehind, p2, c1);
+                    ProcessTriangle(leftInterpolant, p2, rightInterpolant);
                 }
                 void ProcessTriangle(Vector4 p0, Vector4 p1, Vector4 p2)
                 {
                     Transform(ref p0);
                     Transform(ref p1);
                     Transform(ref p2);
+                    // save z to use it in zbuffer
                     void Transform(ref Vector4 vertex)
                     {
                         float invZ = (1 / vertex.W);
@@ -187,6 +209,7 @@ namespace GraphicsLib
                         vertex.W = z;
                     }
 
+                    //calculate illumination
                     uint rgb = (uint)((illumination / 1.5f + 1f / 3) * 0xFF);
                     color &= (uint)((0xFF << 24) | (rgb << 16) | (rgb << 8) | rgb);
                     Bitmap.DrawTriangleWithZBuffer(width, height, p0, p1, p2, color, zbuffer!);
@@ -201,13 +224,14 @@ namespace GraphicsLib
                 return;
             ResizeBuffer(obj);
 
-            // Преобразование в мировое пространство
+            // transform from model space to world space
             Matrix4x4 worldTransform = obj.Transformation.Matrix;
 
-            // Преобразование в пространство камеры
+            // transform from world space to camera space
             Matrix4x4 cameraTransform = Camera.ViewMatrix;
 
-            // Преобразование в пространство проекции
+
+            // transform from camera space to clipping space (divide by W to get to NDC space)
             int width = Bitmap.PixelWidth;
             int height = Bitmap.PixelHeight;
             float aspectRatio = (float)width / height;
@@ -215,15 +239,15 @@ namespace GraphicsLib
             float nearPlaneDistance = 0.01f;
             float farPlaneDistance = float.PositiveInfinity;
             float zCoeff = (float.IsPositiveInfinity(farPlaneDistance) ? -1f : farPlaneDistance / (nearPlaneDistance - farPlaneDistance));
+            
             Matrix4x4 projectionTransform = new Matrix4x4(
                 1 / MathF.Tan(fovVertical * 0.5f) / aspectRatio, 0, 0, 0,
                 0, 1 / MathF.Tan(fovVertical * 0.5f), 0, 0,
                 0, 0, zCoeff, -1,
                 0, 0, zCoeff * nearPlaneDistance, 0
             );
-            Matrix4x4.CreatePerspectiveFieldOfView(fovVertical, aspectRatio, nearPlaneDistance, farPlaneDistance);
 
-            // Преобразование в пространство окна
+            // transform from NDC space to viewport space
             float leftCornerX = 0;
             float leftCornerY = 0;
             Matrix4x4 viewPortTransform = new Matrix4x4(
@@ -232,20 +256,16 @@ namespace GraphicsLib
                 0, 0, 1, 0,
                 leftCornerX + (float)width / 2, leftCornerY + (float)height / 2, 0, 1);
 
-            Stopwatch sw = Stopwatch.StartNew();
 
-            // Creating final trasformation matrix
             Matrix4x4 modelToProjection = worldTransform * cameraTransform * projectionTransform;
             for (int i = 0; i < bufferLength; i++)
             {
                 Vector4 v = new(obj.vertices[i], 1);
                 v = Vector4.Transform(v, modelToProjection);
+                //buffering to avoid recalculations for every face
                 projectionSpaceBuffer[i] = v;
             }
-            sw.Stop();
 
-            // Drawing
-            Stopwatch stopwatch = Stopwatch.StartNew();
             List<Face> faces = obj.faces;
             int facesCount = faces.Count;
             uint color = 0xFFFF0000;
@@ -261,6 +281,8 @@ namespace GraphicsLib
                     int p1 = vIndices[(j + 1) % vIndices.Length];
                     Vector4 v0 = projectionSpaceBuffer[p0];
                     Vector4 v1 = projectionSpaceBuffer[p1];
+
+                    //Cull edge if edge is not in frustum and both points are on the same side from it
                     if (v0.X > v0.W && v1.X > v1.W)
                         continue;
                     if (v0.X < -v0.W && v1.X < -v1.W)
@@ -273,7 +295,8 @@ namespace GraphicsLib
                         continue;
                     if (v0.Z < 0 && v1.Z < 0)
                         continue;
-
+                    
+                    //Clip edge if one point is behind the camera
                     if (v0.Z < 0)
                     {
                         InterpolateV0(ref v0, ref v1);
@@ -284,20 +307,29 @@ namespace GraphicsLib
                         InterpolateV0(ref v1, ref v0);
                         color = 0xFF0000FF;
                     }
+
+                    // find intersection between edge and near plane
+                    //
+                    //           |
+                    //       +---+----+
+                    //           |
+                    //           |
+                    //  Z -------0--------------->
                     static void InterpolateV0(ref Vector4 v0, ref Vector4 v1)
                     {
                         float coeff = (-v0.Z) / (v1.Z - v0.Z);
                         v0 = Vector4.Lerp(v0, v1, coeff);
                     }
+                    //final transformations
                     v0 = Vector4.Transform(v0, viewPortTransform);
                     v0 *= (1 / v0.W);
                     v1 = Vector4.Transform(v1, viewPortTransform);
                     v1 *= (1 / v1.W);
+                    //drawing
                     Bitmap.DrawLine(width, height, (int)v0.X, (int)v0.Y,
                        (int)v1.X, (int)v1.Y, color);
                 }
             }
-            stopwatch.Stop();
         }
 
     }
