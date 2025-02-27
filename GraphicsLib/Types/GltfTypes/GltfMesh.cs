@@ -37,8 +37,14 @@ namespace GraphicsLib.Types.GltfTypes
 
         [JsonIgnore]
         public GltfRoot? Root { get; set; }
+
         [JsonIgnore]
         public Vector3[]? Position { get => GetPosition(); }
+
+        [JsonIgnore]
+        public Vector3[]? Normal { get => GetNormals(); }
+
+        public int[]? PointIndices { get => GetPointIndices(); }
 
         private Vector3[]? GetPosition()
         {
@@ -59,7 +65,23 @@ namespace GraphicsLib.Types.GltfTypes
             }
             return vectors;
         }
-        public int[]? PointIndices { get => GetPointIndices(); }
+
+        private Vector3[]? GetNormals() {
+            if (Attributes.TryGetValue("NORMAL", out int index)) {
+                if (Root == null) {
+                    throw new ConfigurationErrorsException("Root is null.");
+                }
+                var accessor = Root.Accessors![index];
+                object[] data = GltfUtils.GetAccessorData(accessor);
+                Vector3[] vectors = new Vector3[accessor.Count];
+                for (int i = 0; i < accessor.Count; i++) {
+                    vectors[i] = (Vector3)data[i];
+                }
+                return vectors;
+            } else {
+                return null;
+            }
+        }
 
         private int[]? GetPointIndices()
         {
