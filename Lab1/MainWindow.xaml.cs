@@ -53,7 +53,7 @@ namespace Lab1
 
         private void OnFileOpened(object? sender, CancelEventArgs e)
         {
-            fileName.Text = string.Join(' ', Resources["fileString"].ToString(), ofd.FileName);
+            fileName.Text = string.Join(' ', Resources["fileString"].ToString(), ofd.SafeFileName);
 
             if (System.IO.Path.GetExtension(ofd.FileName).Equals(".obj"))
                 obj = Parser.ParseObjFile(ofd.FileName);

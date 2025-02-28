@@ -216,7 +216,7 @@ namespace GraphicsLib
                         {
                             Vector3 normal = obj.normals[triangle.nIndices[i]];
                             Vector3 translated = Vector3.TransformNormal(normal, worldTransform);
-                            Vector3 lightDir = Vector3.Transform(obj.vertices[triangle.vIndices[i]], worldTransform) - Camera.Position;
+                            Vector3 lightDir = -(Vector3.Transform(obj.vertices[triangle.vIndices[i]], worldTransform) - Camera.Position);
                             float vertexIllumination = Vector3.Dot(lightDir, translated) / (lightDir.Length() * translated.Length());
                             illumination += vertexIllumination;
                         }
@@ -232,7 +232,7 @@ namespace GraphicsLib
                         Vector3 translated = Vector3.TransformNormal(normal, worldTransform);
                         for (int i = 0; i < 3; i++)
                         {
-                            Vector3 lightDir = Vector3.Transform(obj.vertices[triangle.vIndices[i]], worldTransform) - Camera.Position;
+                            Vector3 lightDir = -(Vector3.Transform(obj.vertices[triangle.vIndices[i]], worldTransform) - Camera.Position);
                             float vertexIllumination = Vector3.Dot(lightDir, translated) / (lightDir.Length() * translated.Length());
                             illumination += vertexIllumination;
                         }
