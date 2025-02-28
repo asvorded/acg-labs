@@ -99,11 +99,10 @@ namespace GraphicsLib
                 p1 = Vector4.Transform(p1, modelToCamera);
                 p2 = Vector4.Transform(p2, modelToCamera);
                 Vector4 normal = Vector3.Cross((p2 - p0).AsVector3(), (p1 - p0).AsVector3()).AsVector4();
-                float illumination = Vector4.Dot(normal, p0);
+                float orientation = Vector4.Dot(normal, p0);
                 //Cull triangle if its orientation is facing away from the camera
-                if (illumination <= 0)
+                if (orientation <= 0)
                     continue;
-                illumination /= normal.Length() * p0.Length();
                 p0 = Vector4.Transform(p0, projectionTransform);
                 p1 = Vector4.Transform(p1, projectionTransform);
                 p2 = Vector4.Transform(p2, projectionTransform);
@@ -210,7 +209,36 @@ namespace GraphicsLib
                     }
 
                     //calculate illumination
-                    uint rgb = (uint)((illumination / 1.5f + 1f / 3) * 0xFF);
+                    float illumination = 0f;
+                    if (triangle.nIndices != null)
+                    {
+                        for (int i = 0; i < 3; i++)
+                        {
+                            Vector3 normal = obj.normals[triangle.nIndices[i]];
+                            Vector3 translated = Vector3.TransformNormal(normal, worldTransform);
+                            Vector3 lightDir = Vector3.Transform(obj.vertices[triangle.vIndices[i]], worldTransform) - Camera.Position;
+                            float vertexIllumination = Vector3.Dot(lightDir, translated) / (lightDir.Length() * translated.Length());
+                            illumination += vertexIllumination;
+                        }
+                    }
+                    else
+                    {
+                        Span<Vector3> vectors = [obj.vertices[triangle.vIndices[0]], obj.vertices[triangle.vIndices[1]], obj.vertices[triangle.vIndices[2]]];
+                        for(int i = 0; i < vectors.Length; i++)
+                        {
+                            vectors[i] = Vector3.Transform(vectors[i], worldTransform);
+                        }
+                        Vector3 normal = Vector3.Cross(vectors[2] - vectors[0], vectors[1] - vectors[0]);
+                        Vector3 translated = Vector3.TransformNormal(normal, worldTransform);
+                        for (int i = 0; i < 3; i++)
+                        {
+                            Vector3 lightDir = Vector3.Transform(obj.vertices[triangle.vIndices[i]], worldTransform) - Camera.Position;
+                            float vertexIllumination = Vector3.Dot(lightDir, translated) / (lightDir.Length() * translated.Length());
+                            illumination += vertexIllumination;
+                        }
+                    }
+                    illumination /= 3;
+                    uint rgb = (uint)(illumination * 0xFF);
                     color &= (uint)((0xFF << 24) | (rgb << 16) | (rgb << 8) | rgb);
                     Bitmap.DrawTriangleWithZBuffer(width, height, p0, p1, p2, color, zbuffer!);
                 }
