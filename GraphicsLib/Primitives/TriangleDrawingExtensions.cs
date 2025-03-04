@@ -145,7 +145,19 @@ namespace GraphicsLib.Primitives
             }
 
         }
-
+        public static void FlushZBufferV2(this WriteableBitmap bitmap, ZbufferV2 zbufferV2)
+        {
+            unsafe
+            {
+                uint* ptr = (uint*)bitmap.BackBuffer;
+                int x = bitmap.PixelWidth;
+                int y = bitmap.PixelHeight;
+                for (int i = 0; i < x * y; i++)
+                {
+                    ptr[i] = zbufferV2.At(i).color;
+                }
+            }
+        }
 
     }
 }

@@ -79,6 +79,8 @@ namespace Lab1
                 {
                     if (renderMode == "Flat")
                         renderer.RenderSolid(obj);
+                    else if (renderMode == "Smooth")
+                        renderer.RenderSolid2(obj);
                     else
                         renderer.RenderCarcass(obj);
 

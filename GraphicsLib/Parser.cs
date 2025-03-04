@@ -102,6 +102,13 @@ namespace GraphicsLib
                     if (p < 0)
                         p = obj.vertices.Count + p + 1;
                     face.vIndices[i] = p;
+                    if(face.nIndices!= null)
+                    {
+                        int n = face.nIndices[i];
+                        if (n < 0)
+                            n = obj.normals.Count + n + 1;
+                        face.nIndices[i] = n;
+                    }
                 }
             }
             return obj;
