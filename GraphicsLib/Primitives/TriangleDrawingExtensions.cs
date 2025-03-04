@@ -152,7 +152,8 @@ namespace GraphicsLib.Primitives
                 uint* ptr = (uint*)bitmap.BackBuffer;
                 int x = bitmap.PixelWidth;
                 int y = bitmap.PixelHeight;
-                for (int i = 0; i < x * y; i++)
+                int length = x * y;
+                for (int i = 0; i < length; i++)
                 {
                     ptr[i] = zbufferV2.At(i).color;
                 }

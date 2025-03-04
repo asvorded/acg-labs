@@ -1,6 +1,5 @@
 ﻿using System.Numerics;
 using System.Runtime.InteropServices;
-using System.Windows.Media.Imaging;
 
 namespace GraphicsLib.Types
 {
@@ -10,7 +9,7 @@ namespace GraphicsLib.Types
         [FieldOffset(0)]
         public UInt64 data;
         [FieldOffset(0)]
-        public float depth  = float.PositiveInfinity;
+        public float depth = float.PositiveInfinity;
         [FieldOffset(4)]
         public uint color = 0;
         public PixelData()
@@ -85,22 +84,23 @@ namespace GraphicsLib.Types
                 throw new ArgumentOutOfRangeException("x or y out of buffer range");
             }
             int pos = y * width + x;
-
-        Repeat:
-            PixelData currentPixel = buffer[pos];
-
-            if (currentPixel.depth > depth)
+            SpinWait spinWait = new();
+            PixelData pixelData = default;
+            pixelData.color = color;
+            pixelData.depth = depth;
+            while (true)
             {
-                PixelData pixelData = new PixelData(depth, color);
-                if (Interlocked.CompareExchange(ref buffer[pos].data, pixelData.data, currentPixel.data) != currentPixel.data)
-                    goto Repeat;
-                return true;
+                PixelData currentPixel = buffer[pos];
+                if (currentPixel.depth <= depth)
+                {
+                    return false;
+                }
+                if (Interlocked.CompareExchange(ref buffer[pos].data, pixelData.data, currentPixel.data) == currentPixel.data)
+                {
+                    return true;
+                }
+                spinWait.SpinOnce();
             }
-            else
-            {
-                return false;
-            }
-
         }
         public void MapTriangle(
             Vector4 p0, Vector4 p1, Vector4 p2,
@@ -186,18 +186,20 @@ namespace GraphicsLib.Types
             float dy = bottomPoint.Y - leftTopPoint.Y;
             Vector4 dLeftPoint = (bottomPoint - leftTopPoint) / dy;
             Vector4 dRightPoint = (bottomPoint - rightTopPoint) / dy;
+            float dzdx = (rightTopPoint.W - leftTopPoint.W) / (rightTopPoint.X - leftTopPoint.X);
             Vector4 rightPoint = rightTopPoint;
-            MapFlatTriangle(leftTopPoint, rightPoint, bottomPoint, dLeftPoint, dRightPoint, color);
+            MapFlatTriangle(leftTopPoint, rightPoint, bottomPoint, dLeftPoint, dRightPoint, dzdx, color);
         }
         private void MapFlatBottomTriangle(Vector4 topPoint, Vector4 rightBottomPoint, Vector4 leftBottomPoint, uint color)
         {
             float dy = rightBottomPoint.Y - topPoint.Y;
             Vector4 dRightPoint = (rightBottomPoint - topPoint) / dy;
             Vector4 dLeftPoint = (leftBottomPoint - topPoint) / dy;
+            float dzdx = (rightBottomPoint.W - leftBottomPoint.W) / (rightBottomPoint.X - leftBottomPoint.X);
             Vector4 rightPoint = topPoint;
-            MapFlatTriangle(topPoint, rightPoint, rightBottomPoint, dLeftPoint, dRightPoint, color);
+            MapFlatTriangle(topPoint, rightPoint, rightBottomPoint, dLeftPoint, dRightPoint, dzdx, color);
         }
-        private void MapFlatTriangle(Vector4 leftPoint, Vector4 rightPoint, Vector4 EndPoint, Vector4 dLeftPoint, Vector4 dRightPoint, uint color)
+        private void MapFlatTriangle(Vector4 leftPoint, Vector4 rightPoint, Vector4 EndPoint, Vector4 dLeftPoint, Vector4 dRightPoint, float dzdx, uint color)
         {
             int yStart = Math.Max((int)Math.Ceiling(leftPoint.Y), 0);
             int yEnd = Math.Min((int)Math.Ceiling(EndPoint.Y), height - 1);
@@ -207,16 +209,12 @@ namespace GraphicsLib.Types
             for (int y = yStart; y < yEnd; y++)
             {
                 int xStart = Math.Max((int)Math.Ceiling(leftPoint.X), 0);
-                int xEnd = Math.Min((int)Math.Ceiling(rightPoint.X), width - 1);
-                Vector4 lineInterpolant = leftPoint;
-                float dx = rightPoint.X - leftPoint.X;
-                Vector4 dLine = (rightPoint - leftPoint) / dx;
-                lineInterpolant += dLine * (xStart - leftPoint.X);
+                int xEnd = Math.Min((int)Math.Ceiling(rightPoint.X), width - 1); ;
+                float z = leftPoint.W + dzdx * (xStart - leftPoint.X);
                 for (int x = xStart; x < xEnd; x++)
                 {
-                    float z = lineInterpolant.W;
                     TestAndSet(x, y, z, color);
-                    lineInterpolant += dLine;
+                    z += dzdx;
                 }
                 leftPoint += dLeftPoint;
                 rightPoint += dRightPoint;
