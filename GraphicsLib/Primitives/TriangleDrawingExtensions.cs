@@ -93,14 +93,15 @@ namespace GraphicsLib.Primitives
         }
 
         private static void DrawFlatTopTriangleWithZBuffer(this WriteableBitmap bitmap, int bitmapWidth, int bitmapHeight,
-            Vector4 leftTopPoint, Vector4 rightTopPoint, Vector4 bottomPoint, uint color, Zbuffer zbuffer)
+                    Vector4 leftTopPoint, Vector4 rightTopPoint, Vector4 bottomPoint, uint color, Zbuffer zbuffer)
         {
             float dy = bottomPoint.Y - leftTopPoint.Y;
             Vector4 dLeftPoint = (bottomPoint - leftTopPoint) / dy;
             Vector4 dRightPoint = (bottomPoint - rightTopPoint) / dy;
+            float dzdx = (rightTopPoint.W - leftTopPoint.W) / (rightTopPoint.X - leftTopPoint.X);
             Vector4 rightPoint = rightTopPoint;
-            bitmap.DrawFlatTriangleWithZBuffer(bitmapWidth, bitmapHeight, leftTopPoint, rightPoint, bottomPoint,
-                                                dLeftPoint, dRightPoint, color, zbuffer);
+            bitmap.DrawFlatTriangleWithZBuffer(bitmapWidth, bitmapHeight, leftTopPoint, rightPoint, bottomPoint.Y,
+                                                dLeftPoint, dRightPoint, dzdx, color, zbuffer);
         }
         private static void DrawFlatBottomTriangleWithZBuffer(this WriteableBitmap bitmap, int bitmapWidth, int bitmapHeight,
             Vector4 topPoint, Vector4 rightBottomPoint, Vector4 leftBottomPoint, uint color, Zbuffer zbuffer)
@@ -108,28 +109,41 @@ namespace GraphicsLib.Primitives
             float dy = rightBottomPoint.Y - topPoint.Y;
             Vector4 dRightPoint = (rightBottomPoint - topPoint) / dy;
             Vector4 dLeftPoint = (leftBottomPoint - topPoint) / dy;
+            float dzdx = (rightBottomPoint.W - leftBottomPoint.W) / (rightBottomPoint.X - leftBottomPoint.X);
             Vector4 rightPoint = topPoint;
-            bitmap.DrawFlatTriangleWithZBuffer(bitmapWidth, bitmapHeight, topPoint, rightPoint, rightBottomPoint, dLeftPoint, dRightPoint, color, zbuffer);
+            bitmap.DrawFlatTriangleWithZBuffer(bitmapWidth, bitmapHeight, topPoint, rightPoint,
+                rightBottomPoint.Y, dLeftPoint, dRightPoint, dzdx, color, zbuffer);
         }
+        /// <summary>
+        /// draws triangle with 1 side parallel to x-axis
+        /// </summary>
+        /// <param name="bitmap"></param>
+        /// <param name="bitmapWidth">used to avoid calling bitmap.PixelWidth</param>
+        /// <param name="bitmapHeight">used to avoid calling bitmap.PixelWidth</param>
+        /// <param name="leftPoint">left starting point</param>
+        /// <param name="rightPoint">right starting point</param>
+        /// <param name="yMax">max y of triangle</param>
+        /// <param name="dLeftPoint"> interpolation delta for left point, y must be 1</param>
+        /// <param name="dRightPoint">interpolation delta for right point, y must be 1</param>
+        /// <param name="dzdx">interpolation delta for z</param>
+        /// <param name="color">color of triangle</param>
+        /// <param name="zbuffer"></param>
         private static void DrawFlatTriangleWithZBuffer(this WriteableBitmap bitmap, int bitmapWidth, int bitmapHeight,
-            Vector4 leftPoint, Vector4 rightPoint, Vector4 EndPoint, Vector4 dLeftPoint, Vector4 dRightPoint, uint color, Zbuffer zbuffer)
+            Vector4 leftPoint, Vector4 rightPoint, float yMax, Vector4 dLeftPoint, Vector4 dRightPoint, float dzdx, uint color, Zbuffer zbuffer)
         {
             int yStart = Math.Max((int)Math.Ceiling(leftPoint.Y), 0);
-            int yEnd = Math.Min((int)Math.Ceiling(EndPoint.Y), bitmapHeight - 1);
-            float yTop = leftPoint.Y;
-            leftPoint += dLeftPoint * (yStart - yTop);
-            rightPoint += dRightPoint * (yStart - yTop);
+            int yEnd = Math.Min((int)Math.Ceiling(yMax), bitmapHeight);
+            float yPrestep = yStart - leftPoint.Y;
+            leftPoint += dLeftPoint * yPrestep;
+            rightPoint += dRightPoint * yPrestep;
             for (int y = yStart; y < yEnd; y++)
             {
                 int xStart = Math.Max((int)Math.Ceiling(leftPoint.X), 0);
-                int xEnd = Math.Min((int)Math.Ceiling(rightPoint.X), bitmapWidth - 1);
-                Vector4 lineInterpolant = leftPoint;
-                float dx = rightPoint.X - leftPoint.X;
-                Vector4 dLine = (rightPoint - leftPoint) / dx;
-                lineInterpolant += dLine * (xStart - leftPoint.X);
+                int xEnd = Math.Min((int)Math.Ceiling(rightPoint.X), bitmapWidth);
+                float xPrestep = xStart - leftPoint.X;
+                float z = leftPoint.W + dzdx * xPrestep;
                 for (int x = xStart; x < xEnd; x++)
                 {
-                    float z = lineInterpolant.W;
                     if (zbuffer.TestAndSet(x, y, z))
                     {
                         unsafe
@@ -138,7 +152,7 @@ namespace GraphicsLib.Primitives
                             ptr[y * bitmapWidth + x] = color;
                         }
                     }
-                    lineInterpolant += dLine;
+                    z += dzdx;
                 }
                 leftPoint += dLeftPoint;
                 rightPoint += dRightPoint;

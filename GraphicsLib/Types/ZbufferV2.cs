@@ -188,7 +188,7 @@ namespace GraphicsLib.Types
             Vector4 dRightPoint = (bottomPoint - rightTopPoint) / dy;
             float dzdx = (rightTopPoint.W - leftTopPoint.W) / (rightTopPoint.X - leftTopPoint.X);
             Vector4 rightPoint = rightTopPoint;
-            MapFlatTriangle(leftTopPoint, rightPoint, bottomPoint, dLeftPoint, dRightPoint, dzdx, color);
+            MapFlatTriangle(leftTopPoint, rightPoint, bottomPoint.Y, dLeftPoint, dRightPoint, dzdx, color);
         }
         private void MapFlatBottomTriangle(Vector4 topPoint, Vector4 rightBottomPoint, Vector4 leftBottomPoint, uint color)
         {
@@ -197,20 +197,21 @@ namespace GraphicsLib.Types
             Vector4 dLeftPoint = (leftBottomPoint - topPoint) / dy;
             float dzdx = (rightBottomPoint.W - leftBottomPoint.W) / (rightBottomPoint.X - leftBottomPoint.X);
             Vector4 rightPoint = topPoint;
-            MapFlatTriangle(topPoint, rightPoint, rightBottomPoint, dLeftPoint, dRightPoint, dzdx, color);
+            MapFlatTriangle(topPoint, rightPoint, rightBottomPoint.Y, dLeftPoint, dRightPoint, dzdx, color);
         }
-        private void MapFlatTriangle(Vector4 leftPoint, Vector4 rightPoint, Vector4 EndPoint, Vector4 dLeftPoint, Vector4 dRightPoint, float dzdx, uint color)
+        private void MapFlatTriangle(Vector4 leftPoint, Vector4 rightPoint, float yMax, Vector4 dLeftPoint, Vector4 dRightPoint, float dzdx, uint color)
         {
             int yStart = Math.Max((int)Math.Ceiling(leftPoint.Y), 0);
-            int yEnd = Math.Min((int)Math.Ceiling(EndPoint.Y), height - 1);
-            float yTop = leftPoint.Y;
-            leftPoint += dLeftPoint * (yStart - yTop);
-            rightPoint += dRightPoint * (yStart - yTop);
+            int yEnd = Math.Min((int)Math.Ceiling(yMax), height);
+            float yPrestep = yStart - leftPoint.Y;
+            leftPoint += dLeftPoint * yPrestep;
+            rightPoint += dRightPoint * yPrestep;
             for (int y = yStart; y < yEnd; y++)
             {
                 int xStart = Math.Max((int)Math.Ceiling(leftPoint.X), 0);
-                int xEnd = Math.Min((int)Math.Ceiling(rightPoint.X), width - 1); ;
-                float z = leftPoint.W + dzdx * (xStart - leftPoint.X);
+                int xEnd = Math.Min((int)Math.Ceiling(rightPoint.X), width);
+                float xPrestep = xStart - leftPoint.X;
+                float z = leftPoint.W + dzdx * xPrestep;
                 for (int x = xStart; x < xEnd; x++)
                 {
                     TestAndSet(x, y, z, color);
