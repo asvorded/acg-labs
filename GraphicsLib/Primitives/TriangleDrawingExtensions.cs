@@ -53,7 +53,7 @@ namespace GraphicsLib.Primitives
                 //    /\
                 //   /  \
                 //   ----
-                if (max.X < mid.X)
+                if (max.X > mid.X)
                 {
                     (mid, max) = (max, mid);
                 }
