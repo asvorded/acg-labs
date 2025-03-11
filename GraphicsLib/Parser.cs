@@ -126,6 +126,7 @@ namespace GraphicsLib
                 foreach (var node in gltfRoot.Nodes)
                 {
                     Matrix4x4 transform = node.GlobalTransform;
+                    Matrix4x4 normalTransform = node.GlobalNormalTransform;
                     if (node.Mesh.HasValue)
                     {
                         var mesh = gltfRoot.Meshes![node.Mesh.Value];
@@ -147,9 +148,10 @@ namespace GraphicsLib
                             }
                             if(normals != null)
                             {
+                                
                                 foreach (var n in normals)
                                 {
-                                    Vector3 transformed = Vector3.TransformNormal(n, transform);
+                                    Vector3 transformed = Vector3.Normalize(Vector3.TransformNormal(n, normalTransform));
                                     obj.normals.Add(transformed);
                                 }
                             }

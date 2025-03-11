@@ -36,6 +36,45 @@ namespace GraphicsLib.Types.GltfTypes
         public Matrix4x4 GlobalTransform { get => GetGlobalTransform(); }
         [JsonIgnore]
         public Matrix4x4 LocalTransform { get => GetLocalTransform(); }
+        public Matrix4x4 LocalNormalTransform { get => GetLocalNormalTransform(); }
+        public Matrix4x4 GlobalNormalTransform { get => GetGlobalNormalTransform(); }
+
+        private Matrix4x4 GetGlobalNormalTransform()
+        {
+            if (Parent == null)
+            {
+                return LocalNormalTransform;
+            }
+            else
+            {
+                return LocalNormalTransform * Parent.GlobalNormalTransform;
+            }
+        }
+
+        private Matrix4x4 GetLocalNormalTransform()
+        {
+            if (Matrix.HasValue)
+            {
+                Matrix4x4 transform = Matrix.Value;
+                transform.Translation = default;
+                return transform;
+            }
+            else
+            {
+                var transform = Matrix4x4.Identity;
+                if (Scale.HasValue)
+                {
+                    Vector3 scale = Scale.Value;
+                    transform *= Matrix4x4.CreateScale(scale);
+                }
+                if (Rotation.HasValue)
+                {
+                    Quaternion rotation = Rotation.Value;
+                    transform *= Matrix4x4.CreateFromQuaternion(rotation);
+                }
+                return transform;
+            }
+        }
 
         private Matrix4x4 GetLocalTransform()
         {
