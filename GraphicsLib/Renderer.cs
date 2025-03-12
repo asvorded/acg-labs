@@ -1,6 +1,7 @@
 ﻿using GraphicsLib.Primitives;
 using GraphicsLib.Types;
 using System.Numerics;
+using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
 
 namespace GraphicsLib
@@ -329,7 +330,8 @@ namespace GraphicsLib
                             Vertex lineInterpolant = leftPoint + xPrestep * dLineInterpolant;
                             for (int x = xStart; x < xEnd; x++)
                             {
-                                zbufferV2!.TestAndSet(x, y, lineInterpolant.Position.Z, shader.PixelShader(lineInterpolant));
+                                if (zbufferV2!.TestAndSet(x, y, lineInterpolant.Position.Z, 0))
+                                    zbufferV2!.TestAndSet(x, y, lineInterpolant.Position.Z, shader.PixelShader(lineInterpolant));
                                 lineInterpolant += dLineInterpolant;
                             }
                             leftPoint += dLeftPoint;

@@ -1,4 +1,5 @@
 ﻿using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Windows.Media.TextFormatting;
 using static GraphicsLib.Types.PhongShader;
 
@@ -43,6 +44,7 @@ namespace GraphicsLib.Types
                     WorldPosition = Vector3.Lerp(a.WorldPosition, b.WorldPosition, t)
                 };
             }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public static Vertex operator +(Vertex lhs, Vertex rhs)
             {
                 return new Vertex
@@ -96,7 +98,7 @@ namespace GraphicsLib.Types
 
         public uint PixelShader(Vertex input)
         {
-            Vector3 lightDir = scene.Camera.Position - input.WorldPosition;
+            Vector3 lightDir = cameraPos - input.WorldPosition;
             Vector3 normal = input.Normal;
             float illumination = Vector3.Dot(normal, lightDir) / (normal.Length() * lightDir.Length());
             uint rgb = (uint)(illumination * 0xFF);

@@ -91,7 +91,7 @@ namespace GraphicsLib.Types
             while (true)
             {
                 PixelData currentPixel = buffer[pos];
-                if (currentPixel.depth <= depth)
+                if (currentPixel.depth < depth)
                 {
                     return false;
                 }
