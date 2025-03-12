@@ -19,6 +19,9 @@ namespace GraphicsLib
             Obj obj = new();
             using FileStream fileStream = new(filePath, FileMode.Open);
             using StreamReader sr = new(fileStream);
+            List<Vector3> verticesList = new();
+            List<Vector3> normalsList = new();
+            List<Face> facesList = new();
             while (!sr.EndOfStream)
             {
                 string? line = sr.ReadLine();
@@ -41,7 +44,7 @@ namespace GraphicsLib
                                 Single w = Single.Parse(parts[4], NumberStyles.Float, CultureInfo.InvariantCulture);
                                 newVertex /= w;
                             }
-                            obj.vertices.Add(newVertex);
+                            verticesList.Add(newVertex);
                         }
                         break;
                     case "vn":
@@ -52,7 +55,7 @@ namespace GraphicsLib
                             newNormal.Z = Single.Parse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture);
                             //нормаль может быть не нормализована. нормализуем
                             newNormal = Vector3.Normalize(newNormal);
-                            obj.normals.Add(newNormal);
+                            normalsList.Add(newNormal);
                         }
                         break;
                     case "f":
@@ -83,7 +86,7 @@ namespace GraphicsLib
                                 int[]? triangleTextures = hasTextureIndices ? [textures![0], textures[i + 1], textures[i + 2]] : null;
                                 int[]? triangleNormals = hasNormalIndices ? [normals![0], normals[i + 1], normals[i + 2]] : null;
                                 Face newFace = new(triangleVertices, triangleTextures, triangleNormals);
-                                obj.faces.Add(newFace);
+                                facesList.Add(newFace);
                             }
 
                         }
@@ -100,17 +103,20 @@ namespace GraphicsLib
                 {
                     int p = face.vIndices[i];
                     if (p < 0)
-                        p = obj.vertices.Count + p + 1;
+                        p = verticesList.Count + p + 1;
                     face.vIndices[i] = p;
                     if(face.nIndices!= null)
                     {
                         int n = face.nIndices[i];
                         if (n < 0)
-                            n = obj.normals.Count + n + 1;
+                            n = normalsList.Count + n + 1;
                         face.nIndices[i] = n;
                     }
                 }
             }
+            obj.faces = [.. facesList];
+            obj.vertices = [.. verticesList];
+            obj.normals = [.. normalsList];
             return obj;
         }
         public static Obj ParseGltfFile(string filePath)
@@ -122,6 +128,9 @@ namespace GraphicsLib
             string sourceDirectory = Path.GetDirectoryName(filePath)!;
             GltfRoot gltfRoot = JsonConvert.DeserializeObject<GltfRoot>(data, GltfSerializerSettings.GetSettings(sourceDirectory))
                 ?? throw new FormatException("invalid json gltf");
+            List<Vector3> verticesList = new();
+            List<Vector3> normalsList = new();
+            List<Face> facesList = new();
             if (gltfRoot.Nodes != null)
                 foreach (var node in gltfRoot.Nodes)
                 {
@@ -134,8 +143,8 @@ namespace GraphicsLib
                         {
                             var mode = primitive.Mode;
                             var attributes = primitive.Attributes;
-                            int vIndexOffset = obj.vertices.Count;
-                            int vNormalIndex = obj.normals.Count;
+                            int vIndexOffset = verticesList.Count;
+                            int nIndexOffset = normalsList.Count;
                             Vector3[]? vertices = primitive.Position;
                             Vector3[]? normals = primitive.Normal;
                             if (vertices != null)
@@ -143,7 +152,7 @@ namespace GraphicsLib
                                 foreach (var v in vertices)
                                 {
                                     Vector3 transformed = Vector3.Transform(v, transform);
-                                    obj.vertices.Add(transformed);
+                                    verticesList.Add(transformed);
                                 }
                             }
                             if(normals != null)
@@ -152,7 +161,7 @@ namespace GraphicsLib
                                 foreach (var n in normals)
                                 {
                                     Vector3 transformed = Vector3.Normalize(Vector3.TransformNormal(n, normalTransform));
-                                    obj.normals.Add(transformed);
+                                    normalsList.Add(transformed);
                                 }
                             }
                             int[]? indicies = primitive.PointIndices;
@@ -164,10 +173,10 @@ namespace GraphicsLib
                                     {
                                         int[] triangleVertices = [indicies[i] + vIndexOffset, indicies[i + 1] + vIndexOffset, indicies[i + 2] + vIndexOffset];
                                         int[]? triangleNormals = null;
-                                        if (obj.normals.Count > vNormalIndex)
-                                            triangleNormals = [indicies[i] + vNormalIndex, indicies[i + 1] + vNormalIndex, indicies[i + 2] + vNormalIndex];
+                                        if (normalsList.Count > nIndexOffset)
+                                            triangleNormals = [indicies[i] + nIndexOffset, indicies[i + 1] + nIndexOffset, indicies[i + 2] + nIndexOffset];
                                         Face newFace = new(triangleVertices, null, triangleNormals);
-                                        obj.faces.Add(newFace);
+                                        facesList.Add(newFace);
                                     }
                                 }
                                 else if (mode == GltfMeshMode.TRIANGLE_STRIP)
@@ -176,10 +185,10 @@ namespace GraphicsLib
                                     {
                                         int[] triangleVertices = [indicies[i] + vIndexOffset, indicies[i + 1] + vIndexOffset, indicies[i + 2] + vIndexOffset];
                                         int[]? triangleNormals = null;
-                                        if(obj.normals.Count > vNormalIndex)
-                                            triangleNormals = [indicies[i] + vNormalIndex, indicies[i + 1] + vNormalIndex, indicies[i + 2] + vNormalIndex];
+                                        if(normalsList.Count > nIndexOffset)
+                                            triangleNormals = [indicies[i] + nIndexOffset, indicies[i + 1] + nIndexOffset, indicies[i + 2] + nIndexOffset];
                                         Face newFace = new(triangleVertices, null, triangleNormals);
-                                        obj.faces.Add(newFace);
+                                        facesList.Add(newFace);
                                     }
                                 }
                                 else if (mode == GltfMeshMode.TRIANGLE_FAN)
@@ -188,17 +197,19 @@ namespace GraphicsLib
                                     {
                                         int[] triangleVertices = [indicies[0] + vIndexOffset, indicies[i + 1] + vIndexOffset, indicies[i + 2] + vIndexOffset];
                                         int[]? triangleNormals = null;
-                                        if (obj.normals.Count > vNormalIndex)
-                                            triangleNormals = [indicies[0] + vNormalIndex, indicies[i + 1] + vNormalIndex, indicies[i + 2] + vNormalIndex];
+                                        if (normalsList.Count > nIndexOffset)
+                                            triangleNormals = [indicies[0] + nIndexOffset, indicies[i + 1] + nIndexOffset, indicies[i + 2] + nIndexOffset];
                                         Face newFace = new(triangleVertices, null, triangleNormals);
-                                        obj.faces.Add(newFace);
+                                        facesList.Add(newFace);
                                     }
                                 }
                             }
                         }
                     }
                 }
-
+            obj.faces = [.. facesList];
+            obj.vertices = [.. verticesList];
+            obj.normals = [.. normalsList];
             return obj;
         }
     }

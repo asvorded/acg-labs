@@ -9,9 +9,9 @@ namespace GraphicsLib.Types
 {
     public class Obj
     {
-        public List<Vector3> vertices = new();
-        public List<Vector3> normals = new();
-        public List<Face> faces = new();
+        public Vector3[] vertices= [];
+        public Vector3[] normals = [];
+        public Face[] faces = [];
         public ObjTransformation Transformation;
         public Obj() { }
     }

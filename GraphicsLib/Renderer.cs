@@ -1,6 +1,5 @@
 ﻿using GraphicsLib.Primitives;
 using GraphicsLib.Types;
-using System.Diagnostics;
 using System.Numerics;
 using System.Windows.Media.Imaging;
 
@@ -26,7 +25,7 @@ namespace GraphicsLib
         }
         private void ResizeBuffer(Obj obj)
         {
-            int vertexCount = obj.vertices.Count;
+            int vertexCount = obj.vertices.Length;
             if (projectionSpaceBuffer.Length < vertexCount)
             {
                 projectionSpaceBuffer = new Vector4[vertexCount];
@@ -35,7 +34,7 @@ namespace GraphicsLib
         }
         private void ResizeAndClearZBuffer()
         {
-            if(Bitmap == null)
+            if (Bitmap == null)
             {
                 return;
             }
@@ -114,8 +113,7 @@ namespace GraphicsLib
             float leftCornerX = 0;
             float leftCornerY = 0;
             Matrix4x4 viewPortTransform = Matrix4x4.CreateViewport(leftCornerX, leftCornerY, width, height, 0, 1);
-
-            Parallel.For(0, obj.faces.Count, i =>
+            Parallel.For(0, obj.faces.Length, i =>
             {
                 Face triangle = obj.faces[i];
                 Vector4 p0 = new Vector4(obj.vertices[triangle.vIndices[0]], 1);
@@ -249,7 +247,7 @@ namespace GraphicsLib
                 return;
             if (obj == null)
                 return;
-            
+
             // prepare zbuffer
             ResizeAndClearZBuffer();
 
@@ -276,10 +274,10 @@ namespace GraphicsLib
             Matrix4x4 viewPortTransform = Matrix4x4.CreateViewport(leftCornerX, leftCornerY, width, height, 0, 1);
 
 
-            for (int i = 0; i < obj.faces.Count; i++)
+            for (int i = 0; i < obj.faces.Length; i++)
             {
                 Face triangle = obj.faces[i];
-                Vector4 p0 = new Vector4(obj.vertices[triangle.vIndices[0]],1);
+                Vector4 p0 = new Vector4(obj.vertices[triangle.vIndices[0]], 1);
                 Vector4 p1 = new Vector4(obj.vertices[triangle.vIndices[1]], 1);
                 Vector4 p2 = new Vector4(obj.vertices[triangle.vIndices[2]], 1);
                 p0 = Vector4.Transform(p0, modelToCamera);
@@ -411,7 +409,7 @@ namespace GraphicsLib
                     else
                     {
                         Span<Vector3> vectors = [obj.vertices[triangle.vIndices[0]], obj.vertices[triangle.vIndices[1]], obj.vertices[triangle.vIndices[2]]];
-                        for(int i = 0; i < vectors.Length; i++)
+                        for (int i = 0; i < vectors.Length; i++)
                         {
                             vectors[i] = Vector3.Transform(vectors[i], worldTransform);
                         }
@@ -429,7 +427,7 @@ namespace GraphicsLib
                     color &= (uint)((0xFF << 24) | (rgb << 16) | (rgb << 8) | rgb);
                     Bitmap.DrawTriangleWithZBuffer(width, height, p0, p1, p2, color, zbuffer!);
                 }
-            }  
+            }
         }
         public void RenderCarcass(Obj obj)
         {
@@ -454,7 +452,7 @@ namespace GraphicsLib
             float nearPlaneDistance = 0.01f;
             float farPlaneDistance = float.PositiveInfinity;
             float zCoeff = (float.IsPositiveInfinity(farPlaneDistance) ? -1f : farPlaneDistance / (nearPlaneDistance - farPlaneDistance));
-            
+
             Matrix4x4 projectionTransform = new Matrix4x4(
                 1 / MathF.Tan(fovVertical * 0.5f) / aspectRatio, 0, 0, 0,
                 0, 1 / MathF.Tan(fovVertical * 0.5f), 0, 0,
@@ -481,8 +479,8 @@ namespace GraphicsLib
                 projectionSpaceBuffer[i] = v;
             }
 
-            List<Face> faces = obj.faces;
-            int facesCount = faces.Count;
+            Face[] faces = obj.faces;
+            int facesCount = faces.Length;
             uint color = 0xFFFF0000;
 
             for (int i = 0; i < facesCount; i++)
@@ -510,7 +508,7 @@ namespace GraphicsLib
                         continue;
                     if (v0.Z < 0 && v1.Z < 0)
                         continue;
-                    
+
                     //Clip edge if one point is behind the camera
                     if (v0.Z < 0)
                     {
