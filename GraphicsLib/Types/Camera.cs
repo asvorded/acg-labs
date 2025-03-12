@@ -7,6 +7,7 @@ namespace GraphicsLib.Types
         private float azimuth;
         private float polar;
         private float distance;
+        private float nearClipPlane = 0.1f;
         private static readonly Vector3 up = Vector3.UnitY;
 
         public float Azimuth { get => azimuth; set => SetAzimuth(value); }
@@ -16,23 +17,29 @@ namespace GraphicsLib.Types
         public Vector3 Target { get; set; }
         public Matrix4x4 ViewMatrix { get => GetViewMatrix(); }
 
-        private Matrix4x4 GetViewMatrix()
+        public Matrix4x4 ProjectionMatrix { get => GetProjectionMatrix(); }
+        public Matrix4x4 ViewPortMatrix { get => GetViewPortMatrix(); }
+
+        private Matrix4x4 GetViewPortMatrix()
         {
-            Vector3 position = Position;
-            Vector3 zAxis = Vector3.Normalize(position - Target);
-            Vector3 xAxis = Vector3.Normalize(Vector3.Cross(Camera.up, zAxis));
-            Vector3 yAxis = Vector3.Cross(zAxis, xAxis);
-            Matrix4x4 view = new Matrix4x4(xAxis.X, yAxis.X, zAxis.X, 0,
-                                           xAxis.Y, yAxis.Y, zAxis.Y, 0,
-                                           xAxis.Z, yAxis.Z, zAxis.Z, 0,
-                                           -Vector3.Dot(xAxis, position),
-                                           -Vector3.Dot(yAxis, position),
-                                           -Vector3.Dot(zAxis, position),
-                                           1);
-            //return Matrix4x4.CreateLookAt(position, Target, up);
-            return view;
+            return Matrix4x4.CreateViewport(0, 0, ScreenWidth, ScreenHeight, 0, -1);
         }
 
+        private Matrix4x4 GetProjectionMatrix()
+        {
+            return Matrix4x4.CreatePerspectiveFieldOfView(FieldOfView, ScreenWidth / ScreenHeight, nearClipPlane, FarClipPlane);
+        }
+
+        //дальше лень
+        public float NearClipPlane { get => nearClipPlane; set => SetNearClipPlane(value); }
+        public float FarClipPlane { get; set; } = float.PositiveInfinity;
+        public float FieldOfView { get; set; } = MathF.PI / 3;
+        public float ScreenWidth { get; set; } = 0f;
+        public float ScreenHeight { get; set; } = 0f;
+        private Matrix4x4 GetViewMatrix()
+        {
+            return Matrix4x4.CreateLookAt(Position, Target, up);
+        }
         public Camera()
         {
             Azimuth = 0;
@@ -46,6 +53,12 @@ namespace GraphicsLib.Types
             Polar = polar;
             Distance = distance;
             Target = target;
+        }
+        private void SetNearClipPlane(float value)
+        {
+            if (value <= 0 || value >= FarClipPlane)
+                throw new ArgumentOutOfRangeException(nameof(value), value, "nearPlane must be between 0 and farPlane");
+            nearClipPlane = value;
         }
         private void SetAzimuth(float value)
         {

@@ -20,14 +20,15 @@ namespace Lab1
 
         private static Obj? obj;
         private static Camera camera;
+        private static Scene scene;
         private Renderer renderer;
         private Point oldPos;
 
         static MainWindow()
         {
             camera = new Camera();
+            scene = new Scene(camera);
         }
-
         public MainWindow()
         {
             InitializeComponent();
@@ -43,7 +44,8 @@ namespace Lab1
             ofd.FileOk += OnFileOpened;
             Height = SystemParameters.PrimaryScreenHeight / 1.25;
             Width = SystemParameters.PrimaryScreenWidth / 1.25;
-            renderer = new Renderer(camera);
+
+            renderer = new Renderer(scene);
 #if DEBUG
             DebugPanel.Visibility = Visibility.Visible;
 #else
@@ -60,6 +62,7 @@ namespace Lab1
             else
                 obj = Parser.ParseGltfFile(ofd.FileName);
             obj.Transformation.Reset();
+            scene.Obj = obj;
             Draw();
 
         }
@@ -78,11 +81,11 @@ namespace Lab1
                 if (obj != null)
                 {
                     if (renderMode == "Flat")
-                        renderer.RenderSolid(obj);
+                        renderer.RenderSolid();
                     else if (renderMode == "Smooth")
-                        renderer.RenderSolid2(obj);
+                        renderer.Render<PhongShader, PhongShader.Vertex>();
                     else
-                        renderer.RenderCarcass(obj);
+                        renderer.RenderCarcass();
 
                 }
                 else

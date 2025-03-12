@@ -7,16 +7,16 @@ namespace GraphicsLib
 {
     public class Renderer
     {
-        public Camera Camera { get; set; }
+        public Scene Scene { get; set; }
         public WriteableBitmap? Bitmap { get; set; }
         private Vector4[] projectionSpaceBuffer;
         private int bufferLength;
         private Zbuffer? zbuffer;
         private ZbufferV2? zbufferV2;
 
-        public Renderer(Camera camera)
+        public Renderer(Scene scene)
         {
-            Camera = camera;
+            Scene = scene;
             projectionSpaceBuffer = [];
             bufferLength = 0;
             Bitmap = default;
@@ -82,78 +82,69 @@ namespace GraphicsLib
             }
 
         }
-        public void RenderSolid2(Obj obj)
+        public void Render<Shader, Vertex>() where Shader : IShader<Vertex>, new() where Vertex : struct, IVertex<Vertex>
         {
             if (Bitmap == null)
                 return;
-            if (obj == null)
+            if (Scene.Obj == null)
                 return;
-
+            Obj obj = Scene.Obj;
+            Types.Camera mainCamera = Scene.Camera;
+            mainCamera.ScreenHeight = Bitmap.PixelHeight;
+            mainCamera.ScreenWidth = Bitmap.PixelWidth;
+            Shader shader = new();
+            shader.Scene = Scene;
             // prepare zbuffer
             ResizeAndClearZBufferV2();
 
-            // transform from model space to world space
-            Matrix4x4 worldTransform = obj.Transformation.Matrix;
 
             // transform from world space to camera space
-            Matrix4x4 cameraTransform = Camera.ViewMatrix;
-
-            Matrix4x4 modelToCamera = worldTransform * cameraTransform;
-
+            Matrix4x4 cameraTransform = mainCamera.ViewMatrix;
             // transform from camera space to clipping space (divide by W to get to NDC space)
-            int width = Bitmap.PixelWidth;
-            int height = Bitmap.PixelHeight;
-            float aspectRatio = (float)width / height;
-            float fovVertical = MathF.PI / 3 / aspectRatio;
-            float nearPlaneDistance = 0.1f;
-            float farPlaneDistance = float.PositiveInfinity;
-            Matrix4x4 projectionTransform = Matrix4x4.CreatePerspectiveFieldOfView(fovVertical, aspectRatio, nearPlaneDistance, farPlaneDistance);
+
+            Matrix4x4 projectionTransform = mainCamera.ProjectionMatrix;
 
             // transform from NDC space to viewport space
-            float leftCornerX = 0;
-            float leftCornerY = 0;
-            Matrix4x4 viewPortTransform = Matrix4x4.CreateViewport(leftCornerX, leftCornerY, width, height, 0, 1);
+            Matrix4x4 viewPortTransform = mainCamera.ViewPortMatrix;
             Parallel.For(0, obj.faces.Length, i =>
             {
                 Face triangle = obj.faces[i];
-                Vector4 p0 = new Vector4(obj.vertices[triangle.vIndices[0]], 1);
-                Vector4 p1 = new Vector4(obj.vertices[triangle.vIndices[1]], 1);
-                Vector4 p2 = new Vector4(obj.vertices[triangle.vIndices[2]], 1);
-                p0 = Vector4.Transform(p0, modelToCamera);
-                p1 = Vector4.Transform(p1, modelToCamera);
-                p2 = Vector4.Transform(p2, modelToCamera);
-                Vector4 normal = Vector3.Cross((p2 - p0).AsVector3(), (p1 - p0).AsVector3()).AsVector4();
-                float orientation = Vector4.Dot(normal, p0);
+                Vertex p0 = shader.GetFromFace(obj, i, 0);
+                Vertex p1 = shader.GetFromFace(obj, i, 1);
+                Vertex p2 = shader.GetFromFace(obj, i, 2);
+                p0.Position = Vector4.Transform(p0.Position, cameraTransform);
+                p1.Position = Vector4.Transform(p1.Position, cameraTransform);
+                p2.Position = Vector4.Transform(p2.Position, cameraTransform);
+
+                Vector4 normal = Vector3.Cross((p2.Position - p0.Position).AsVector3(), (p1.Position - p0.Position).AsVector3()).AsVector4();
+                float orientation = Vector4.Dot(normal, p0.Position);
                 //Cull triangle if its orientation is facing away from the camera
                 if (orientation <= 0)
                     return;
-                float illumination = orientation / (normal.Length() * p0.Length());
-                p0 = Vector4.Transform(p0, projectionTransform);
-                p1 = Vector4.Transform(p1, projectionTransform);
-                p2 = Vector4.Transform(p2, projectionTransform);
+                p0.Position = Vector4.Transform(p0.Position, projectionTransform);
+                p1.Position = Vector4.Transform(p1.Position, projectionTransform);
+                p2.Position = Vector4.Transform(p2.Position, projectionTransform);
                 //Cull triangle if it is not in frustum and all points are on the same side from it
-                if (p0.X > p0.W && p1.X > p1.W && p2.X > p2.W)
+                if (p0.Position.X > p0.Position.W && p1.Position.X > p1.Position.W && p2.Position.X > p2.Position.W)
                     return;
-                if (p0.X < -p0.W && p1.X < -p1.W && p2.X < -p2.W)
+                if (p0.Position.X < -p0.Position.W && p1.Position.X < -p1.Position.W && p2.Position.X < -p2.Position.W)
                     return;
-                if (p0.Y > p0.W && p1.Y > p1.W && p2.Y > p2.W)
+                if (p0.Position.Y > p0.Position.W && p1.Position.Y > p1.Position.W && p2.Position.Y > p2.Position.W)
                     return;
-                if (p0.Y < -p0.W && p1.Y < -p1.W && p2.Y < -p2.W)
+                if (p0.Position.Y < -p0.Position.W && p1.Position.Y < -p1.Position.W && p2.Position.Y < -p2.Position.W)
                     return;
-                if (p0.Z > p0.W && p1.Z > p1.W && p2.Z > p2.W)
+                if (p0.Position.Z > p0.Position.W && p1.Position.Z > p1.Position.W && p2.Position.Z > p2.Position.W)
                     return;
-                if (p0.Z < 0 && p1.Z < 0 && p2.Z < 0)
+                if (p0.Position.Z < 0 && p1.Position.Z < 0 && p2.Position.Z < 0)
                     return;
-                uint color = 0xFFFFFFFF;
                 //Clipping triangle if it intersects near plane
-                if (p0.Z < 0)
+                if (p0.Position.Z < 0)
                 {
-                    color = 0xFF00FF00;
-                    if (p1.Z < 0)
+                    if (p1.Position.Z < 0)
                     {
                         ClipTriangleIntoOne(p0, p1, p2);
                     }
-                    else if (p2.Z < 0)
+                    else if (p2.Position.Z < 0)
                     {
                         ClipTriangleIntoOne(p0, p2, p1);
                     }
@@ -162,10 +153,9 @@ namespace GraphicsLib
                         ClipTriangleIntoTwo(p0, p1, p2);
                     }
                 }
-                else if (p1.Z < 0)
+                else if (p1.Position.Z < 0)
                 {
-                    color = 0xFF00FF00;
-                    if (p2.Z < 0)
+                    if (p2.Position.Z < 0)
                     {
                         ClipTriangleIntoOne(p1, p2, p0);
                     }
@@ -174,9 +164,8 @@ namespace GraphicsLib
                         ClipTriangleIntoTwo(p1, p0, p2);
                     }
                 }
-                else if (p2.Z < 0)
+                else if (p2.Position.Z < 0)
                 {
-                    color = 0xFF00FF00;
                     ClipTriangleIntoTwo(p2, p0, p1);
                 }
                 else
@@ -193,12 +182,12 @@ namespace GraphicsLib
                 //            ri  \ |
                 //            |    p2
                 //            |
-                void ClipTriangleIntoTwo(Vector4 pointBehind, Vector4 p1, Vector4 p2)
+                void ClipTriangleIntoTwo(Vertex pointBehind, Vertex p1, Vertex p2)
                 {
-                    float c0 = (-pointBehind.Z) / (p1.Z - pointBehind.Z);
-                    float c1 = (-pointBehind.Z) / (p2.Z - pointBehind.Z);
-                    Vector4 leftInterpolant = Vector4.Lerp(pointBehind, p1, c0);
-                    Vector4 rightInterpolant = Vector4.Lerp(pointBehind, p2, c1);
+                    float c0 = (-pointBehind.Position.Z) / (p1.Position.Z - pointBehind.Position.Z);
+                    float c1 = (-pointBehind.Position.Z) / (p2.Position.Z - pointBehind.Position.Z);
+                    Vertex leftInterpolant = Vertex.Lerp(pointBehind, p1, c0);
+                    Vertex rightInterpolant = Vertex.Lerp(pointBehind, p2, c1);
                     ProcessTriangle(leftInterpolant, p1, p2);
                     ProcessTriangle(rightInterpolant, leftInterpolant, p2);
                 }
@@ -210,69 +199,175 @@ namespace GraphicsLib
                 //            ri  
                 //     rpb    |   
                 //            |
-                void ClipTriangleIntoOne(Vector4 leftPointBehind, Vector4 rightPointBehind, Vector4 p2)
+                void ClipTriangleIntoOne(Vertex leftPointBehind, Vertex rightPointBehind, Vertex p2)
                 {
-                    float c0 = (-leftPointBehind.Z) / (p2.Z - leftPointBehind.Z);
-                    float c1 = (-rightPointBehind.Z) / (p2.Z - rightPointBehind.Z);
-                    Vector4 leftInterpolant = Vector4.Lerp(leftPointBehind, p2, c0);
-                    Vector4 rightInterpolant = Vector4.Lerp(rightPointBehind, p2, c1);
+                    float c0 = (-leftPointBehind.Position.Z) / (p2.Position.Z - leftPointBehind.Position.Z);
+                    float c1 = (-rightPointBehind.Position.Z) / (p2.Position.Z - rightPointBehind.Position.Z);
+                    Vertex leftInterpolant = Vertex.Lerp(leftPointBehind, p2, c0);
+                    Vertex rightInterpolant = Vertex.Lerp(rightPointBehind, p2, c1);
                     ProcessTriangle(leftInterpolant, p2, rightInterpolant);
                 }
-                void ProcessTriangle(Vector4 p0, Vector4 p1, Vector4 p2)
+                void ProcessTriangle(Vertex p0, Vertex p1, Vertex p2)
                 {
                     Transform(ref p0);
                     Transform(ref p1);
                     Transform(ref p2);
                     // save z to use it in zbuffer
-                    void Transform(ref Vector4 vertex)
+                    void Transform(ref Vertex vertex)
                     {
-                        float invZ = (1 / vertex.W);
-                        float z = vertex.W;
+                        float invZ = (1 / vertex.Position.W);
                         vertex *= invZ;
-                        vertex = Vector4.Transform(vertex, viewPortTransform);
-                        vertex.W = z;
+                        Vector4 ndcPosition = Vector4.Transform(vertex.Position, viewPortTransform);
+                        //ndcPosition.W = invZ;
+                        vertex.Position = ndcPosition;
                     }
+                    MapTriangle(p0, p1, p2);
+                    void MapTriangle(Vertex p0, Vertex p1, Vertex p2)
+                    {
+                        Vertex min = p0;
+                        Vertex mid = p1;
+                        Vertex max = p2;
+                        // Correct min, mid and max
+                        if (mid.Position.Y < min.Position.Y)
+                        {
+                            (min, mid) = (mid, min);
+                        }
+                        if (max.Position.Y < min.Position.Y)
+                        {
+                            (min, max) = (max, min);
+                        }
+                        if (max.Position.Y < mid.Position.Y)
+                        {
+                            (mid, max) = (max, mid);
+                        }
 
-                    //calculate illumination
-                    uint rgb = (uint)(illumination * 0xFF);
-                    color &= (uint)((0xFF << 24) | (rgb << 16) | (rgb << 8) | rgb);
-                    zbufferV2!.MapTriangle(p0, p1, p2, color);
+                        if (min.Position.Y == mid.Position.Y)
+                        {
+                            //flat top
+                            //   ----
+                            //   \  /
+                            //    \/
+                            if (mid.Position.X < min.Position.X)
+                            {
+                                (min, mid) = (mid, min);
+                            }
+                            MapFlatTopTriangle(min, mid, max);
+                        }
+                        else if (max.Position.Y == mid.Position.Y)
+                        {
+                            //flat bottom
+                            //    /\
+                            //   /  \
+                            //   ----
+                            if (max.Position.X > mid.Position.X)
+                            {
+                                (mid, max) = (max, mid);
+                            }
+                            MapFlatBottomTriangle(min, mid, max);
+                        }
+                        else
+                        {
+                            float c = (mid.Position.Y - min.Position.Y) / (max.Position.Y - min.Position.Y);
+                            Vertex interpolant = Vertex.Lerp(min, max, c);
+                            if (interpolant.Position.X > mid.Position.X)
+                            {
+                                //right major
+                                //    min
+                                //       
+                                // mid     interpolant
+                                //                    
+                                //  
+                                //                       max
+
+                                MapFlatBottomTriangle(min, interpolant, mid);
+                                MapFlatTopTriangle(mid, interpolant, max);
+                            }
+                            else
+                            {
+                                //left major
+                                //                  min
+                                //       
+                                //      interpolant     mid
+                                //                    
+                                //  
+                                // max                      
+                                MapFlatBottomTriangle(min, mid, interpolant);
+                                MapFlatTopTriangle(interpolant, mid, max);
+                            }
+                        }
+                    }
+                    void MapFlatTopTriangle(Vertex leftTopPoint, Vertex rightTopPoint, Vertex bottomPoint)
+                    {
+                        float dy = bottomPoint.Position.Y - leftTopPoint.Position.Y;
+                        Vertex dLeftPoint = (bottomPoint - leftTopPoint) / dy;
+                        Vertex dRightPoint = (bottomPoint - rightTopPoint) / dy;
+                        Vertex dLineInterpolant = (rightTopPoint - leftTopPoint) / (rightTopPoint.Position.X - leftTopPoint.Position.X);
+                        Vertex rightPoint = rightTopPoint;
+                        MapFlatTriangle(leftTopPoint, rightPoint, bottomPoint.Position.Y, dLeftPoint, dRightPoint, dLineInterpolant);
+                    }
+                    void MapFlatBottomTriangle(Vertex topPoint, Vertex rightBottomPoint, Vertex leftBottomPoint)
+                    {
+                        float dy = rightBottomPoint.Position.Y - topPoint.Position.Y;
+                        Vertex dRightPoint = (rightBottomPoint - topPoint) / dy;
+                        Vertex dLeftPoint = (leftBottomPoint - topPoint) / dy;
+                        Vertex rightPoint = topPoint;
+                        Vertex DLineInterpolant = (rightBottomPoint - leftBottomPoint) / (rightBottomPoint.Position.X - leftBottomPoint.Position.X);
+                        MapFlatTriangle(topPoint, rightPoint, rightBottomPoint.Position.Y, dLeftPoint, dRightPoint, DLineInterpolant);
+                    }
+                    void MapFlatTriangle(Vertex leftPoint, Vertex rightPoint, float yMax, Vertex dLeftPoint, Vertex dRightPoint, Vertex dLineInterpolant)
+                    {
+                        int yStart = Math.Max((int)Math.Ceiling(leftPoint.Position.Y), 0);
+                        int yEnd = Math.Min((int)Math.Ceiling(yMax), (int)mainCamera.ScreenHeight);
+                        float yPrestep = yStart - leftPoint.Position.Y;
+                        leftPoint += dLeftPoint * yPrestep;
+                        rightPoint += dRightPoint * yPrestep;
+                        for (int y = yStart; y < yEnd; y++)
+                        {
+                            int xStart = Math.Max((int)Math.Ceiling(leftPoint.Position.X), 0);
+                            int xEnd = Math.Min((int)Math.Ceiling(rightPoint.Position.X), (int)mainCamera.ScreenWidth);
+                            float xPrestep = xStart - leftPoint.Position.X;
+                            Vertex lineInterpolant = leftPoint + xPrestep * dLineInterpolant;
+                            for (int x = xStart; x < xEnd; x++)
+                            {
+                                zbufferV2!.TestAndSet(x, y, lineInterpolant.Position.Z, shader.PixelShader(lineInterpolant));
+                                lineInterpolant += dLineInterpolant;
+                            }
+                            leftPoint += dLeftPoint;
+                            rightPoint += dRightPoint;
+                        }
+
+                    }
                 }
             });
             Bitmap.FlushZBufferV2(zbufferV2!);
         }
-        public void RenderSolid(Obj obj)
+        public void RenderSolid()
         {
             if (Bitmap == null)
                 return;
-            if (obj == null)
+            if (Scene.Obj == null)
                 return;
-
+            Obj obj = Scene.Obj;
             // prepare zbuffer
             ResizeAndClearZBuffer();
 
             // transform from model space to world space
             Matrix4x4 worldTransform = obj.Transformation.Matrix;
 
+
+            Camera mainCamera = Scene.Camera;
             // transform from world space to camera space
-            Matrix4x4 cameraTransform = Camera.ViewMatrix;
+            Matrix4x4 cameraTransform = mainCamera.ViewMatrix;
 
             Matrix4x4 modelToCamera = worldTransform * cameraTransform;
 
             // transform from camera space to clipping space (divide by W to get to NDC space)
-            int width = Bitmap.PixelWidth;
-            int height = Bitmap.PixelHeight;
-            float aspectRatio = (float)width / height;
-            float fovVertical = MathF.PI / 3 / aspectRatio;
-            float nearPlaneDistance = 0.1f;
-            float farPlaneDistance = float.PositiveInfinity;
-            Matrix4x4 projectionTransform = Matrix4x4.CreatePerspectiveFieldOfView(fovVertical, aspectRatio, nearPlaneDistance, farPlaneDistance);
+            mainCamera.ScreenHeight = Bitmap.PixelHeight;
+            mainCamera.ScreenWidth = Bitmap.PixelWidth;
+            Matrix4x4 projectionTransform = mainCamera.ProjectionMatrix;
 
             // transform from NDC space to viewport space
-            float leftCornerX = 0;
-            float leftCornerY = 0;
-            Matrix4x4 viewPortTransform = Matrix4x4.CreateViewport(leftCornerX, leftCornerY, width, height, 0, 1);
-
+            Matrix4x4 viewPortTransform = mainCamera.ViewPortMatrix;
 
             for (int i = 0; i < obj.faces.Length; i++)
             {
@@ -401,7 +496,7 @@ namespace GraphicsLib
                         {
                             Vector3 normal = obj.normals[triangle.nIndices[i]];
                             Vector3 translated = Vector3.TransformNormal(normal, worldTransform);
-                            Vector3 lightDir = -(Vector3.Transform(obj.vertices[triangle.vIndices[i]], worldTransform) - Camera.Position);
+                            Vector3 lightDir = -(Vector3.Transform(obj.vertices[triangle.vIndices[i]], worldTransform) - Scene.Camera.Position);
                             float vertexIllumination = Vector3.Dot(lightDir, translated) / (lightDir.Length() * translated.Length());
                             illumination += vertexIllumination;
                         }
@@ -417,7 +512,7 @@ namespace GraphicsLib
                         Vector3 translated = Vector3.TransformNormal(normal, worldTransform);
                         for (int i = 0; i < 3; i++)
                         {
-                            Vector3 lightDir = -(Vector3.Transform(obj.vertices[triangle.vIndices[i]], worldTransform) - Camera.Position);
+                            Vector3 lightDir = -(Vector3.Transform(obj.vertices[triangle.vIndices[i]], worldTransform) - Scene.Camera.Position);
                             float vertexIllumination = Vector3.Dot(lightDir, translated) / (lightDir.Length() * translated.Length());
                             illumination += vertexIllumination;
                         }
@@ -425,30 +520,31 @@ namespace GraphicsLib
                     illumination /= 3;
                     uint rgb = (uint)(illumination * 0xFF);
                     color &= (uint)((0xFF << 24) | (rgb << 16) | (rgb << 8) | rgb);
-                    Bitmap.DrawTriangleWithZBuffer(width, height, p0, p1, p2, color, zbuffer!);
+                    Bitmap.DrawTriangleWithZBuffer((int)mainCamera.ScreenWidth, (int)mainCamera.ScreenHeight, p0, p1, p2, color, zbuffer!);
                 }
             }
         }
-        public void RenderCarcass(Obj obj)
+        public void RenderCarcass()
         {
             if (Bitmap == null)
                 return;
-            if (obj == null)
+            if (Scene.Obj == null)
                 return;
+            Obj obj = Scene.Obj;
             ResizeBuffer(obj);
 
             // transform from model space to world space
             Matrix4x4 worldTransform = obj.Transformation.Matrix;
 
             // transform from world space to camera space
-            Matrix4x4 cameraTransform = Camera.ViewMatrix;
+            Matrix4x4 cameraTransform = Scene.Camera.ViewMatrix;
 
 
             // transform from camera space to clipping space (divide by W to get to NDC space)
             int width = Bitmap.PixelWidth;
             int height = Bitmap.PixelHeight;
             float aspectRatio = (float)width / height;
-            float fovVertical = MathF.PI / 3 / aspectRatio;
+            float fovVertical = MathF.PI / 3;
             float nearPlaneDistance = 0.01f;
             float farPlaneDistance = float.PositiveInfinity;
             float zCoeff = (float.IsPositiveInfinity(farPlaneDistance) ? -1f : farPlaneDistance / (nearPlaneDistance - farPlaneDistance));
