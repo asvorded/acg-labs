@@ -1,7 +1,6 @@
 ﻿using GraphicsLib.Primitives;
 using GraphicsLib.Types;
 using System.Numerics;
-using System.Windows.Media.Effects;
 using System.Windows.Media.Imaging;
 
 namespace GraphicsLib
@@ -107,7 +106,12 @@ namespace GraphicsLib
 
             // transform from NDC space to viewport space
             Matrix4x4 viewPortTransform = mainCamera.ViewPortMatrix;
+            //For debugging purpose multithreading is disabled
+#if DEBUG
+            for (int i = 0; i < obj.faces.Length; i++)
+#else
             Parallel.For(0, obj.faces.Length, i =>
+#endif
             {
                 Face triangle = obj.faces[i];
                 Vertex p0 = shader.GetFromFace(obj, i, 0);
@@ -121,23 +125,51 @@ namespace GraphicsLib
                 float orientation = Vector4.Dot(normal, p0.Position);
                 //Cull triangle if its orientation is facing away from the camera
                 if (orientation <= 0)
+#if DEBUG
+                    continue;
+#else
                     return;
+#endif
                 p0.Position = Vector4.Transform(p0.Position, projectionTransform);
                 p1.Position = Vector4.Transform(p1.Position, projectionTransform);
                 p2.Position = Vector4.Transform(p2.Position, projectionTransform);
                 //Cull triangle if it is not in frustum and all points are on the same side from it
                 if (p0.Position.X > p0.Position.W && p1.Position.X > p1.Position.W && p2.Position.X > p2.Position.W)
+#if DEBUG
+                    continue;
+#else
                     return;
+#endif
                 if (p0.Position.X < -p0.Position.W && p1.Position.X < -p1.Position.W && p2.Position.X < -p2.Position.W)
+#if DEBUG
+                    continue;
+#else
                     return;
+#endif
                 if (p0.Position.Y > p0.Position.W && p1.Position.Y > p1.Position.W && p2.Position.Y > p2.Position.W)
+#if DEBUG
+                    continue;
+#else
                     return;
+#endif
                 if (p0.Position.Y < -p0.Position.W && p1.Position.Y < -p1.Position.W && p2.Position.Y < -p2.Position.W)
+#if DEBUG
+                    continue;
+#else
                     return;
+#endif
                 if (p0.Position.Z > p0.Position.W && p1.Position.Z > p1.Position.W && p2.Position.Z > p2.Position.W)
+#if DEBUG
+                    continue;
+#else
                     return;
+#endif
                 if (p0.Position.Z < 0 && p1.Position.Z < 0 && p2.Position.Z < 0)
+#if DEBUG
+                    continue;
+#else
                     return;
+#endif
                 //Clipping triangle if it intersects near plane
                 if (p0.Position.Z < 0)
                 {
@@ -340,7 +372,11 @@ namespace GraphicsLib
 
                     }
                 }
+#if DEBUG
+            }
+#else
             });
+#endif
             Bitmap.FlushZBufferV2(zbufferV2!);
         }
         public void RenderSolid()
