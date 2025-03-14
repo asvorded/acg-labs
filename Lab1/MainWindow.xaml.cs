@@ -124,8 +124,12 @@ namespace Lab1
                 Point newPos = Mouse.GetPosition(canvas);
                 float dx = (float)(newPos.X - oldPos.X);
                 float dy = (float)(newPos.Y - oldPos.Y);
-                camera.RotateAroundTargetHorizontal((float)(-dx * MathF.PI / canvas.ActualWidth));
-                camera.RotateAroundTargetVertical((float)(-dy * MathF.PI / canvas.ActualHeight));
+                if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0) {
+                    // ....
+                } else {
+                    camera.RotateAroundTargetHorizontal((float)(-dx * MathF.PI / canvas.ActualWidth));
+                    camera.RotateAroundTargetVertical((float)(-dy * MathF.PI / canvas.ActualHeight));
+                }
                 Draw();
                 oldPos = newPos;
             }
@@ -158,7 +162,6 @@ namespace Lab1
 
         private void canvas_LostMouseCapture(object sender, MouseEventArgs e) { }
 
-        private string transformMode = "Move";
         private string renderMode = "Flat";
 
         private void RadioButton_Checked(object sender, RoutedEventArgs e)
@@ -167,9 +170,6 @@ namespace Lab1
             {
                 switch (radioButton.GroupName)
                 {
-                    case "TransformMode":
-                        transformMode = ((RadioButton)sender).Content.ToString()!;
-                        break;
                     case "RenderingMode":
                         renderMode = ((RadioButton)sender).Content.ToString()!;
                         Draw();
@@ -270,22 +270,21 @@ namespace Lab1
 
         private void canvas_KeyDown(object sender, KeyEventArgs e)
         {
-            Dictionary<Key, Action> handlers = moveActions;
-            if (transformMode == "Rotate")
-            {
-                handlers = rotateActions;
-            }
-
-            if (handlers.TryGetValue(e.Key, out Action? action))
+            if (rotateActions.TryGetValue(e.Key, out Action? action))
             {
                 speed = (Keyboard.Modifiers & ModifierKeys.Control) != 0 ? 1f : 0.25f;
-                if (transformMode == "Move")
-                {
-                    speed *= camera.Distance / 500;
-                }
                 action();
                 Draw();
             }
+        }
+
+        private void Reset_Click(object sender, RoutedEventArgs e) {
+            if (obj == null) {
+                return;
+            }
+
+            obj.Transformation.Reset();
+            Draw();
         }
     }
 }
