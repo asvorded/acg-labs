@@ -3,6 +3,7 @@ using GraphicsLib.Types;
 using Microsoft.Win32;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Numerics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -51,6 +52,30 @@ namespace Lab1
 #else
             DebugPanel.Visibility = Visibility.Visible;
 #endif
+            Stopwatch s = Stopwatch.StartNew();
+            Stopwatch s2 = new();
+
+
+            int frameCount = 0;
+
+            Dispatcher.Hooks.DispatcherInactive += (o, e) => {
+                if (obj == null) {
+                    return;
+                }
+                double delta = s2.Elapsed.TotalSeconds;
+                s2.Restart();
+
+                obj.Transformation.AngleY += (float)(speed * 5 * delta);
+                Draw();
+                frameCount++;
+
+                if (s.ElapsedMilliseconds >= 1000) {
+                    DebugPanel.Text = frameCount.ToString();
+
+                    s.Restart();
+                    frameCount = 0;
+                }
+            };
         }
 
         private void OnFileOpened(object? sender, CancelEventArgs e)
@@ -63,7 +88,7 @@ namespace Lab1
                 obj = Parser.ParseGltfFile(ofd.FileName);
             obj.Transformation.Reset();
             scene.Obj = obj;
-            Draw();
+            //Draw();
 
         }
 
@@ -96,7 +121,7 @@ namespace Lab1
                 bitmap.AddDirtyRect(new Int32Rect(0, 0, bitmap.PixelWidth, bitmap.PixelHeight));
                 bitmap.Unlock();
                 stopwatch.Stop();
-                DebugPanel.Text = (TimeSpan.TicksPerSecond / stopwatch.ElapsedTicks).ToString() + " fps";
+                //DebugPanel.Text = (TimeSpan.TicksPerSecond / stopwatch.ElapsedTicks).ToString() + " fps";
                 canvas.Child = new Image { Source = bitmap };
                 renderer.Bitmap = null;
             }
@@ -119,14 +144,29 @@ namespace Lab1
 
         private void Window_MouseMove(object sender, MouseEventArgs e)
         {
+            if (obj == null) {
+                return;
+            }
+
             if (e.LeftButton == MouseButtonState.Pressed && Mouse.Captured == canvas && oldPos.X != -1)
             {
                 Point newPos = Mouse.GetPosition(canvas);
                 float dx = (float)(newPos.X - oldPos.X);
                 float dy = (float)(newPos.Y - oldPos.Y);
-                camera.RotateAroundTargetHorizontal((float)(-dx * MathF.PI / canvas.ActualWidth));
-                camera.RotateAroundTargetVertical((float)(-dy * MathF.PI / canvas.ActualHeight));
-                Draw();
+
+                if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0) {
+                    Matrix4x4.Invert(camera.ViewMatrix, out Matrix4x4 invMatrix);
+                    invMatrix = Matrix4x4.Transpose(invMatrix);
+                    Vector3 offs = new Vector3(dx, -dy, 0);
+                    offs = Vector3.TransformNormal(offs, invMatrix);
+                    //camera.Target += offs;
+                    obj.Transformation.Offset += offs;
+                } else {
+                    camera.RotateAroundTargetHorizontal((float)(-dx * MathF.PI / canvas.ActualWidth));
+                    camera.RotateAroundTargetVertical((float)(-dy * MathF.PI / canvas.ActualHeight));
+                }
+
+                //Draw();
                 oldPos = newPos;
             }
             else
@@ -146,19 +186,18 @@ namespace Lab1
             float dz = (float)e.Delta;
             float step = Keyboard.Modifiers == ModifierKeys.Control ? 0.002f : 0.0005f;
             camera.MoveTowardTarget(dz * step * camera.Distance);
-            Draw();
+            //Draw();
         }
 
         private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            Draw();
+            //Draw();
         }
 
         private void canvas_GotMouseCapture(object sender, MouseEventArgs e) { }
 
         private void canvas_LostMouseCapture(object sender, MouseEventArgs e) { }
 
-        private string transformMode = "Move";
         private string renderMode = "Flat";
 
         private void RadioButton_Checked(object sender, RoutedEventArgs e)
@@ -167,12 +206,9 @@ namespace Lab1
             {
                 switch (radioButton.GroupName)
                 {
-                    case "TransformMode":
-                        transformMode = ((RadioButton)sender).Content.ToString()!;
-                        break;
                     case "RenderingMode":
                         renderMode = ((RadioButton)sender).Content.ToString()!;
-                        Draw();
+                        //Draw();
                         break;
                 }
             }
@@ -270,22 +306,21 @@ namespace Lab1
 
         private void canvas_KeyDown(object sender, KeyEventArgs e)
         {
-            Dictionary<Key, Action> handlers = moveActions;
-            if (transformMode == "Rotate")
-            {
-                handlers = rotateActions;
-            }
-
-            if (handlers.TryGetValue(e.Key, out Action? action))
+            if (rotateActions.TryGetValue(e.Key, out Action? action))
             {
                 speed = (Keyboard.Modifiers & ModifierKeys.Control) != 0 ? 1f : 0.25f;
-                if (transformMode == "Move")
-                {
-                    speed *= camera.Distance / 500;
-                }
                 action();
-                Draw();
+                //Draw();
             }
+        }
+
+        private void Reset_Click(object sender, RoutedEventArgs e) {
+            if (obj == null) {
+                return;
+            }
+
+            obj.Transformation.Reset();
+            //Draw();
         }
     }
 }

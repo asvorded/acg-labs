@@ -12,6 +12,7 @@ namespace GraphicsLib.Types
 
         public float Azimuth { get => azimuth; set => SetAzimuth(value); }
         public float Polar { get => polar; set => SetPolar(value); }
+
         public Vector3 Position { get => GetPosition(); }
         public float Distance { get => distance; set => distance = value > 0 ? value : 1; }
         public Vector3 Target { get; set; }
@@ -81,9 +82,9 @@ namespace GraphicsLib.Types
             (float sinPolar, float cosPolar) = MathF.SinCos(Polar);
             (float sinAzim, float cosAzim) = MathF.SinCos(Azimuth);
             Vector3 position = default;
-            position.Z = Distance * cosAzim * sinPolar;
-            position.X = Distance * sinAzim * sinPolar;
-            position.Y = Distance * cosPolar;
+            position.Z = Distance * cosAzim * sinPolar - Target.Z;
+            position.X = Distance * sinAzim * sinPolar - Target.X;
+            position.Y = Distance * cosPolar - Target.Y;
             return position;
         }
         /// <summary>

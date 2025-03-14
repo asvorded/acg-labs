@@ -13,7 +13,7 @@ namespace GraphicsLib.Types
         private static float ambientIntensity = 0.1f;
         private static Vector3 ambient = ambientColor * ambientIntensity;
         private static Vector3 diffuseColor = new(0f,0.5f,1f);
-        private static float specularPower = 100f;
+        private static float specularPower = 250f;
 
         private static Vector3 lightColor = new(1f,1f,1f);
         private static float lightIntensity = 0.9f;

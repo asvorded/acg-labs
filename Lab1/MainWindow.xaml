@@ -27,12 +27,12 @@
             <RowDefinition Height="40" />
             <RowDefinition />
         </Grid.RowDefinitions>
-        <DockPanel>
+        <DockPanel Margin="15,0,15,0">
             <StackPanel HorizontalAlignment="Left" Orientation="Horizontal">
                 <Button
                     Width="100"
                     Height="30"
-                    Margin="15,0,15,0"
+                    Margin="0,0,15,0"
                     HorizontalAlignment="Left"
                     Click="ButtonOpenFile_Click"
                     Content="{StaticResource openString}" />
@@ -51,19 +51,7 @@
                 HorizontalAlignment="Right"
                 DockPanel.Dock="Right"
                 Orientation="Horizontal">
-                <TextBlock
-                    Margin="20,0,20,0"
-                    VerticalAlignment="Center"
-                    Text="Edit mode:" />
-                <RadioButton
-                    Checked="RadioButton_Checked"
-                    Content="Move"
-                    GroupName="TransformMode"
-                    IsChecked="True" />
-                <RadioButton
-                    Checked="RadioButton_Checked"
-                    Content="Rotate"
-                    GroupName="TransformMode" />
+                <Button Content="Reset transtormation" Click="Reset_Click"/>
             </StackPanel>
             <StackPanel
                 HorizontalAlignment="Right"
