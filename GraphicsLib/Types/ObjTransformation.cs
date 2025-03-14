@@ -37,6 +37,17 @@ namespace GraphicsLib.Types {
 
         public Vector3 Offset;
         public Matrix4x4 Matrix { get => GetTransformationMatrix(); }
+        public Matrix4x4 NormalMatrix { get => GetNormalMatrix(); }
+
+        private Matrix4x4 GetNormalMatrix()
+        {
+            Matrix4x4 rotateXMatrix = Matrix4x4.CreateRotationX(AngleX);
+            Matrix4x4 rotateYMatrix = Matrix4x4.CreateRotationY(AngleY);
+            Matrix4x4 rotateZMatrix = Matrix4x4.CreateRotationZ(AngleZ);
+            Matrix4x4 invScaleMatrix = Matrix4x4.CreateScale(1f/Scale);
+            Matrix4x4 matrix = rotateZMatrix * rotateYMatrix * rotateXMatrix * invScaleMatrix;
+            return matrix;
+        }
 
         public ObjTransformation() { }
 

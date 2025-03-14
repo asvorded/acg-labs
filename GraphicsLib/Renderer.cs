@@ -120,9 +120,12 @@ namespace GraphicsLib
                 p0.Position = Vector4.Transform(p0.Position, cameraTransform);
                 p1.Position = Vector4.Transform(p1.Position, cameraTransform);
                 p2.Position = Vector4.Transform(p2.Position, cameraTransform);
-
-                Vector4 normal = Vector3.Cross((p2.Position - p0.Position).AsVector3(), (p1.Position - p0.Position).AsVector3()).AsVector4();
-                float orientation = Vector4.Dot(normal, p0.Position);
+                //cache vertex positions
+                Vector4 p0Position = p0.Position;
+                Vector4 p1Position = p1.Position;
+                Vector4 p2Position = p2.Position;
+                Vector4 normal = Vector3.Cross((p2Position - p0Position).AsVector3(), (p1Position - p0Position).AsVector3()).AsVector4();
+                float orientation = Vector4.Dot(normal, p0Position);
                 //Cull triangle if its orientation is facing away from the camera
                 if (orientation <= 0)
 #if DEBUG
@@ -130,54 +133,58 @@ namespace GraphicsLib
 #else
                     return;
 #endif
-                p0.Position = Vector4.Transform(p0.Position, projectionTransform);
-                p1.Position = Vector4.Transform(p1.Position, projectionTransform);
-                p2.Position = Vector4.Transform(p2.Position, projectionTransform);
+                p0.Position = Vector4.Transform(p0Position, projectionTransform);
+                p1.Position = Vector4.Transform(p1Position, projectionTransform);
+                p2.Position = Vector4.Transform(p2Position, projectionTransform);
+                //cache vertex positions
+                p0Position = p0.Position;
+                p1Position = p1.Position;
+                p2Position = p2.Position;
                 //Cull triangle if it is not in frustum and all points are on the same side from it
-                if (p0.Position.X > p0.Position.W && p1.Position.X > p1.Position.W && p2.Position.X > p2.Position.W)
+                if (p0Position.X > p0Position.W && p1Position.X > p1Position.W && p2Position.X > p2Position.W)
 #if DEBUG
                     continue;
 #else
                     return;
 #endif
-                if (p0.Position.X < -p0.Position.W && p1.Position.X < -p1.Position.W && p2.Position.X < -p2.Position.W)
+                if (p0Position.X < -p0Position.W && p1Position.X < -p1Position.W && p2Position.X < -p2Position.W)
 #if DEBUG
                     continue;
 #else
                     return;
 #endif
-                if (p0.Position.Y > p0.Position.W && p1.Position.Y > p1.Position.W && p2.Position.Y > p2.Position.W)
+                if (p0Position.Y > p0Position.W && p1Position.Y > p1Position.W && p2Position.Y > p2Position.W)
 #if DEBUG
                     continue;
 #else
                     return;
 #endif
-                if (p0.Position.Y < -p0.Position.W && p1.Position.Y < -p1.Position.W && p2.Position.Y < -p2.Position.W)
+                if (p0Position.Y < -p0Position.W && p1Position.Y < -p1Position.W && p2Position.Y < -p2Position.W)
 #if DEBUG
                     continue;
 #else
                     return;
 #endif
-                if (p0.Position.Z > p0.Position.W && p1.Position.Z > p1.Position.W && p2.Position.Z > p2.Position.W)
+                if (p0Position.Z > p0Position.W && p1Position.Z > p1Position.W && p2Position.Z > p2Position.W)
 #if DEBUG
                     continue;
 #else
                     return;
 #endif
-                if (p0.Position.Z < 0 && p1.Position.Z < 0 && p2.Position.Z < 0)
+                if (p0Position.Z < 0 && p1Position.Z < 0 && p2Position.Z < 0)
 #if DEBUG
                     continue;
 #else
                     return;
 #endif
                 //Clipping triangle if it intersects near plane
-                if (p0.Position.Z < 0)
+                if (p0Position.Z < 0)
                 {
-                    if (p1.Position.Z < 0)
+                    if (p1Position.Z < 0)
                     {
                         ClipTriangleIntoOne(p0, p1, p2);
                     }
-                    else if (p2.Position.Z < 0)
+                    else if (p2Position.Z < 0)
                     {
                         ClipTriangleIntoOne(p0, p2, p1);
                     }
@@ -186,9 +193,9 @@ namespace GraphicsLib
                         ClipTriangleIntoTwo(p0, p1, p2);
                     }
                 }
-                else if (p1.Position.Z < 0)
+                else if (p1Position.Z < 0)
                 {
-                    if (p2.Position.Z < 0)
+                    if (p2Position.Z < 0)
                     {
                         ClipTriangleIntoOne(p1, p2, p0);
                     }
@@ -197,7 +204,7 @@ namespace GraphicsLib
                         ClipTriangleIntoTwo(p1, p0, p2);
                     }
                 }
-                else if (p2.Position.Z < 0)
+                else if (p2Position.Z < 0)
                 {
                     ClipTriangleIntoTwo(p2, p0, p1);
                 }

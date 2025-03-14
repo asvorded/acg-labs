@@ -17,17 +17,19 @@ namespace GraphicsLib.Types
 
         private static Vector3 lightColor = new(1f,1f,1f);
         private static float lightIntensity = 0.9f;
-        private static Vector3 lightPosition = new(-1000f,000f,000f);
+        private static Vector3 lightPosition = new(000f,000f,1000f);
         private void SetSceneParams(Scene value)
         {
             this.scene = value;
             if (scene.Obj == null)
                 throw new ArgumentException("Scene object is null");
             worldTransform = scene.Obj.Transformation.Matrix;
+            worldNormalTransform = scene.Obj.Transformation.NormalMatrix;
             cameraPos = scene.Camera.Position;
         }
 
         private Matrix4x4 worldTransform;
+        private Matrix4x4 worldNormalTransform;
         private Scene scene;
         private Vector3 cameraPos;
         public PhongShader()
@@ -130,7 +132,7 @@ namespace GraphicsLib.Types
             vertex.Position = Vector4.Transform(new Vector4(obj.vertices[face.vIndices[vertexIndex]],1), worldTransform);
             if(face.nIndices == null)
                 throw new ArgumentException("Face has no normal indices, BRUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUH");
-            vertex.Normal = Vector3.TransformNormal(obj.normals[face.vIndices[vertexIndex]], worldTransform);
+            vertex.Normal = Vector3.TransformNormal(obj.normals[face.vIndices[vertexIndex]], worldNormalTransform);
             vertex.WorldPosition = vertex.Position.AsVector3();
             return vertex;
         }

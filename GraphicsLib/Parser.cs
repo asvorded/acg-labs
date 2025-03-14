@@ -136,6 +136,7 @@ namespace GraphicsLib
                 {
                     Matrix4x4 transform = node.GlobalTransform;
                     Matrix4x4 normalTransform = node.GlobalNormalTransform;
+                    //Matrix4x4 normalTransform = node.GlobalTransform;
                     if (node.Mesh.HasValue)
                     {
                         var mesh = gltfRoot.Meshes![node.Mesh.Value];

@@ -41,14 +41,9 @@ namespace GraphicsLib.Types.GltfTypes
 
         private Matrix4x4 GetGlobalNormalTransform()
         {
-            if (Parent == null)
-            {
-                return LocalNormalTransform;
-            }
-            else
-            {
-                return LocalNormalTransform * Parent.GlobalNormalTransform;
-            }
+            Matrix4x4.Invert(GlobalTransform, out Matrix4x4 normalTransform);
+            normalTransform = Matrix4x4.Transpose(normalTransform);
+            return normalTransform;
         }
 
         private Matrix4x4 GetLocalNormalTransform()
