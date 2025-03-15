@@ -1,4 +1,5 @@
-﻿using System.Numerics;
+﻿using GraphicsLib.Primitives;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Windows.Media.TextFormatting;
 using static GraphicsLib.Types.PhongShader;
@@ -18,7 +19,7 @@ namespace GraphicsLib.Types
         private Vector3 lightPosition;
         private void SetSceneParams(Scene value)
         {
-            this.scene = value;
+            scene = value;
             if (scene.Obj == null)
                 throw new ArgumentException("Scene object is null");
             //caching all values to avoid calling heavy properties
@@ -125,7 +126,7 @@ namespace GraphicsLib.Types
             return color;
         }
 
-        public Vertex GetFromFace(Obj obj, int faceIndex, int vertexIndex)
+        public Vertex GetVertexWithWorldPositionFromFace(Obj obj, int faceIndex, int vertexIndex)
         {
             Face face = obj.faces[faceIndex];
             Vertex vertex = default;
@@ -133,6 +134,30 @@ namespace GraphicsLib.Types
             if(face.nIndices == null)
                 throw new ArgumentException("Face has no normal indices, BRUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUH");
             vertex.Normal = Vector3.TransformNormal(obj.normals[face.nIndices[vertexIndex]], worldNormalTransform);
+            vertex.WorldPosition = vertex.Position.AsVector3();
+            return vertex;
+        }
+        public Vertex GetVertexWithWorldPositionFromTriangle(Obj obj, int triangleIndex, int vertexIndex)
+        {
+            StaticTriangle triangle = obj.triangles[triangleIndex];
+            Vertex vertex = default;
+            switch (vertexIndex)
+            {
+                case 0:
+                    vertex.Position = Vector4.Transform(new Vector4(triangle.p0, 1), worldTransform);
+                    vertex.Normal = Vector3.TransformNormal(triangle.n0, worldNormalTransform);
+                    break;
+                case 1:
+                    vertex.Position = Vector4.Transform(new Vector4(triangle.p1, 1), worldTransform);
+                    vertex.Normal = Vector3.TransformNormal(triangle.n1, worldNormalTransform);
+                    break;
+                case 2:
+                    vertex.Position = Vector4.Transform(new Vector4(triangle.p2, 1), worldTransform);
+                    vertex.Normal = Vector3.TransformNormal(triangle.n2, worldNormalTransform);
+                    break;
+                default:
+                    throw new ArgumentException("Invalid vertex index");
+            }
             vertex.WorldPosition = vertex.Position.AsVector3();
             return vertex;
         }

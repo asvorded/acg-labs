@@ -12,6 +12,7 @@ namespace GraphicsLib.Types
     {
         public Scene Scene { get; set; }
         public uint PixelShader(Vertex input);
-        public Vertex GetFromFace(Obj obj, int faceIndex, int vertexIndex);
+        public Vertex GetVertexWithWorldPositionFromFace(Obj obj, int faceIndex, int vertexIndex);
+        public Vertex GetVertexWithWorldPositionFromTriangle(Obj obj, int triangleIndex, int vertexIndex);
     }
 }

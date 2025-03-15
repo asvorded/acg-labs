@@ -81,6 +81,11 @@
                 <RadioButton
                     VerticalAlignment="Center"
                     Checked="RadioButton_Checked"
+                    Content="Delayed"
+                    GroupName="RenderingMode" />
+                <RadioButton
+                    VerticalAlignment="Center"
+                    Checked="RadioButton_Checked"
                     Content="Flat"
                     GroupName="RenderingMode"
                     IsChecked="True" />

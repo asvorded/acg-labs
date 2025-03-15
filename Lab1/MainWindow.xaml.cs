@@ -71,8 +71,8 @@ namespace Lab1
         {
             if (renderer == null)
                 return;
-            try
-            {
+/*            try
+            {*/
                 Stopwatch stopwatch = Stopwatch.StartNew();
                 WriteableBitmap bitmap = new WriteableBitmap(
                 ((int)canvas.ActualWidth), ((int)canvas.ActualHeight), 96, 96, PixelFormats.Bgra32, null);
@@ -84,6 +84,8 @@ namespace Lab1
                         renderer.RenderSolid();
                     else if (renderMode == "Smooth")
                         renderer.Render<PhongShader, PhongShader.Vertex>();
+                    else if (renderMode == "Delayed")
+                        renderer.RenderDelayed();
                     else
                         renderer.RenderCarcass();
 
@@ -96,14 +98,14 @@ namespace Lab1
                 bitmap.AddDirtyRect(new Int32Rect(0, 0, bitmap.PixelWidth, bitmap.PixelHeight));
                 bitmap.Unlock();
                 stopwatch.Stop();
-                DebugPanel.Text = (TimeSpan.TicksPerSecond / stopwatch.ElapsedTicks).ToString() + " fps";
+                DebugPanel.Text = $"{TimeSpan.TicksPerSecond / stopwatch.ElapsedTicks} fps/ {stopwatch.ElapsedMilliseconds} + ms";
                 canvas.Child = new Image { Source = bitmap };
                 renderer.Bitmap = null;
-            }
+            /*}
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message);
-            }
+            }*/
         }
 
         private void ButtonOpenFile_Click(object sender, RoutedEventArgs e)

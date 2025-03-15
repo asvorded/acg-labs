@@ -1,4 +1,5 @@
-﻿using GraphicsLib.Types;
+﻿using GraphicsLib.Primitives;
+using GraphicsLib.Types;
 using GraphicsLib.Types.GltfTypes;
 using GraphicsLib.Types.JsonConverters;
 using Newtonsoft.Json;
@@ -114,6 +115,18 @@ namespace GraphicsLib
                     }
                 }
             }
+            StaticTriangle[] staticTriangles = new StaticTriangle[facesList.Count];
+            for (int i = 0; i < facesList.Count; i++)
+            {
+                Face face = facesList[i];
+                staticTriangles[i] = new StaticTriangle()
+                {
+                    p0 = verticesList[face.vIndices[0]],
+                    p1 = verticesList[face.vIndices[1]],
+                    p2 = verticesList[face.vIndices[2]],
+                };
+            }
+            obj.triangles = [.. staticTriangles];
             obj.faces = [.. facesList];
             obj.vertices = [.. verticesList];
             obj.normals = [.. normalsList];
@@ -208,6 +221,28 @@ namespace GraphicsLib
                         }
                     }
                 }
+            StaticTriangle[] staticTriangles = new StaticTriangle[facesList.Count];
+            for (int i = 0; i < facesList.Count; i++)
+            {
+                Face face = facesList[i];
+                staticTriangles[i] = new StaticTriangle()
+                {
+                    p0 = verticesList[face.vIndices[0]],
+                    p1 = verticesList[face.vIndices[1]],
+                    p2 = verticesList[face.vIndices[2]],
+                };
+                if(face.nIndices != null)
+                {
+                    staticTriangles[i].n0 = normalsList[face.nIndices[0]];
+                    staticTriangles[i].n1 = normalsList[face.nIndices[1]];
+                    staticTriangles[i].n2 = normalsList[face.nIndices[2]];
+                }
+                if(face.tIndices != null)
+                {
+                    //TODO: add parsing of texture coords
+                }
+            }
+            obj.triangles = [.. staticTriangles];
             obj.faces = [.. facesList];
             obj.vertices = [.. verticesList];
             obj.normals = [.. normalsList];

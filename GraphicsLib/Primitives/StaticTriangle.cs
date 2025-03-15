@@ -6,10 +6,10 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace GraphicsLib.Primitives {
-    public class StaticTriangle {
+    public struct StaticTriangle {
 
-        public const int TriangleVerticesCount = 3;
-
-        public Vector4[] Vertices = new Vector4[TriangleVerticesCount];
+        public Vector3 p0, p1, p2;
+        public Vector3 n0, n1, n2;
+        public Vector2 t0, t1, t2;
     }
 }

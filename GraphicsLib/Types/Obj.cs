@@ -1,4 +1,5 @@
-﻿using System;
+﻿using GraphicsLib.Primitives;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -11,6 +12,7 @@ namespace GraphicsLib.Types
     {
         public Vector3[] vertices= [];
         public Vector3[] normals = [];
+        public StaticTriangle[] triangles = [];
         public Face[] faces = [];
         public ObjTransformation Transformation;
         public Obj() { }
