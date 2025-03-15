@@ -17,7 +17,7 @@ namespace GraphicsLib.Types
 
         private static Vector3 lightColor = new(1f,1f,1f);
         private static float lightIntensity = 0.9f;
-        private static Vector3 lightPosition = new(000f,000f,1000f);
+        private static Vector3 lightPosition = new(000f,1000f,1000f);
         private void SetSceneParams(Scene value)
         {
             this.scene = value;
@@ -55,7 +55,6 @@ namespace GraphicsLib.Types
                     WorldPosition = Vector3.Lerp(a.WorldPosition, b.WorldPosition, t)
                 };
             }
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public static Vertex operator +(Vertex lhs, Vertex rhs)
             {
                 return new Vertex
@@ -65,7 +64,6 @@ namespace GraphicsLib.Types
                     WorldPosition = lhs.WorldPosition + rhs.WorldPosition
                 };
             }
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public static Vertex operator -(Vertex lhs, Vertex rhs)
             {
                 return new Vertex
@@ -75,7 +73,6 @@ namespace GraphicsLib.Types
                     WorldPosition = lhs.WorldPosition - rhs.WorldPosition
                 };
             }
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public static Vertex operator *(Vertex lhs, float scalar)
             {
                 return new Vertex
@@ -85,7 +82,6 @@ namespace GraphicsLib.Types
                     WorldPosition = lhs.WorldPosition * scalar
                 };
             }
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public static Vertex operator *(float scalar, Vertex rhs)
             {
                 return new Vertex
@@ -95,7 +91,6 @@ namespace GraphicsLib.Types
                     WorldPosition = rhs.WorldPosition * scalar
                 };
             }
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public static Vertex operator /(Vertex lhs, float scalar)
             {
                 return new Vertex
@@ -132,7 +127,7 @@ namespace GraphicsLib.Types
             vertex.Position = Vector4.Transform(new Vector4(obj.vertices[face.vIndices[vertexIndex]],1), worldTransform);
             if(face.nIndices == null)
                 throw new ArgumentException("Face has no normal indices, BRUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUH");
-            vertex.Normal = Vector3.TransformNormal(obj.normals[face.vIndices[vertexIndex]], worldNormalTransform);
+            vertex.Normal = Vector3.TransformNormal(obj.normals[face.nIndices[vertexIndex]], worldNormalTransform);
             vertex.WorldPosition = vertex.Position.AsVector3();
             return vertex;
         }
