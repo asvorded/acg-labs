@@ -92,8 +92,10 @@ namespace GraphicsLib
             Types.Camera mainCamera = Scene.Camera;
             mainCamera.ScreenHeight = Bitmap.PixelHeight;
             mainCamera.ScreenWidth = Bitmap.PixelWidth;
-            Shader shader = new();
-            shader.Scene = Scene;
+            Shader shader = new()
+            {
+                Scene = Scene
+            };
             // prepare zbuffer
             ResizeAndClearZBufferV2();
 

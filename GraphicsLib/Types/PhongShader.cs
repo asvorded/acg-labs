@@ -9,23 +9,28 @@ namespace GraphicsLib.Types
     {
         public Scene Scene { get => scene; set => SetSceneParams(value); }
 
-        private static Vector3 ambientColor = new(1f,1f,1f);
-        private static float ambientIntensity = 0.1f;
-        private static Vector3 ambient = ambientColor * ambientIntensity;
-        private static Vector3 diffuseColor = new(0f,0.5f,1f);
-        private static float specularPower = 100f;
+        private Vector3 ambient;
+        private Vector3 diffuseColor;
+        private float specularPower;
 
-        private static Vector3 lightColor = new(1f,1f,1f);
-        private static float lightIntensity = 0.9f;
-        private static Vector3 lightPosition = new(000f,1000f,1000f);
+        private Vector3 lightColor;
+        private float lightIntensity;
+        private Vector3 lightPosition;
         private void SetSceneParams(Scene value)
         {
             this.scene = value;
             if (scene.Obj == null)
                 throw new ArgumentException("Scene object is null");
+            //caching all values to avoid calling heavy properties
             worldTransform = scene.Obj.Transformation.Matrix;
             worldNormalTransform = scene.Obj.Transformation.NormalMatrix;
             cameraPos = scene.Camera.Position;
+            ambient = scene.AmbientColor * scene.AmbientIntensity;
+            diffuseColor = scene.DiffuseColor;
+            specularPower = scene.SpecularPower;
+            lightColor = scene.LightColor * scene.LightIntensity;
+            lightIntensity = scene.LightIntensity;
+            lightPosition = scene.LightPosition;
         }
 
         private Matrix4x4 worldTransform;
