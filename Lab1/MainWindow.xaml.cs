@@ -80,14 +80,15 @@ namespace Lab1
 
                 if (obj != null)
                 {
-                    if (renderMode == "Flat")
-                        renderer.RenderSolid();
-                    else if (renderMode == "Smooth")
-                        renderer.Render<PhongShader, PhongShader.Vertex>();
-                    else if (renderMode == "Delayed")
-                        renderer.RenderDelayed();
-                    else
-                        renderer.RenderCarcass();
+                if (renderMode == "Flat")
+                    //renderer.RenderSolid();
+                    renderer.Render<GouraudShader, GouraudShader.Vertex>();
+                else if (renderMode == "Smooth")
+                    renderer.Render<PhongShader, PhongShader.Vertex>();
+                else if (renderMode == "Delayed")
+                    renderer.RenderDelayed();
+                else
+                    renderer.RenderCarcass();
 
                 }
                 else

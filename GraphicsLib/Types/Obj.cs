@@ -15,6 +15,7 @@ namespace GraphicsLib.Types
         public StaticTriangle[] triangles = [];
         public Face[] faces = [];
         public ObjTransformation Transformation;
+        public Material material;
         public Obj() { }
     }
 }

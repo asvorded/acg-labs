@@ -121,9 +121,9 @@ namespace GraphicsLib
                 Face face = facesList[i];
                 staticTriangles[i] = new StaticTriangle()
                 {
-                    p0 = verticesList[face.vIndices[0]],
-                    p1 = verticesList[face.vIndices[1]],
-                    p2 = verticesList[face.vIndices[2]],
+                    position0 = verticesList[face.vIndices[0]],
+                    position1 = verticesList[face.vIndices[1]],
+                    position2 = verticesList[face.vIndices[2]],
                 };
             }
             obj.triangles = [.. staticTriangles];
@@ -227,15 +227,15 @@ namespace GraphicsLib
                 Face face = facesList[i];
                 staticTriangles[i] = new StaticTriangle()
                 {
-                    p0 = verticesList[face.vIndices[0]],
-                    p1 = verticesList[face.vIndices[1]],
-                    p2 = verticesList[face.vIndices[2]],
+                    position0 = verticesList[face.vIndices[0]],
+                    position1 = verticesList[face.vIndices[1]],
+                    position2 = verticesList[face.vIndices[2]],
                 };
                 if(face.nIndices != null)
                 {
-                    staticTriangles[i].n0 = normalsList[face.nIndices[0]];
-                    staticTriangles[i].n1 = normalsList[face.nIndices[1]];
-                    staticTriangles[i].n2 = normalsList[face.nIndices[2]];
+                    staticTriangles[i].normal0 = normalsList[face.nIndices[0]];
+                    staticTriangles[i].normal1 = normalsList[face.nIndices[1]];
+                    staticTriangles[i].normal2 = normalsList[face.nIndices[2]];
                 }
                 if(face.tIndices != null)
                 {

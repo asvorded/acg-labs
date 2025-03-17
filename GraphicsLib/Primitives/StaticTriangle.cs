@@ -8,8 +8,8 @@ using System.Threading.Tasks;
 namespace GraphicsLib.Primitives {
     public struct StaticTriangle {
 
-        public Vector3 p0, p1, p2;
-        public Vector3 n0, n1, n2;
-        public Vector2 t0, t1, t2;
+        public Vector3 position0, position1, position2;
+        public Vector3 normal0, normal1, normal2;
+        public Vector2 uvCoorinate0, uvCoordinate1, uvCoordinate2;
     }
 }

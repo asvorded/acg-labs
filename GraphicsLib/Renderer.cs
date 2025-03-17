@@ -152,14 +152,15 @@ namespace GraphicsLib
 #endif
             {
                 StaticTriangle triangle = obj.triangles[triangleIndex];
-                Vector4 p0 = new Vector4(triangle.p0, 1);
-                Vector4 p1 = new Vector4(triangle.p1, 1);
-                Vector4 p2 = new Vector4(triangle.p2, 1);
+                Vector4 p0 = new Vector4(triangle.position0, 1);
+                Vector4 p1 = new Vector4(triangle.position1, 1);
+                Vector4 p2 = new Vector4(triangle.position2, 1);
                 p0 = Vector4.Transform(p0, modelToCamera);
                 p1 = Vector4.Transform(p1, modelToCamera);
                 p2 = Vector4.Transform(p2, modelToCamera);
                 Vector4 normal = Vector3.Cross((p2 - p0).AsVector3(), (p1 - p0).AsVector3()).AsVector4();
                 float orientation = Vector4.Dot(normal, p0);
+
                 //Cull triangle if its orientation is facing away from the camera
                 if (orientation <= 0)
 #if DEBUG
@@ -170,6 +171,7 @@ namespace GraphicsLib
                 p0 = Vector4.Transform(p0, projectionTransform);
                 p1 = Vector4.Transform(p1, projectionTransform);
                 p2 = Vector4.Transform(p2, projectionTransform);
+
                 //Cull triangle if it is not in frustum and all points are on the same side from it
                 if (p0.X > p0.W && p1.X > p1.W && p2.X > p2.W)
 #if DEBUG
@@ -295,9 +297,6 @@ namespace GraphicsLib
                         if (min.Y == mid.Y)
                         {
                             //flat top
-                            //   ----
-                            //   \  /
-                            //    \/
                             if (mid.X < min.X)
                             {
                                 (min, mid) = (mid, min);
@@ -307,9 +306,6 @@ namespace GraphicsLib
                         else if (max.Y == mid.Y)
                         {
                             //flat bottom
-                            //    /\
-                            //   /  \
-                            //   ----
                             if (max.X > mid.X)
                             {
                                 (mid, max) = (max, mid);
@@ -323,25 +319,12 @@ namespace GraphicsLib
                             if (interpolant.X > mid.X)
                             {
                                 //right major
-                                //    min
-                                //       
-                                // mid     interpolant
-                                //                    
-                                //  
-                                //                       max
-
                                 MapFlatBottomTriangle(min, interpolant, mid);
                                 MapFlatTopTriangle(mid, interpolant, max);
                             }
                             else
                             {
-                                //left major
-                                //                  min
-                                //       
-                                //      interpolant     mid
-                                //                    
-                                //  
-                                // max                      
+                                //left major 
                                 MapFlatBottomTriangle(min, mid, interpolant);
                                 MapFlatTopTriangle(interpolant, mid, max);
                             }
@@ -400,7 +383,7 @@ namespace GraphicsLib
             for (int y = 0; y < bitmapHeight; y++)
                 for (int x = 0; x < bitmapWidth; x++)
                 {
-                    if (zBufferWithIndices![x, y].triangleIndex != -1)
+                    if (zBufferWithIndices!.TriangleIndex(x,y) != -1)
                     {
                         Bitmap.SetPixelLockedNoDirty(x, y, 0xFFFFFFFF);
                     }
@@ -592,7 +575,7 @@ namespace GraphicsLib
                         void TransformToViewPort(ref Vertex vertex)
                         {
                             float invZ = (1 / vertex.Position.W);
-                            vertex *= invZ;
+                            vertex.Position *= invZ;
                             Vector4 ndcPosition = Vector4.Transform(vertex.Position, viewPortTransform);
                             ndcPosition.W = invZ;
                             vertex.Position = ndcPosition;

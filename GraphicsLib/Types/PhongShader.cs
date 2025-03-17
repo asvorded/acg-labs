@@ -118,11 +118,11 @@ namespace GraphicsLib.Types
             Vector3 diffuse = diffuseColor * diffuseFactor * lightIntensity;
             float specularFactor = MathF.Pow(Math.Max(Vector3.Dot(reflectDir, camDir), 0), specularPower);
             Vector3 specular = lightColor * specularFactor * lightIntensity;
-            Vector3 finalColor = ambient + diffuse + specular;
+            Vector3 finalColor = Vector3.Clamp(ambient + diffuse + specular, Vector3.Zero, new Vector3(1, 1, 1));
             uint color = (uint) (0xFF) << 24
-                         | (uint)(Math.Min(finalColor.X, 1f) * 0xFF) << 16 
-                         | (uint)(Math.Min(finalColor.Y, 1f) * 0xFF) << 8 
-                         | (uint)(Math.Min(finalColor.Z, 1f) * 0xFF);
+                         | (uint)(finalColor.X * 0xFF) << 16 
+                         | (uint)(finalColor.Y * 0xFF) << 8 
+                         | (uint)(finalColor.Z * 0xFF);
             return color;
         }
 
@@ -144,16 +144,16 @@ namespace GraphicsLib.Types
             switch (vertexIndex)
             {
                 case 0:
-                    vertex.Position = Vector4.Transform(new Vector4(triangle.p0, 1), worldTransform);
-                    vertex.Normal = Vector3.TransformNormal(triangle.n0, worldNormalTransform);
+                    vertex.Position = Vector4.Transform(new Vector4(triangle.position0, 1), worldTransform);
+                    vertex.Normal = Vector3.TransformNormal(triangle.normal0, worldNormalTransform);
                     break;
                 case 1:
-                    vertex.Position = Vector4.Transform(new Vector4(triangle.p1, 1), worldTransform);
-                    vertex.Normal = Vector3.TransformNormal(triangle.n1, worldNormalTransform);
+                    vertex.Position = Vector4.Transform(new Vector4(triangle.position1, 1), worldTransform);
+                    vertex.Normal = Vector3.TransformNormal(triangle.normal1, worldNormalTransform);
                     break;
                 case 2:
-                    vertex.Position = Vector4.Transform(new Vector4(triangle.p2, 1), worldTransform);
-                    vertex.Normal = Vector3.TransformNormal(triangle.n2, worldNormalTransform);
+                    vertex.Position = Vector4.Transform(new Vector4(triangle.position2, 1), worldTransform);
+                    vertex.Normal = Vector3.TransformNormal(triangle.normal2, worldNormalTransform);
                     break;
                 default:
                     throw new ArgumentException("Invalid vertex index");
