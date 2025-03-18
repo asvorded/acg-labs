@@ -43,8 +43,30 @@ namespace GraphicsLib.Types.GltfTypes
 
         [JsonIgnore]
         public Vector3[]? Normal { get => GetNormals(); }
-
+        [JsonIgnore]
         public int[]? PointIndices { get => GetPointIndices(); }
+        [JsonIgnore]
+        public Vector2[]? TextureCoords0 { get => GetTexCoords(0); }
+
+        private Vector2[]? GetTexCoords(int v)
+        {
+            Vector2[]? vectors = null;
+            if (Attributes.TryGetValue($"TEXCOORD_{v}", out int index))
+            {
+                if (Root == null)
+                {
+                    throw new ConfigurationErrorsException("Root is null.");
+                }
+                var accessor = Root.Accessors![index];
+                object[] data = GltfUtils.GetAccessorData(accessor);
+                vectors = new Vector2[accessor.Count];
+                for (int i = 0; i < accessor.Count; i++)
+                {
+                    vectors[i] = (Vector2)data[i];
+                }
+            }
+            return vectors;
+        }
 
         private Vector3[]? GetPosition()
         {

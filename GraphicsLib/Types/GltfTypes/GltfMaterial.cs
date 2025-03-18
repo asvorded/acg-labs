@@ -8,7 +8,7 @@ namespace GraphicsLib.Types.GltfTypes
         [JsonProperty("name")]
         public string? Name { get; set; }
         [JsonProperty("pbrMetallicRoughness")]
-        public GltfMaterialPbrMetallicRoughnessInfo? PbrMetallicRoughness { get; set; }
+        public GltfMaterialPbrMetallicRoughnessInfo PbrMetallicRoughness { get; set; } = new();
         [JsonProperty("normalTexture")]
         public GltfMaterialNormalTextureInfo? NormalTexture { get; set; }
         [JsonProperty("occlusionTexture")]
