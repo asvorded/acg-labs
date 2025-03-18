@@ -1,4 +1,5 @@
-﻿using System;
+﻿using GraphicsLib.Types;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -6,7 +7,7 @@ using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GraphicsLib.Types
+namespace GraphicsLib.Shaders
 {
     public interface IShader<Vertex> where Vertex : IVertex<Vertex>
     {

@@ -1,4 +1,5 @@
 ﻿using GraphicsLib.Primitives;
+using GraphicsLib.Shaders;
 using GraphicsLib.Types;
 using System.Numerics;
 using System.Windows.Media.Imaging;
@@ -13,7 +14,7 @@ namespace GraphicsLib
         private int bufferLength;
         private Zbuffer? zBuffer;
         private ZbufferV2? zBufferV2;
-        private ZBufferWithIndices? zBufferWithIndices;
+        private GBuffer? zBufferWithIndices;
 
         public Renderer(Scene scene)
         {
@@ -109,7 +110,7 @@ namespace GraphicsLib
 
         }
 
-        public void RenderDelayed()
+        public void RenderDeferred()
         {
             if (Bitmap == null)
                 return;

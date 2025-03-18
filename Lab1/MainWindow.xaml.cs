@@ -1,4 +1,5 @@
 ﻿using GraphicsLib;
+using GraphicsLib.Shaders;
 using GraphicsLib.Types;
 using Microsoft.Win32;
 using System.ComponentModel;
@@ -86,7 +87,7 @@ namespace Lab1
                 else if (renderMode == "Smooth")
                     renderer.Render<PhongShader, PhongShader.Vertex>();
                 else if (renderMode == "Delayed")
-                    renderer.RenderDelayed();
+                    renderer.RenderDeferred();
                 else
                     renderer.RenderCarcass();
 

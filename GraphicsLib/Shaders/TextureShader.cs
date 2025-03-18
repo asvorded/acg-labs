@@ -1,16 +1,20 @@
 ﻿using GraphicsLib.Primitives;
+using GraphicsLib.Types;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
-using static GraphicsLib.Types.GouraudShader;
+using System.Text;
+using System.Threading.Tasks;
+using static GraphicsLib.Shaders.TextureShader;
 
-namespace GraphicsLib.Types
+namespace GraphicsLib.Shaders
 {
-    public class GouraudShader : IShader<Vertex>
+    class TextureShader : IShader<Vertex>
     {
         private Scene scene;
 
         public Scene Scene { get => scene; set => SetSceneParams(value); }
-        private Vector3 lightPosition;
-        private Vector3 baseColor = new Vector3(1, 1, 1);
         private Matrix4x4 worldTransform;
         private Matrix4x4 worldNormalTransform;
         private void SetSceneParams(Scene value)
@@ -18,13 +22,12 @@ namespace GraphicsLib.Types
             scene = value;
             worldTransform = scene.Obj.Transformation.Matrix;
             worldNormalTransform = scene.Obj.Transformation.NormalMatrix;
-            lightPosition = scene.LightPosition;
         }
 
-        public GouraudShader()
+        public TextureShader()
         {
         }
-        public GouraudShader(Scene scene)
+        public TextureShader(Scene scene)
         {
             Scene = scene;
         }
@@ -33,63 +36,53 @@ namespace GraphicsLib.Types
             Face face = obj.faces[faceIndex];
             Vertex vertex = default;
             vertex.Position = Vector4.Transform(new Vector4(obj.vertices[face.vIndices[vertexIndex]], 1), worldTransform);
-            if (face.nIndices == null)
-                throw new ArgumentException("Face has no normal indices, BRUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUH");
-            Vector3 normal = Vector3.TransformNormal(obj.normals[face.nIndices[vertexIndex]], worldNormalTransform);
-            float illumination = Vector3.Dot(normal, Vector3.Normalize(lightPosition - vertex.Position.AsVector3()));
-            Vector3 color = baseColor * illumination;
-            vertex.Color = Vector3.Clamp(color, Vector3.Zero, new Vector3(1, 1, 1));
-            return vertex;  
+            if (face.tIndices == null)
+                throw new ArgumentException("Face has no uv indices, BRUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUH");
+            vertex.Uv = obj.uvs[face.tIndices[vertexIndex]];
+            return vertex;
         }
 
         public Vertex GetVertexWithWorldPositionFromTriangle(Obj obj, int triangleIndex, int vertexIndex)
         {
             StaticTriangle triangle = obj.triangles[triangleIndex];
             Vertex vertex = default;
-            Vector3 normal;
+            Vector2 uv;
             switch (vertexIndex)
             {
                 case 0:
                     vertex.Position = Vector4.Transform(new Vector4(triangle.position0, 1), worldTransform);
-                    normal = Vector3.TransformNormal(triangle.normal0, worldNormalTransform);
+                    vertex.Uv = triangle.uvCoordinate0;
                     break;
                 case 1:
                     vertex.Position = Vector4.Transform(new Vector4(triangle.position1, 1), worldTransform);
-                    normal = Vector3.TransformNormal(triangle.normal1, worldNormalTransform);
+                    vertex.Uv = triangle.uvCoordinate1;
                     break;
                 case 2:
                     vertex.Position = Vector4.Transform(new Vector4(triangle.position2, 1), worldTransform);
-                    normal = Vector3.TransformNormal(triangle.normal2, worldNormalTransform);
+                    vertex.Uv = triangle.uvCoordinate2;
                     break;
                 default:
                     throw new ArgumentException("Invalid vertex index");
             }
-            float illumination = Vector3.Dot(normal, Vector3.Normalize(lightPosition - vertex.Position.AsVector3()));
-            Vector3 color = baseColor * illumination;
-            vertex.Color = Vector3.Clamp(color, Vector3.Zero, new Vector3(1, 1, 1));
             return vertex;
         }
 
         public uint PixelShader(Vertex input)
         {
-            Vector3 finalColor = input.Color;
-            return (uint)(0xFF) << 24
-                         | (uint)(finalColor.X * 0xFF) << 16
-                         | (uint)(finalColor.Y * 0xFF) << 8
-                         | (uint)(finalColor.Z * 0xFF);
+            return 0xFFFFFFFF;
         }
 
         public struct Vertex : IVertex<Vertex>
         {
             public Vector4 Position { get; set; }
 
-            public Vector3 Color { get; set; }
+            public Vector2 Uv { get; set; }
             public static Vertex Lerp(Vertex a, Vertex b, float t)
             {
                 return new Vertex
                 {
                     Position = Vector4.Lerp(a.Position, b.Position, t),
-                    Color = Vector3.Lerp(a.Color, b.Color, t)
+                    Uv = Vector2.Lerp(a.Uv, b.Uv, t)
                 };
             }
             public static Vertex operator +(Vertex lhs, Vertex rhs)
@@ -97,7 +90,7 @@ namespace GraphicsLib.Types
                 return new Vertex
                 {
                     Position = lhs.Position + rhs.Position,
-                    Color = lhs.Color + rhs.Color
+                    Uv = lhs.Uv + rhs.Uv
                 };
             }
             public static Vertex operator -(Vertex lhs, Vertex rhs)
@@ -105,7 +98,7 @@ namespace GraphicsLib.Types
                 return new Vertex
                 {
                     Position = lhs.Position - rhs.Position,
-                    Color = lhs.Color - rhs.Color
+                    Uv = lhs.Uv - rhs.Uv
                 };
             }
             public static Vertex operator *(Vertex lhs, float scalar)
@@ -113,7 +106,7 @@ namespace GraphicsLib.Types
                 return new Vertex
                 {
                     Position = lhs.Position * scalar,
-                    Color = lhs.Color * scalar
+                    Uv = lhs.Uv * scalar
                 };
             }
             public static Vertex operator *(float scalar, Vertex rhs)
@@ -121,7 +114,7 @@ namespace GraphicsLib.Types
                 return new Vertex
                 {
                     Position = rhs.Position * scalar,
-                    Color = rhs.Color * scalar
+                    Uv = rhs.Uv * scalar
                 };
             }
             public static Vertex operator /(Vertex lhs, float scalar)
@@ -129,7 +122,7 @@ namespace GraphicsLib.Types
                 return new Vertex
                 {
                     Position = lhs.Position / scalar,
-                    Color = lhs.Color / scalar
+                    Uv = lhs.Uv / scalar
                 };
             }
         }

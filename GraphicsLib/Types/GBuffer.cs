@@ -2,7 +2,7 @@
 
 namespace GraphicsLib.Types
 {
-    class ZBufferWithIndices
+    class GBuffer
     {
         public int Width { get => width; private set => width = value; }
         public int Height { get => height; private set => height = value; }
@@ -11,7 +11,7 @@ namespace GraphicsLib.Types
         private int width;
         private int height;
 
-        public ZBufferWithIndices(int width, int height)
+        public GBuffer(int width, int height)
         {
             this.Width = width;
             this.Height = height;

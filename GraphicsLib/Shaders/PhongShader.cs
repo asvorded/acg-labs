@@ -1,10 +1,11 @@
 ﻿using GraphicsLib.Primitives;
+using GraphicsLib.Types;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Windows.Media.TextFormatting;
-using static GraphicsLib.Types.PhongShader;
+using static GraphicsLib.Shaders.PhongShader;
 
-namespace GraphicsLib.Types
+namespace GraphicsLib.Shaders
 {
     public class PhongShader : IShader<Vertex>
     {
@@ -119,7 +120,7 @@ namespace GraphicsLib.Types
             float specularFactor = MathF.Pow(Math.Max(Vector3.Dot(reflectDir, camDir), 0), specularPower);
             Vector3 specular = lightColor * specularFactor * lightIntensity;
             Vector3 finalColor = Vector3.Clamp(ambient + diffuse + specular, Vector3.Zero, new Vector3(1, 1, 1));
-            uint color = (uint) (0xFF) << 24
+            uint color = (uint) 0xFF << 24
                          | (uint)(finalColor.X * 0xFF) << 16 
                          | (uint)(finalColor.Y * 0xFF) << 8 
                          | (uint)(finalColor.Z * 0xFF);
