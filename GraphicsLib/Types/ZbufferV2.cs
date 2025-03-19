@@ -77,8 +77,20 @@ namespace GraphicsLib.Types
                 buffer[y * Width + x] = value;
             }
         }
+        public bool Test(int x, int y, float depth)
+        {
+            if (x < 0 || x >= width || y < 0 || y >= height)
+            {
+                throw new ArgumentOutOfRangeException("x or y out of buffer range");
+            }
+            int pos = y * width + x;
+            PixelData pixelData = buffer[pos];
+            return depth <= pixelData.depth;
+        }
         public bool TestAndSet(int x, int y, float depth, uint color)
         {
+            if ((color >> 24 & 0xFF) == 0)
+                return false;
             if (x < 0 || x >= width || y < 0 || y >= height)
             {
                 throw new ArgumentOutOfRangeException("x or y out of buffer range");

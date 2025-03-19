@@ -655,7 +655,7 @@ namespace GraphicsLib
                                 Vertex lineInterpolant = leftPoint + xPrestep * dLineInterpolant;
                                 for (int x = xStart; x < xEnd; x++)
                                 {
-                                    if (zBufferV2!.TestAndSet(x, y, lineInterpolant.Position.Z, 0))
+                                    if (zBufferV2!.Test(x, y, lineInterpolant.Position.Z))
                                     {
                                         Vertex correctedPoint = lineInterpolant * (1 / lineInterpolant.Position.W);
                                         zBufferV2.TestAndSet(x, y, lineInterpolant.Position.Z, shader.PixelShader(correctedPoint));
