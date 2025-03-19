@@ -77,9 +77,9 @@ namespace GraphicsLib.Types
                 case MagnificationFilterMode.Linear:
                     {
                         int x0 = (int)(uv.X * (width - 1));
-                        int x1 = x0 + 1;
+                        int x1 = int.Clamp(x0 + 1, 0, width - 1);
                         int y0 = (int)(uv.Y * (height - 1));
-                        int y1 = y0 + 1;
+                        int y1 = int.Clamp(y0 + 1, 0, width - 1);
                         float dx = uv.X * (width - 1) - x0;
                         float dy = uv.Y * (height - 1) - y0;
                         Rgba32 sample = textureData[y0 * width + x0];
