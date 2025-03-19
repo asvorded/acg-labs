@@ -7,6 +7,20 @@ namespace GraphicsLib.Types.GltfTypes
     {
         public static void PreprocessGltfRoot(GltfRoot gltfRoot)
         {
+            if(gltfRoot.Buffers != null)
+            {
+                foreach (var buffer in gltfRoot.Buffers)
+                {
+                    buffer.GltfRoot = gltfRoot;
+                }
+            }
+            if (gltfRoot.Images != null)
+            {
+                foreach (var image in gltfRoot.Images)
+                {
+                    image.GltfRoot = gltfRoot;
+                }
+            }
             if (gltfRoot.BufferViews != null)
             {
                 foreach (var bufferView in gltfRoot.BufferViews)

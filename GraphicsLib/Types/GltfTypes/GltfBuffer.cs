@@ -23,7 +23,7 @@ namespace GraphicsLib.Types.GltfTypes
 
         private byte[]? _data;
         [JsonIgnore]
-        public string? SourceDirectory { get; set; }
+        public GltfRoot? GltfRoot { get; set; }
         public byte[] Data
         {
             get
@@ -50,9 +50,9 @@ namespace GraphicsLib.Types.GltfTypes
                     }
                     else
                     {
-                        if (SourceDirectory == null)
-                            throw new ConfigurationErrorsException("SourceDirectory for buffer is null. Check serializer settings.");
-                        _data = File.ReadAllBytes(Path.Combine(SourceDirectory, UriString));
+                        if (GltfRoot?.SourcePath == null)
+                            throw new ConfigurationErrorsException("SourcePath for buffer is null.");
+                        _data = File.ReadAllBytes(Path.Combine(GltfRoot.SourcePath, UriString));
                     }
                 }
                 return _data;

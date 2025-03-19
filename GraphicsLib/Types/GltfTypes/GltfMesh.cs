@@ -45,10 +45,8 @@ namespace GraphicsLib.Types.GltfTypes
         public Vector3[]? Normal { get => GetNormals(); }
         [JsonIgnore]
         public int[]? PointIndices { get => GetPointIndices(); }
-        [JsonIgnore]
-        public Vector2[]? TextureCoords0 { get => GetTexCoords(0); }
 
-        private Vector2[]? GetTexCoords(int v)
+        public Vector2[]? GetTextureCoords(int v)
         {
             Vector2[]? vectors = null;
             if (Attributes.TryGetValue($"TEXCOORD_{v}", out int index))

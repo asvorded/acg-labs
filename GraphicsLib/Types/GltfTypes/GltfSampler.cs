@@ -5,10 +5,10 @@ namespace GraphicsLib.Types.GltfTypes
     public class GltfSampler
     {
         [JsonProperty("magFilter")]
-        public int? MagFilter { get; set; }
+        public MagnificationFilterMode? MagFilter { get; set; }
 
         [JsonProperty("minFilter")]
-        public int? MinFilter { get; set; }
+        public MinificationFilterMode? MinFilter { get; set; }
 
         [JsonProperty("wrapS")]
         public WrappingMode WrapS { get; set; } = WrappingMode.Repeat;

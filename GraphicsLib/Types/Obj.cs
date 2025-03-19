@@ -13,10 +13,9 @@ namespace GraphicsLib.Types
         public Vector3[] vertices= [];
         public Vector3[] normals = [];
         public Vector2[] uvs = [];
+        public Material[] materials = [];
         public StaticTriangle[] triangles = [];
         public Face[] faces = [];
         public ObjTransformation Transformation;
-        public Material material;
-        public Obj() { }
     }
 }

@@ -2,7 +2,7 @@
 
 namespace GraphicsLib.Types.GltfTypes
 {
-    public class GltfRoot
+    public class GltfRoot : IDisposable
     {
         [JsonPropertyName("extensionsUsed")]
         public List<string>? ExtensionsUsed { get; set; }
@@ -61,6 +61,18 @@ namespace GraphicsLib.Types.GltfTypes
         [JsonPropertyName("extras")]
         public object? Extras { get; set; }
 
+        [JsonIgnore]
+        public string? SourcePath { get; set; }
 
+        public void Dispose()
+        {
+            if (Images != null)
+            {
+                foreach (var image in Images)
+                {
+                    image.Dispose();
+                }
+            }
+        }
     }
 }

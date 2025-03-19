@@ -16,9 +16,9 @@ namespace GraphicsLib.Types.GltfTypes
         [JsonProperty("emissiveTexture")]
         public GltfMaterialTextureInfo? EmissiveTexture { get; set; }
         [JsonProperty("emissiveFactor")]
-        public float[] EmissiveFactor { get; set; } = { 0.0f, 0.0f, 0.0f };
+        public Vector3 EmissiveFactor { get; set; } = new(0.0f, 0.0f, 0.0f);
         [JsonProperty("alphaMode")]
-        public string AlphaMode { get; set; } = "OPAQUE";
+        public GltfMaterialAlphaMode AlphaMode { get; set; } = GltfMaterialAlphaMode.OPAQUE;
         [JsonProperty("alphaCutoff")]
         public float AlphaCutoff { get; set; } = 0.5f;
         [JsonProperty("doubleSided")]
@@ -36,6 +36,7 @@ namespace GraphicsLib.Types.GltfTypes
         public required int Index { get; set; }
         [JsonProperty("texCoord")]
         public int TexCoord { get; set; } = 0;
+        [JsonProperty("extensions")]
         public Dictionary<string, object>? Extensions { get; set; }
         [JsonProperty("extras")]
         public object? Extras { get; set; }
@@ -49,6 +50,7 @@ namespace GraphicsLib.Types.GltfTypes
         public int TexCoord { get; set; } = 0;
         [JsonProperty("strength")]
         public float Strength { get; set; } = 1.0f;
+        [JsonProperty("extensions")]
         public Dictionary<string, object>? Extensions { get; set; }
         [JsonProperty("extras")]
         public object? Extras { get; set; }
@@ -62,6 +64,7 @@ namespace GraphicsLib.Types.GltfTypes
         public int TexCoord { get; set; } = 0;
         [JsonProperty("scale")]
         public float Scale { get; set; } = 1.0f;
+        [JsonProperty("extensions")]
         public Dictionary<string, object>? Extensions { get; set; }
         [JsonProperty("extras")]
         public object? Extras { get; set; }
@@ -79,9 +82,16 @@ namespace GraphicsLib.Types.GltfTypes
         public float RoughnessFactor { get; set; } = 1.0f;
         [JsonProperty("metallicRoughnessTexture")]
         public GltfMaterialTextureInfo? MetallicRoughnessTexture { get; set; }
+        [JsonProperty("extensions")]
         public Dictionary<string, object>? Extensions { get; set; }
         [JsonProperty("extras")]
         public object? Extras { get; set; }
     }
 
+    public enum GltfMaterialAlphaMode
+    {
+        OPAQUE,
+        MASK,
+        BLEND
+    }
 }

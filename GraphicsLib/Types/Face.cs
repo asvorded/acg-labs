@@ -12,12 +12,14 @@ namespace GraphicsLib.Types
         public int[] vIndices;
         public int[]? tIndices;
         public int[]? nIndices;
+        public short MaterialIndex;
 
-        public Face(int[] vIndices, int[]? tIndices, int[]? nIndices)
+        public Face(int[] vIndices, int[]? tIndices, int[]? nIndices, short materialIndex)
         {
             this.vIndices = vIndices;
             this.tIndices = tIndices;
             this.nIndices = nIndices;
+            MaterialIndex = materialIndex;
         }
 
         public override string? ToString()

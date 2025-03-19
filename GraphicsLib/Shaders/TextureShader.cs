@@ -10,7 +10,7 @@ using static GraphicsLib.Shaders.TextureShader;
 
 namespace GraphicsLib.Shaders
 {
-    class TextureShader : IShader<Vertex>
+    public class TextureShader : IShader<Vertex>
     {
         private Scene scene;
 
@@ -39,6 +39,7 @@ namespace GraphicsLib.Shaders
             if (face.tIndices == null)
                 throw new ArgumentException("Face has no uv indices, BRUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUH");
             vertex.Uv = obj.uvs[face.tIndices[vertexIndex]];
+            vertex.Material = obj.materials[face.MaterialIndex];
             return vertex;
         }
 
@@ -46,7 +47,6 @@ namespace GraphicsLib.Shaders
         {
             StaticTriangle triangle = obj.triangles[triangleIndex];
             Vertex vertex = default;
-            Vector2 uv;
             switch (vertexIndex)
             {
                 case 0:
@@ -64,12 +64,34 @@ namespace GraphicsLib.Shaders
                 default:
                     throw new ArgumentException("Invalid vertex index");
             }
+            vertex.Material = triangle.material;
             return vertex;
         }
 
         public uint PixelShader(Vertex input)
         {
-            return 0xFFFFFFFF;
+            Vector2 uv = input.Uv;
+            Material material = input.Material;
+            Vector4 finalARGBColor = material.baseColor;
+            if (material.baseColorTexture != null)
+            {
+                int x = (int)(uv.X * material.baseColorTextureWidth);
+                int y = (int)(uv.Y * material.baseColorTextureHeight);
+                x = int.Clamp(x, 0, material.baseColorTextureWidth - 1);
+                y = int.Clamp(y, 0, material.baseColorTextureHeight - 1);
+               uint textureColor = material.baseColorTexture[x
+                    + y * material.baseColorTextureWidth];
+                float a = ((textureColor >> 24) & 0xFF) / 255.0f;
+                float r = ((textureColor >> 16) & 0xFF) / 255.0f;
+                float g = ((textureColor >> 8) & 0xFF) / 255.0f;
+                float b = (textureColor & 0xFF) / 255.0f;                
+                finalARGBColor *= new Vector4(a, r, g, b);
+            }
+            uint color = (uint)(finalARGBColor.X * 0xFF) << 24
+             | (uint)(finalARGBColor.Y * 0xFF) << 16
+             | (uint)(finalARGBColor.Z * 0xFF) << 8
+             | (uint)(finalARGBColor.W * 0xFF);
+            return color;
         }
 
         public struct Vertex : IVertex<Vertex>
@@ -77,12 +99,14 @@ namespace GraphicsLib.Shaders
             public Vector4 Position { get; set; }
 
             public Vector2 Uv { get; set; }
+            public Material Material { get; set; }
             public static Vertex Lerp(Vertex a, Vertex b, float t)
             {
                 return new Vertex
                 {
                     Position = Vector4.Lerp(a.Position, b.Position, t),
-                    Uv = Vector2.Lerp(a.Uv, b.Uv, t)
+                    Uv = Vector2.Lerp(a.Uv, b.Uv, t),
+                    Material = a.Material
                 };
             }
             public static Vertex operator +(Vertex lhs, Vertex rhs)
@@ -90,7 +114,8 @@ namespace GraphicsLib.Shaders
                 return new Vertex
                 {
                     Position = lhs.Position + rhs.Position,
-                    Uv = lhs.Uv + rhs.Uv
+                    Uv = lhs.Uv + rhs.Uv,
+                    Material = lhs.Material
                 };
             }
             public static Vertex operator -(Vertex lhs, Vertex rhs)
@@ -98,7 +123,8 @@ namespace GraphicsLib.Shaders
                 return new Vertex
                 {
                     Position = lhs.Position - rhs.Position,
-                    Uv = lhs.Uv - rhs.Uv
+                    Uv = lhs.Uv - rhs.Uv,
+                    Material = lhs.Material
                 };
             }
             public static Vertex operator *(Vertex lhs, float scalar)
@@ -106,7 +132,8 @@ namespace GraphicsLib.Shaders
                 return new Vertex
                 {
                     Position = lhs.Position * scalar,
-                    Uv = lhs.Uv * scalar
+                    Uv = lhs.Uv * scalar,
+                    Material = lhs.Material
                 };
             }
             public static Vertex operator *(float scalar, Vertex rhs)
@@ -114,7 +141,8 @@ namespace GraphicsLib.Shaders
                 return new Vertex
                 {
                     Position = rhs.Position * scalar,
-                    Uv = rhs.Uv * scalar
+                    Uv = rhs.Uv * scalar,
+                    Material = rhs.Material
                 };
             }
             public static Vertex operator /(Vertex lhs, float scalar)
@@ -122,7 +150,8 @@ namespace GraphicsLib.Shaders
                 return new Vertex
                 {
                     Position = lhs.Position / scalar,
-                    Uv = lhs.Uv / scalar
+                    Uv = lhs.Uv / scalar,
+                    Material = lhs.Material
                 };
             }
         }

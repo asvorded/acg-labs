@@ -86,8 +86,10 @@ namespace Lab1
                     renderer.Render<GouraudShader, GouraudShader.Vertex>();
                 else if (renderMode == "Smooth")
                     renderer.Render<PhongShader, PhongShader.Vertex>();
-                else if (renderMode == "Delayed")
+                else if (renderMode == "Deferred")
                     renderer.RenderDeferred();
+                else if (renderMode == "Textured")
+                    renderer.Render<TextureShader, TextureShader.Vertex>();
                 else
                     renderer.RenderCarcass();
 

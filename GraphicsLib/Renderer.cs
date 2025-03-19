@@ -532,16 +532,6 @@ namespace GraphicsLib
                     {
                         ProcessTriangle(p0, p1, p2);
                     }
-
-
-                    //Clip triangle into two
-                    //            |    p1
-                    //            li    |
-                    //            | \   |
-                    //      pb    |  \  |
-                    //            ri  \ |
-                    //            |    p2
-                    //            |
                     void ClipTriangleIntoTwo(Vertex pointBehind, Vertex p1, Vertex p2)
                     {
                         float c0 = (-pointBehind.Position.Z) / (p1.Position.Z - pointBehind.Position.Z);
@@ -551,14 +541,6 @@ namespace GraphicsLib
                         ProcessTriangle(leftInterpolant, p1, p2);
                         ProcessTriangle(rightInterpolant, leftInterpolant, p2);
                     }
-                    //Clip triangle into one
-                    //     lpb    | 
-                    //            li    
-                    //            | 
-                    //            |     p2
-                    //            ri  
-                    //     rpb    |   
-                    //            |
                     void ClipTriangleIntoOne(Vertex leftPointBehind, Vertex rightPointBehind, Vertex p2)
                     {
                         float c0 = (-leftPointBehind.Position.Z) / (p2.Position.Z - leftPointBehind.Position.Z);
@@ -572,12 +554,13 @@ namespace GraphicsLib
                         TransformToViewPort(ref p0);
                         TransformToViewPort(ref p1);
                         TransformToViewPort(ref p2);
-                        // save 1/z to use it in texture mapping
+                        
                         void TransformToViewPort(ref Vertex vertex)
                         {
                             float invZ = (1 / vertex.Position.W);
-                            vertex.Position *= invZ;
+                            vertex *= invZ;
                             Vector4 ndcPosition = Vector4.Transform(vertex.Position, viewPortTransform);
+                            // save 1/z to use it in interpolation correction
                             ndcPosition.W = invZ;
                             vertex.Position = ndcPosition;
                         }
@@ -606,9 +589,6 @@ namespace GraphicsLib
                             if (min.Position.Y == mid.Position.Y)
                             {
                                 //flat top
-                                //   ----
-                                //   \  /
-                                //    \/
                                 if (mid.Position.X < min.Position.X)
                                 {
                                     (min, mid) = (mid, min);
@@ -618,9 +598,6 @@ namespace GraphicsLib
                             else if (max.Position.Y == mid.Position.Y)
                             {
                                 //flat bottom
-                                //    /\
-                                //   /  \
-                                //   ----
                                 if (max.Position.X > mid.Position.X)
                                 {
                                     (mid, max) = (max, mid);
@@ -634,25 +611,12 @@ namespace GraphicsLib
                                 if (interpolant.Position.X > mid.Position.X)
                                 {
                                     //right major
-                                    //    min
-                                    //       
-                                    // mid     interpolant
-                                    //                    
-                                    //  
-                                    //                       max
-
                                     MapFlatBottomTriangle(min, interpolant, mid);
                                     MapFlatTopTriangle(mid, interpolant, max);
                                 }
                                 else
                                 {
                                     //left major
-                                    //                  min
-                                    //       
-                                    //      interpolant     mid
-                                    //                    
-                                    //  
-                                    // max                      
                                     MapFlatBottomTriangle(min, mid, interpolant);
                                     MapFlatTopTriangle(interpolant, mid, max);
                                 }
@@ -692,7 +656,11 @@ namespace GraphicsLib
                                 for (int x = xStart; x < xEnd; x++)
                                 {
                                     if (zBufferV2!.TestAndSet(x, y, lineInterpolant.Position.Z, 0))
-                                        zBufferV2!.TestAndSet(x, y, lineInterpolant.Position.Z, shader.PixelShader(lineInterpolant));
+                                    {
+                                        Vertex correctedPoint = lineInterpolant * (1 / lineInterpolant.Position.W);
+                                        zBufferV2.TestAndSet(x, y, lineInterpolant.Position.Z, shader.PixelShader(correctedPoint));
+                                    }
+                                        
                                     lineInterpolant += dLineInterpolant;
                                 }
                                 leftPoint += dLeftPoint;

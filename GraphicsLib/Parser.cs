@@ -3,9 +3,15 @@ using GraphicsLib.Types;
 using GraphicsLib.Types.GltfTypes;
 using GraphicsLib.Types.JsonConverters;
 using Newtonsoft.Json;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats;
+using SixLabors.ImageSharp.PixelFormats;
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
 using System.Numerics;
+using System.Windows.Media.Imaging;
 namespace GraphicsLib
 {
     public static class Parser
@@ -95,7 +101,7 @@ namespace GraphicsLib
                                 int[] triangleVertices = [vertices[0], vertices[i + 1], vertices[i + 2]];
                                 int[]? triangleTextures = hasTextureIndices ? [textures![0], textures[i + 1], textures[i + 2]] : null;
                                 int[]? triangleNormals = hasNormalIndices ? [normals![0], normals[i + 1], normals[i + 2]] : null;
-                                Face newFace = new(triangleVertices, triangleTextures, triangleNormals);
+                                Face newFace = new(triangleVertices, triangleTextures, triangleNormals, 0);
                                 facesList.Add(newFace);
                             }
 
@@ -168,13 +174,61 @@ namespace GraphicsLib
             using StreamReader sr = new(fileStream);
             string data = sr.ReadToEnd();
             string sourceDirectory = Path.GetDirectoryName(filePath)!;
-            GltfRoot gltfRoot = JsonConvert.DeserializeObject<GltfRoot>(data, GltfSerializerSettings.GetSettings(sourceDirectory))
-                ?? throw new FormatException("invalid json gltf");
+            using GltfRoot gltfRoot = JsonConvert.DeserializeObject<GltfRoot>(data, GltfSerializerSettings.GetSettings(sourceDirectory))
+                    ?? throw new FormatException("invalid json gltf");
             List<Vector3> verticesList = [];
             List<Vector3> normalsList = [];
             List<Vector2> uvsList = [];
             List<Face> facesList = [];
+            List<Material> materialsList = [];
+            if (gltfRoot.Materials != null)
+            {
+                foreach (var material in gltfRoot.Materials)
+                {
+                    Material newMaterial = new();
+                    if (material.Name != null)
+                        newMaterial.name = material.Name;
+                    if (material.PbrMetallicRoughness != null)
+                    {
+                        var pbr = material.PbrMetallicRoughness;
+                        newMaterial.metallic = pbr.MetallicFactor;
+                        newMaterial.roughness = pbr.RoughnessFactor;
+                        newMaterial.baseColor = pbr.BaseColorFactor;
+                        if (pbr.BaseColorTexture != null)
+                        {
+
+                            var textureInfo = pbr.BaseColorTexture;
+                            var texture = gltfRoot.Textures![textureInfo.Index];
+                            var image = gltfRoot.Images![texture.Source];
+                            var textureImage = image.Texture;
+                            newMaterial.baseColorTextureWidth = textureImage.Width;
+                            newMaterial.baseColorTextureHeight = textureImage.Height;
+                            newMaterial.baseColorTexture = new uint[textureImage.Height*textureImage.Width];
+                            for(int y =  0; y < textureImage.Height; y++)
+                            {
+                                for(int x = 0; x < textureImage.Width; x++)
+                                {
+                                    var pixel = textureImage[x, y].PackedValue;
+                                    newMaterial.baseColorTexture[y*textureImage.Width + x] = pixel;
+                                }
+                            }
+                        }
+                        if (pbr.MetallicRoughnessTexture != null)
+                        {
+                            //var texture = pbr.MetallicRoughnessTexture;
+                            //var image = gltfRoot.Images![texture.Index];
+                            //newMaterial.metallicRoughnessTexture = Path.Combine(sourceDirectory, image.UriString);
+                        }
+                    }
+                    materialsList.Add(newMaterial);
+                }
+            }
+            else
+            {
+                materialsList.Add(Material.defaultMaterial);
+            }
             if (gltfRoot.Nodes != null)
+            {
                 foreach (var node in gltfRoot.Nodes)
                 {
                     Matrix4x4 transform = node.GlobalTransform;
@@ -192,7 +246,7 @@ namespace GraphicsLib
                             int tIndexOffset = uvsList.Count;
                             Vector3[]? vertices = primitive.Position;
                             Vector3[]? normals = primitive.Normal;
-                            Vector2[]? uvs = primitive.TextureCoords0;
+                            Vector2[]? uvs = primitive.GetTextureCoords(0);
                             int[]? indicies = primitive.PointIndices;
                             if (vertices != null)
                             {
@@ -202,18 +256,18 @@ namespace GraphicsLib
                                     verticesList.Add(transformed);
                                 }
                             }
-                            if(normals != null)
+                            if (normals != null)
                             {
-                                
+
                                 foreach (var n in normals)
                                 {
                                     Vector3 transformed = Vector3.Normalize(Vector3.TransformNormal(n, normalTransform));
                                     normalsList.Add(transformed);
                                 }
                             }
-                            if(uvs != null)
+                            if (uvs != null)
                             {
-                                foreach(var uv in uvs)
+                                foreach (var uv in uvs)
                                 {
                                     uvsList.Add(uv);
                                 }
@@ -222,6 +276,7 @@ namespace GraphicsLib
                             {
                                 Face AssembleTriangle(int index0, int index1, int index2)
                                 {
+                                    short materialIndex = (primitive.Material.HasValue) ? (short)primitive.Material.Value : (short)0;
                                     int[] triangleVertices = [indicies[index0] + vIndexOffset,
                                             indicies[index1] + vIndexOffset,
                                             indicies[index2] + vIndexOffset];
@@ -235,7 +290,7 @@ namespace GraphicsLib
                                         triangleUvs = [indicies[index0] + tIndexOffset,
                                             indicies[index1] + tIndexOffset,
                                             indicies[index2] + tIndexOffset];
-                                    return new Face(triangleVertices, triangleUvs, triangleNormals);
+                                    return new Face(triangleVertices, triangleUvs, triangleNormals, materialIndex);
                                 }
 
                                 if (mode == GltfMeshMode.TRIANGLES)
@@ -275,6 +330,7 @@ namespace GraphicsLib
                         }
                     }
                 }
+            }
             StaticTriangle[] staticTriangles = new StaticTriangle[facesList.Count];
             for (int i = 0; i < facesList.Count; i++)
             {
@@ -297,8 +353,10 @@ namespace GraphicsLib
                     staticTriangles[i].uvCoordinate1 = uvsList[face.tIndices[1]];
                     staticTriangles[i].uvCoordinate2 = uvsList[face.tIndices[2]];
                 }
+                staticTriangles[i].material = materialsList[face.MaterialIndex];
             }
             obj.triangles = [.. staticTriangles];
+            obj.materials = [.. materialsList];
             obj.faces = [.. facesList];
             obj.vertices = [.. verticesList];
             obj.normals = [.. normalsList];
