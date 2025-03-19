@@ -6,8 +6,8 @@ namespace GraphicsLib.Types
     {
         public int Width { get => width; private set => width = value; }
         public int Height { get => height; private set => height = value; }
-        private volatile float[] depths;
-        private volatile int[] triangleIndices;
+        private float[] depths;
+        private int[] triangleIndices;
         private int width;
         private int height;
 

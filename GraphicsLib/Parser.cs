@@ -199,19 +199,14 @@ namespace GraphicsLib
 
                             var textureInfo = pbr.BaseColorTexture;
                             var texture = gltfRoot.Textures![textureInfo.Index];
+                            var samplerSettings = gltfRoot.Samplers![texture.Sampler];
                             var image = gltfRoot.Images![texture.Source];
                             var textureImage = image.Texture;
-                            newMaterial.baseColorTextureWidth = textureImage.Width;
-                            newMaterial.baseColorTextureHeight = textureImage.Height;
-                            newMaterial.baseColorTexture = new uint[textureImage.Height*textureImage.Width];
-                            for(int y =  0; y < textureImage.Height; y++)
-                            {
-                                for(int x = 0; x < textureImage.Width; x++)
-                                {
-                                    var pixel = textureImage[x, y].PackedValue;
-                                    newMaterial.baseColorTexture[y*textureImage.Width + x] = pixel;
-                                }
-                            }
+                            var sampler = samplerSettings.GetSampler();
+                            Rgba32[] pixels = new Rgba32[textureImage.Height*textureImage.Width];
+                            textureImage.CopyPixelDataTo(pixels);
+                            sampler.BindTexture(pixels, textureImage.Width, textureImage.Height);
+                            newMaterial.baseColorTextureSampler = sampler;
                         }
                         if (pbr.MetallicRoughnessTexture != null)
                         {

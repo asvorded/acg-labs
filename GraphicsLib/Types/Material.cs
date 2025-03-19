@@ -9,10 +9,8 @@ namespace GraphicsLib.Types
 
 
         public string name;
-        public int baseColorTextureWidth;
-        public int baseColorTextureHeight;
         public Vector4 baseColor = new(1, 1, 1, 1);
-        public uint[] baseColorTexture;
+        public Sampler? baseColorTextureSampler;
         public float metallic = 1f;
         public float roughness = 1f;
 

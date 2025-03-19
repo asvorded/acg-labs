@@ -72,15 +72,15 @@ namespace Lab1
         {
             if (renderer == null)
                 return;
-/*            try
-            {*/
-                Stopwatch stopwatch = Stopwatch.StartNew();
-                WriteableBitmap bitmap = new WriteableBitmap(
-                ((int)canvas.ActualWidth), ((int)canvas.ActualHeight), 96, 96, PixelFormats.Bgra32, null);
-                renderer.Bitmap = bitmap;
+            /*            try
+                        {*/
+            Stopwatch stopwatch = Stopwatch.StartNew();
+            WriteableBitmap bitmap = new WriteableBitmap(
+            ((int)canvas.ActualWidth), ((int)canvas.ActualHeight), 96, 96, PixelFormats.Bgra32, null);
+            renderer.Bitmap = bitmap;
 
-                if (obj != null)
-                {
+            if (obj != null)
+            {
                 if (renderMode == "Flat")
                     //renderer.RenderSolid();
                     renderer.Render<GouraudShader, GouraudShader.Vertex>();
@@ -93,18 +93,18 @@ namespace Lab1
                 else
                     renderer.RenderCarcass();
 
-                }
-                else
-                {
+            }
+            else
+            {
 
-                }
-                bitmap.Lock();
-                bitmap.AddDirtyRect(new Int32Rect(0, 0, bitmap.PixelWidth, bitmap.PixelHeight));
-                bitmap.Unlock();
-                stopwatch.Stop();
-                DebugPanel.Text = $"{TimeSpan.TicksPerSecond / stopwatch.ElapsedTicks} fps/ {stopwatch.ElapsedMilliseconds} + ms";
-                canvas.Child = new Image { Source = bitmap };
-                renderer.Bitmap = null;
+            }
+            bitmap.Lock();
+            bitmap.AddDirtyRect(new Int32Rect(0, 0, bitmap.PixelWidth, bitmap.PixelHeight));
+            bitmap.Unlock();
+            stopwatch.Stop();
+            DebugPanel.Text = $"{TimeSpan.TicksPerSecond / stopwatch.ElapsedTicks} fps/ {stopwatch.ElapsedMilliseconds} + ms";
+            canvas.Child = new Image { Source = bitmap };
+            renderer.Bitmap = null;
             /*}
             catch (Exception ex)
             {
@@ -185,7 +185,7 @@ namespace Lab1
 
         }
 
-        private static float speed = 0.5f;
+        private static float speed = 4f;
         private Dictionary<Key, Action> moveActions = new() {
             {
                 Key.Left, () => { if (obj != null) obj.Transformation.Offset.X += speed; }
@@ -233,25 +233,25 @@ namespace Lab1
 
         private Dictionary<Key, Action> rotateActions = new() {
             {
-                Key.Up, () => { obj!.Transformation.AngleX += speed; }
+                Key.Up, () => { obj!.Transformation.AngleX += speed * 0.01f; }
             },
             {
-                Key.Down, () => { obj!.Transformation.AngleX -= speed; }
+                Key.Down, () => { obj!.Transformation.AngleX -= speed * 0.01f; }
             },
             {
                 Key.Left, () => {
                     if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
-                        obj!.Transformation.AngleY += speed;
+                        obj!.Transformation.AngleY += speed * 0.01f;
                     else
-                        obj!.Transformation.AngleZ += speed;
+                        obj!.Transformation.AngleZ += speed * 0.01f;
                 }
             },
             {
                 Key.Right, () => {
                     if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
-                        obj!.Transformation.AngleY -= speed;
+                        obj!.Transformation.AngleY -= speed * 0.01f;
                     else
-                        obj!.Transformation.AngleZ -= speed;
+                        obj!.Transformation.AngleZ -= speed * 0.01f;
                 }
             },
             {
@@ -264,7 +264,7 @@ namespace Lab1
 
         private static void MakeLarger()
         {
-            if(obj != null)
+            if (obj != null)
                 obj.Transformation.Scale += speed / 10.0f;
         }
 

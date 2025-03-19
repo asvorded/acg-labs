@@ -73,24 +73,15 @@ namespace GraphicsLib.Shaders
             Vector2 uv = input.Uv;
             Material material = input.Material;
             Vector4 finalARGBColor = material.baseColor;
-            if (material.baseColorTexture != null)
+            if (material.baseColorTextureSampler != null)
             {
-                int x = (int)(uv.X * material.baseColorTextureWidth);
-                int y = (int)(uv.Y * material.baseColorTextureHeight);
-                x = int.Clamp(x, 0, material.baseColorTextureWidth - 1);
-                y = int.Clamp(y, 0, material.baseColorTextureHeight - 1);
-               uint textureColor = material.baseColorTexture[x
-                    + y * material.baseColorTextureWidth];
-                float a = ((textureColor >> 24) & 0xFF) / 255.0f;
-                float r = ((textureColor >> 16) & 0xFF) / 255.0f;
-                float g = ((textureColor >> 8) & 0xFF) / 255.0f;
-                float b = (textureColor & 0xFF) / 255.0f;                
-                finalARGBColor *= new Vector4(a, r, g, b);
+                Vector4 textureColor = material.baseColorTextureSampler.Sample(uv);               
+                finalARGBColor *= textureColor;
             }
-            uint color = (uint)(finalARGBColor.X * 0xFF) << 24
-             | (uint)(finalARGBColor.Y * 0xFF) << 16
-             | (uint)(finalARGBColor.Z * 0xFF) << 8
-             | (uint)(finalARGBColor.W * 0xFF);
+            uint color = (uint)(finalARGBColor.W * 0xFF) << 24
+             | (uint)(finalARGBColor.X * 0xFF) << 16
+             | (uint)(finalARGBColor.Y * 0xFF) << 8
+             | (uint)(finalARGBColor.Z * 0xFF);
             return color;
         }
 

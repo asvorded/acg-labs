@@ -32,11 +32,11 @@ namespace GraphicsLib.Types.GltfTypes
         [JsonIgnore]
         public GltfRoot? GltfRoot { get; set; }
         [JsonIgnore]
-        private Image<Bgra32>? textureBitmap;
+        private Image<Rgba32>? textureBitmap;
         [JsonIgnore]
-        public Image<Bgra32> Texture { get => GetTextureBitmap(); set => textureBitmap = value; }
+        public Image<Rgba32> Texture { get => GetTextureBitmap(); set => textureBitmap = value; }
 
-        private Image<Bgra32> GetTextureBitmap()
+        private Image<Rgba32> GetTextureBitmap()
         {
             if (textureBitmap == null)
             {
@@ -54,14 +54,14 @@ namespace GraphicsLib.Types.GltfTypes
                     // Load the image from the byte array
                     using (var ms = new MemoryStream(imageBytes))
                     {
-                        textureBitmap = Image.Load<Bgra32>(ms);
+                        textureBitmap = Image.Load<Rgba32>(ms);
                     }
                 }
                 else
                 {
                     if (GltfRoot?.SourcePath == null)
                         throw new ConfigurationErrorsException("SourcePath for buffer is null.");
-                    textureBitmap = Image.Load<Bgra32>(Path.Combine(GltfRoot.SourcePath, UriString));
+                    textureBitmap = Image.Load<Rgba32>(Path.Combine(GltfRoot.SourcePath, UriString));
                 }
             }
             return textureBitmap;

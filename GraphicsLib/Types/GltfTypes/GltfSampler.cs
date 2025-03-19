@@ -21,7 +21,13 @@ namespace GraphicsLib.Types.GltfTypes
         [JsonProperty("extensions")]
         public Dictionary<string, object>? Extensions { get; set; }
         [JsonProperty("extras")]
-        public object? Extras { get; set; } 
+        public object? Extras { get; set; }
+        public Sampler GetSampler()
+        {
+            return new Sampler(WrapS, WrapT,
+                MagFilter ?? MagnificationFilterMode.Nearest,
+                MinFilter ?? MinificationFilterMode.Nearest);
+        }
     }
     public enum WrappingMode
     {

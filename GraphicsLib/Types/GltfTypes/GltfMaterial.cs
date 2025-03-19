@@ -73,6 +73,7 @@ namespace GraphicsLib.Types.GltfTypes
     public class GltfMaterialPbrMetallicRoughnessInfo
     {
         [JsonProperty("baseColorFactor")]
+        ///factor stored in rgba
         public Vector4 BaseColorFactor { get; set; } = new Vector4(1.0f, 1.0f, 1.0f, 1.0f);
         [JsonProperty("baseColorTexture")]
         public GltfMaterialTextureInfo? BaseColorTexture { get; set; }
