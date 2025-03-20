@@ -72,44 +72,45 @@ namespace Lab1
         {
             if (renderer == null)
                 return;
-            /*            try
-                        {*/
-            Stopwatch stopwatch = Stopwatch.StartNew();
-            WriteableBitmap bitmap = new WriteableBitmap(
-            ((int)canvas.ActualWidth), ((int)canvas.ActualHeight), 96, 96, PixelFormats.Bgra32, null);
-            renderer.Bitmap = bitmap;
-
-            if (obj != null)
+            try
             {
-                if (renderMode == "Flat")
-                    //renderer.RenderSolid();
-                    renderer.Render<GouraudShader, GouraudShader.Vertex>();
-                else if (renderMode == "Smooth")
-                    renderer.Render<PhongShader, PhongShader.Vertex>();
-                else if (renderMode == "Deferred")
-                    renderer.RenderDeferred();
-                else if (renderMode == "Textured")
-                    renderer.Render<TextureShader, TextureShader.Vertex>();
+                Stopwatch stopwatch = Stopwatch.StartNew();
+                WriteableBitmap bitmap = new WriteableBitmap(
+                ((int)canvas.ActualWidth), ((int)canvas.ActualHeight), 96, 96, PixelFormats.Bgra32, null);
+                renderer.Bitmap = bitmap;
+                scene.LightPosition = camera.Position;
+                if (obj != null)
+                {
+                    if (renderMode == "Flat")
+                        renderer.RenderSolid();
+                        //renderer.Render<GouraudShader, GouraudShader.Vertex>();
+                    else if (renderMode == "Smooth")
+                        renderer.Render<PhongShader, PhongShader.Vertex>();
+                    else if (renderMode == "Deferred")
+                        renderer.RenderDeferred();
+                    else if (renderMode == "Textured")
+                        //renderer.Render<TextureShader, TextureShader.Vertex>();
+                        renderer.Render<PhongTexturedShader, PhongTexturedShader.Vertex>();
+                    else
+                        renderer.RenderCarcass();
+
+                }
                 else
-                    renderer.RenderCarcass();
+                {
 
+                }
+                bitmap.Lock();
+                bitmap.AddDirtyRect(new Int32Rect(0, 0, bitmap.PixelWidth, bitmap.PixelHeight));
+                bitmap.Unlock();
+                stopwatch.Stop();
+                DebugPanel.Text = $"{TimeSpan.TicksPerSecond / stopwatch.ElapsedTicks} fps/ {stopwatch.ElapsedMilliseconds} + ms";
+                canvas.Child = new Image { Source = bitmap };
+                renderer.Bitmap = null;
             }
-            else
-            {
-
-            }
-            bitmap.Lock();
-            bitmap.AddDirtyRect(new Int32Rect(0, 0, bitmap.PixelWidth, bitmap.PixelHeight));
-            bitmap.Unlock();
-            stopwatch.Stop();
-            DebugPanel.Text = $"{TimeSpan.TicksPerSecond / stopwatch.ElapsedTicks} fps/ {stopwatch.ElapsedMilliseconds} + ms";
-            canvas.Child = new Image { Source = bitmap };
-            renderer.Bitmap = null;
-            /*}
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message);
-            }*/
+            }
         }
 
         private void ButtonOpenFile_Click(object sender, RoutedEventArgs e)

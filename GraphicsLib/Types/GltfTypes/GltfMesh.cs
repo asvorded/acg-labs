@@ -37,10 +37,8 @@ namespace GraphicsLib.Types.GltfTypes
 
         [JsonIgnore]
         public GltfRoot? Root { get; set; }
-
         [JsonIgnore]
         public Vector3[]? Position { get => GetPosition(); }
-
         [JsonIgnore]
         public Vector3[]? Normal { get => GetNormals(); }
         [JsonIgnore]

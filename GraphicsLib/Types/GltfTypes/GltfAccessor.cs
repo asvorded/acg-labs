@@ -5,7 +5,7 @@ namespace GraphicsLib.Types.GltfTypes
     public class GltfAccessor
     {
         [JsonProperty("bufferView")]
-        public int? BufferView { get; set; }
+        public int? BufferViewIndex { get; set; }
         [JsonProperty("byteOffset")]
         public int ByteOffset { get; set; } = 0;
         [JsonProperty("componentType")]
@@ -30,7 +30,7 @@ namespace GraphicsLib.Types.GltfTypes
         public object? Extras { get; set; }
 
         [JsonIgnore]
-        public GltfBufferView? BufferViewObject { get; set; }
+        public GltfBufferView? BufferView { get; set; }
     }
 
     public class GltfSparse

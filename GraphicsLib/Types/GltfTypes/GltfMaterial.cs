@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using System.Configuration;
 using System.Numerics;
 
 namespace GraphicsLib.Types.GltfTypes
@@ -40,6 +41,14 @@ namespace GraphicsLib.Types.GltfTypes
         public Dictionary<string, object>? Extensions { get; set; }
         [JsonProperty("extras")]
         public object? Extras { get; set; }
+        [JsonIgnore]
+        private GltfTexture? texture;
+        [JsonIgnore]
+        public GltfTexture Texture { 
+            get => texture ?? 
+                throw new ConfigurationErrorsException("Texture is not bind to Texture Info"); 
+            set => texture = value; 
+        }
     }
 
     public class GltfMaterialOcclusionTextureInfo
@@ -54,6 +63,15 @@ namespace GraphicsLib.Types.GltfTypes
         public Dictionary<string, object>? Extensions { get; set; }
         [JsonProperty("extras")]
         public object? Extras { get; set; }
+        [JsonIgnore]
+        private GltfTexture? texture;
+        [JsonIgnore]
+        public GltfTexture Texture
+        {
+            get => texture ??
+                throw new ConfigurationErrorsException("Texture is not bind to Texture Info");
+            set => texture = value;
+        }
     }
 
     public class GltfMaterialNormalTextureInfo
@@ -68,6 +86,15 @@ namespace GraphicsLib.Types.GltfTypes
         public Dictionary<string, object>? Extensions { get; set; }
         [JsonProperty("extras")]
         public object? Extras { get; set; }
+        [JsonIgnore]
+        private GltfTexture? texture;
+        [JsonIgnore]
+        public GltfTexture Texture
+        {
+            get => texture ??
+                throw new ConfigurationErrorsException("Texture is not bind to Texture Info");
+            set => texture = value;
+        }
     }
 
     public class GltfMaterialPbrMetallicRoughnessInfo

@@ -7,37 +7,32 @@ namespace GraphicsLib.Types.GltfTypes
     {
         public static void PreprocessGltfRoot(GltfRoot gltfRoot)
         {
-            if(gltfRoot.Buffers != null)
+            //bind accessors, buffer views, buffers
+            if (gltfRoot.Buffers != null)
             {
                 foreach (var buffer in gltfRoot.Buffers)
                 {
                     buffer.GltfRoot = gltfRoot;
                 }
             }
-            if (gltfRoot.Images != null)
-            {
-                foreach (var image in gltfRoot.Images)
-                {
-                    image.GltfRoot = gltfRoot;
-                }
-            }
             if (gltfRoot.BufferViews != null)
             {
                 foreach (var bufferView in gltfRoot.BufferViews)
                 {
-                    bufferView.Data = new ArraySegment<byte>(gltfRoot.Buffers![bufferView.Buffer].Data, bufferView.ByteOffset, bufferView.ByteLength);
+                    bufferView.Data = new ArraySegment<byte>(gltfRoot.Buffers![bufferView.BufferIndex].Data, bufferView.ByteOffset, bufferView.ByteLength);
                 }
                 if (gltfRoot.Accessors != null)
                 {
                     foreach (var accessor in gltfRoot.Accessors)
                     {
-                        if (accessor.BufferView.HasValue)
+                        if (accessor.BufferViewIndex.HasValue)
                         {
-                            accessor.BufferViewObject = gltfRoot.BufferViews[accessor.BufferView.Value];
+                            accessor.BufferView = gltfRoot.BufferViews[accessor.BufferViewIndex.Value];
                         }
                     }
                 }
             }
+            //bind parents of nodes to calculate transform matrices
             if (gltfRoot.Nodes != null)
             {
                 foreach (var node in gltfRoot.Nodes)
@@ -62,13 +57,63 @@ namespace GraphicsLib.Types.GltfTypes
                     }
                 }
             }
+            if (gltfRoot.Images != null)
+            {
+                foreach (var image in gltfRoot.Images)
+                {
+                    image.GltfRoot = gltfRoot;
+                }
+            }
+            if(gltfRoot.Textures != null)
+            {
+                foreach (var texture in gltfRoot.Textures)
+                {
+                    if (texture.ImageSourceIndex != null)
+                    {
+                        texture.Image = gltfRoot.Images![texture.ImageSourceIndex.Value];
+                    }
+                    if (texture.SamplerIndex != null)
+                    {
+                        texture.Sampler = gltfRoot.Samplers![texture.SamplerIndex.Value];
+                    }
+                }
+            }
+            if (gltfRoot.Materials != null)
+            {
+                foreach (var material in gltfRoot.Materials)
+                {
+                    if (material.PbrMetallicRoughness != null)
+                    {
+                        if (material.PbrMetallicRoughness.BaseColorTexture != null)
+                        {
+                            material.PbrMetallicRoughness.BaseColorTexture.Texture = gltfRoot.Textures![material.PbrMetallicRoughness.BaseColorTexture.Index];
+                        }
+                        if (material.PbrMetallicRoughness.MetallicRoughnessTexture != null)
+                        {
+                            material.PbrMetallicRoughness.MetallicRoughnessTexture.Texture = gltfRoot.Textures![material.PbrMetallicRoughness.MetallicRoughnessTexture.Index];
+                        }
+                        if (material.EmissiveTexture != null)
+                        {
+                            material.EmissiveTexture.Texture = gltfRoot.Textures![material.EmissiveTexture.Index];
+                        }
+                        if(material.NormalTexture != null)
+                        {
+                            material.NormalTexture.Texture = gltfRoot.Textures![material.NormalTexture.Index];
+                        }
+                        if(material.OcclusionTexture != null)
+                        {
+                            material.OcclusionTexture.Texture = gltfRoot.Textures![material.OcclusionTexture.Index];
+                        }
+                    }
+                }
+            }
         }
 
         private static object[] ReadFromBufferView(GltfAccessor accessor, Func<ArraySegment<byte>, int, object> byteConverter, Func<object[], object> outConverter)
         {
-            if (accessor.BufferViewObject == null)
+            if (accessor.BufferView == null)
                 throw new ConfigurationErrorsException("accessor has no buffer view object. Make sure to preprocess root");
-            var bufferView = accessor.BufferViewObject;
+            var bufferView = accessor.BufferView;
             ArraySegment<byte> data = bufferView.Data;
             int startOffset = accessor.ByteOffset;
             int componentByteCount = accessor.ComponentType.GetBytesCount();

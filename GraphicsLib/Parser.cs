@@ -185,36 +185,7 @@ namespace GraphicsLib
             {
                 foreach (var material in gltfRoot.Materials)
                 {
-                    Material newMaterial = new();
-                    if (material.Name != null)
-                        newMaterial.name = material.Name;
-                    if (material.PbrMetallicRoughness != null)
-                    {
-                        var pbr = material.PbrMetallicRoughness;
-                        newMaterial.metallic = pbr.MetallicFactor;
-                        newMaterial.roughness = pbr.RoughnessFactor;
-                        newMaterial.baseColor = pbr.BaseColorFactor;
-                        if (pbr.BaseColorTexture != null)
-                        {
-
-                            var textureInfo = pbr.BaseColorTexture;
-                            var texture = gltfRoot.Textures![textureInfo.Index];
-                            var samplerSettings = gltfRoot.Samplers![texture.Sampler];
-                            var image = gltfRoot.Images![texture.Source];
-                            var textureImage = image.Texture;
-                            var sampler = samplerSettings.GetSampler();
-                            Rgba32[] pixels = new Rgba32[textureImage.Height*textureImage.Width];
-                            textureImage.CopyPixelDataTo(pixels);
-                            sampler.BindTexture(pixels, textureImage.Width, textureImage.Height);
-                            newMaterial.baseColorTextureSampler = sampler;
-                        }
-                        if (pbr.MetallicRoughnessTexture != null)
-                        {
-                            //var texture = pbr.MetallicRoughnessTexture;
-                            //var image = gltfRoot.Images![texture.Index];
-                            //newMaterial.metallicRoughnessTexture = Path.Combine(sourceDirectory, image.UriString);
-                        }
-                    }
+                    Material newMaterial = Material.FromGltfMaterial(material);
                     materialsList.Add(newMaterial);
                 }
             }
@@ -235,14 +206,22 @@ namespace GraphicsLib
                         foreach (var primitive in mesh.Primitives)
                         {
                             var mode = primitive.Mode;
-                            var attributes = primitive.Attributes;
+                            //var attributes = primitive.Attributes;
                             int vIndexOffset = verticesList.Count;
                             int nIndexOffset = normalsList.Count;
                             int tIndexOffset = uvsList.Count;
                             Vector3[]? vertices = primitive.Position;
                             Vector3[]? normals = primitive.Normal;
-                            Vector2[]? uvs = primitive.GetTextureCoords(0);
+                            Vector2[]? uvs = null;
                             int[]? indicies = primitive.PointIndices;
+                            short materialIndex = (primitive.Material.HasValue) ? (short)primitive.Material.Value : (short)0;
+                            var gltfMaterial = gltfRoot.Materials?[materialIndex];
+                            if (gltfMaterial!=null 
+                                && gltfMaterial.PbrMetallicRoughness != null 
+                                && gltfMaterial.PbrMetallicRoughness.BaseColorTexture != null)
+                            {
+                                uvs = primitive.GetTextureCoords(gltfMaterial.PbrMetallicRoughness.BaseColorTexture.TexCoord);
+                            }
                             if (vertices != null)
                             {
                                 foreach (var v in vertices)
@@ -269,9 +248,8 @@ namespace GraphicsLib
                             }
                             if (indicies != null)
                             {
-                                Face AssembleTriangle(int index0, int index1, int index2)
+                                Face AssembleTriangle(int index0, int index1, int index2, short materialIndex)
                                 {
-                                    short materialIndex = (primitive.Material.HasValue) ? (short)primitive.Material.Value : (short)0;
                                     int[] triangleVertices = [indicies[index0] + vIndexOffset,
                                             indicies[index1] + vIndexOffset,
                                             indicies[index2] + vIndexOffset];
@@ -295,7 +273,7 @@ namespace GraphicsLib
                                         int index0 = i;
                                         int index1 = i + 1;
                                         int index2 = i + 2;
-                                        Face newFace = AssembleTriangle(index0, index1, index2);
+                                        Face newFace = AssembleTriangle(index0, index1, index2, materialIndex);
                                         facesList.Add(newFace);
                                     }
                                 }
@@ -306,7 +284,7 @@ namespace GraphicsLib
                                         int index0 = i;
                                         int index1 = i + 1;
                                         int index2 = i + 2;
-                                        Face newFace = AssembleTriangle(index0, index1, index2);
+                                        Face newFace = AssembleTriangle(index0, index1, index2, materialIndex);
                                         facesList.Add(newFace);
                                     }
                                 }
@@ -317,7 +295,7 @@ namespace GraphicsLib
                                         int index0 = 0;
                                         int index1 = i + 1;
                                         int index2 = i + 2;
-                                        Face newFace = AssembleTriangle(index0, index1, index2);
+                                        Face newFace = AssembleTriangle(index0, index1, index2, materialIndex);
                                         facesList.Add(newFace);
                                     }
                                 }
