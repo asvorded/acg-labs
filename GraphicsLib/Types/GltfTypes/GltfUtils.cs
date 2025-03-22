@@ -84,26 +84,28 @@ namespace GraphicsLib.Types.GltfTypes
                 {
                     if (material.PbrMetallicRoughness != null)
                     {
-                        if (material.PbrMetallicRoughness.BaseColorTexture != null)
+                        var pbr = material.PbrMetallicRoughness;
+                        if (pbr.BaseColorTexture != null)
                         {
-                            material.PbrMetallicRoughness.BaseColorTexture.Texture = gltfRoot.Textures![material.PbrMetallicRoughness.BaseColorTexture.Index];
+                            pbr.BaseColorTexture.Texture = gltfRoot.Textures![pbr.BaseColorTexture.Index];
                         }
-                        if (material.PbrMetallicRoughness.MetallicRoughnessTexture != null)
+                        if (pbr.MetallicRoughnessTexture != null)
                         {
-                            material.PbrMetallicRoughness.MetallicRoughnessTexture.Texture = gltfRoot.Textures![material.PbrMetallicRoughness.MetallicRoughnessTexture.Index];
+                            pbr.MetallicRoughnessTexture.Texture = gltfRoot.Textures![pbr.MetallicRoughnessTexture.Index];
                         }
-                        if (material.EmissiveTexture != null)
-                        {
-                            material.EmissiveTexture.Texture = gltfRoot.Textures![material.EmissiveTexture.Index];
-                        }
-                        if(material.NormalTexture != null)
-                        {
-                            material.NormalTexture.Texture = gltfRoot.Textures![material.NormalTexture.Index];
-                        }
-                        if(material.OcclusionTexture != null)
-                        {
-                            material.OcclusionTexture.Texture = gltfRoot.Textures![material.OcclusionTexture.Index];
-                        }
+                        
+                    }
+                    if (material.EmissiveTexture != null)
+                    {
+                        material.EmissiveTexture.Texture = gltfRoot.Textures![material.EmissiveTexture.Index];
+                    }
+                    if (material.NormalTexture != null)
+                    {
+                        material.NormalTexture.Texture = gltfRoot.Textures![material.NormalTexture.Index];
+                    }
+                    if (material.OcclusionTexture != null)
+                    {
+                        material.OcclusionTexture.Texture = gltfRoot.Textures![material.OcclusionTexture.Index];
                     }
                 }
             }

@@ -19,7 +19,12 @@ namespace GraphicsLib.Types
 
         public Matrix4x4 ProjectionMatrix { get => GetProjectionMatrix(); }
         public Matrix4x4 ViewPortMatrix { get => GetViewPortMatrix(); }
-
+        //дальше лень
+        public float NearClipPlane { get => nearClipPlane; set => SetNearClipPlane(value); }
+        public float FarClipPlane { get; set; } = float.PositiveInfinity;
+        public float FieldOfView { get; set; } = MathF.PI / 3;
+        public float ScreenWidth { get; set; } = 0f;
+        public float ScreenHeight { get; set; } = 0f;
         private Matrix4x4 GetViewPortMatrix()
         {
             return Matrix4x4.CreateViewport(0, 0, ScreenWidth, ScreenHeight, 0, -1);
@@ -29,13 +34,6 @@ namespace GraphicsLib.Types
         {
             return Matrix4x4.CreatePerspectiveFieldOfView(FieldOfView, ScreenWidth / ScreenHeight, nearClipPlane, FarClipPlane);
         }
-
-        //дальше лень
-        public float NearClipPlane { get => nearClipPlane; set => SetNearClipPlane(value); }
-        public float FarClipPlane { get; set; } = float.PositiveInfinity;
-        public float FieldOfView { get; set; } = MathF.PI / 3;
-        public float ScreenWidth { get; set; } = 0f;
-        public float ScreenHeight { get; set; } = 0f;
         private Matrix4x4 GetViewMatrix()
         {
             return Matrix4x4.CreateLookAt(Position, Target, up);
@@ -84,21 +82,13 @@ namespace GraphicsLib.Types
             position.Z = Distance * cosAzim * sinPolar;
             position.X = Distance * sinAzim * sinPolar;
             position.Y = Distance * cosPolar;
+            position += Target;
             return position;
         }
-        /// <summary>
-        /// Вращает вокруг цели по горизонтали
-        /// </summary>
-        /// <param name="angleRadians"></param>
         public void RotateAroundTargetHorizontal(float angleRadians)
         {
             Azimuth += angleRadians;
         }
-        /// <summary>
-        /// Вращает по вертикали на заданный
-        /// угол в радианах положительное число - вниз, отрицательное - вверх
-        /// </summary>
-        /// <param name="angleRadians"> </param>
         public void RotateAroundTargetVertical(float angleRadians)
         {
             Polar += angleRadians;

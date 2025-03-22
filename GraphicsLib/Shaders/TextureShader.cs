@@ -20,8 +20,8 @@ namespace GraphicsLib.Shaders
         private void SetSceneParams(Scene value)
         {
             scene = value;
-            worldTransform = scene.Obj.Transformation.Matrix;
-            worldNormalTransform = scene.Obj.Transformation.NormalMatrix;
+            worldTransform = scene.Obj.transformation.Matrix;
+            worldNormalTransform = scene.Obj.transformation.NormalMatrix;
         }
 
         public TextureShader()

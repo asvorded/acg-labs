@@ -21,6 +21,7 @@ namespace GraphicsLib
         /// </summary>
         /// <param name="source">Входной текст</param>
         /// <returns>Модель</returns>
+        [Obsolete("not updated since 3 lab")]
         public static Obj ParseObjFile(string filePath)
         {
             Obj obj = new();
@@ -30,6 +31,7 @@ namespace GraphicsLib
             List<Vector3> normalsList = [];
             List<Vector2> uvsList = [];
             List<Face> facesList = [];
+            List<Material> materialsList = [Material.defaultMaterial];
             while (!sr.EndOfStream)
             {
                 string? line = sr.ReadLine();
@@ -48,7 +50,6 @@ namespace GraphicsLib
                             newVertex.Z = Single.Parse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture);
                             if (parts.Length == 5)
                             {
-                                //Нормализуем
                                 Single w = Single.Parse(parts[4], NumberStyles.Float, CultureInfo.InvariantCulture);
                                 newVertex /= w;
                             }
@@ -101,7 +102,11 @@ namespace GraphicsLib
                                 int[] triangleVertices = [vertices[0], vertices[i + 1], vertices[i + 2]];
                                 int[]? triangleTextures = hasTextureIndices ? [textures![0], textures[i + 1], textures[i + 2]] : null;
                                 int[]? triangleNormals = hasNormalIndices ? [normals![0], normals[i + 1], normals[i + 2]] : null;
-                                Face newFace = new(triangleVertices, triangleTextures, triangleNormals, 0);
+                                Face newFace = new(triangleVertices, 0)
+                                {
+                                    nIndices = triangleNormals,
+                                    tIndices = triangleTextures,
+                                };
                                 facesList.Add(newFace);
                             }
 
@@ -137,34 +142,18 @@ namespace GraphicsLib
                     }
                 }
             }
-            StaticTriangle[] staticTriangles = new StaticTriangle[facesList.Count];
-            for (int i = 0; i < facesList.Count; i++)
-            {
-                Face face = facesList[i];
-                staticTriangles[i] = new StaticTriangle()
-                {
-                    position0 = verticesList[face.vIndices[0]],
-                    position1 = verticesList[face.vIndices[1]],
-                    position2 = verticesList[face.vIndices[2]],
-                };
-                if (face.nIndices != null)
-                {
-                    staticTriangles[i].normal0 = normalsList[face.nIndices[0]];
-                    staticTriangles[i].normal1 = normalsList[face.nIndices[1]];
-                    staticTriangles[i].normal2 = normalsList[face.nIndices[2]];
-                }
-                if (face.tIndices != null)
-                {
-                    staticTriangles[i].uvCoordinate0 = uvsList[face.tIndices[0]];
-                    staticTriangles[i].uvCoordinate1 = uvsList[face.tIndices[1]];
-                    staticTriangles[i].uvCoordinate2 = uvsList[face.tIndices[2]];
-                }
-            }
-            obj.triangles = [.. staticTriangles];
             obj.faces = [.. facesList];
             obj.vertices = [.. verticesList];
             obj.normals = [.. normalsList];
             obj.uvs = [.. uvsList];
+            obj.materials = [.. materialsList];
+            StaticTriangle[] staticTriangles = new StaticTriangle[facesList.Count];
+            for (int i = 0; i < facesList.Count; i++)
+            {
+                staticTriangles[i] = StaticTriangle.FromFace(obj, obj.faces[i]);
+            }
+            obj.triangles = [.. staticTriangles];
+            
             return obj;
         }
         public static Obj ParseGltfFile(string filePath)
@@ -179,6 +168,8 @@ namespace GraphicsLib
             List<Vector3> verticesList = [];
             List<Vector3> normalsList = [];
             List<Vector2> uvsList = [];
+            List<Vector4> tangentsList = [];
+            List<Vector2> normalUvsList = [];
             List<Face> facesList = [];
             List<Material> materialsList = [];
             if (gltfRoot.Materials != null)
@@ -210,40 +201,66 @@ namespace GraphicsLib
                             int vIndexOffset = verticesList.Count;
                             int nIndexOffset = normalsList.Count;
                             int tIndexOffset = uvsList.Count;
+                            int ntIndexOffset = normalUvsList.Count;
+                            int tangIndexOffset = tangentsList.Count;
                             Vector3[]? vertices = primitive.Position;
                             Vector3[]? normals = primitive.Normal;
                             Vector2[]? uvs = null;
+                            Vector2[]? normalUvs = null;
+                            Vector4[]? tangents = primitive.Tangent;
                             int[]? indicies = primitive.PointIndices;
                             short materialIndex = (primitive.Material.HasValue) ? (short)primitive.Material.Value : (short)0;
                             var gltfMaterial = gltfRoot.Materials?[materialIndex];
-                            if (gltfMaterial!=null 
-                                && gltfMaterial.PbrMetallicRoughness != null 
-                                && gltfMaterial.PbrMetallicRoughness.BaseColorTexture != null)
+                            if (gltfMaterial != null)
                             {
-                                uvs = primitive.GetTextureCoords(gltfMaterial.PbrMetallicRoughness.BaseColorTexture.TexCoord);
+                                if (gltfMaterial.PbrMetallicRoughness != null)
+                                {
+                                    if (gltfMaterial.PbrMetallicRoughness.BaseColorTexture != null)
+                                    {
+                                        uvs = primitive.GetTextureCoords(gltfMaterial.PbrMetallicRoughness.BaseColorTexture.TexCoord);
+                                    }
+                                }
+                                if (gltfMaterial.NormalTexture != null)
+                                {
+                                    normalUvs = primitive.GetTextureCoords(gltfMaterial.NormalTexture.TexCoord);
+                                }
                             }
                             if (vertices != null)
                             {
-                                foreach (var v in vertices)
+                                for(int i = 0; i < vertices.Length; i++) 
                                 {
-                                    Vector3 transformed = Vector3.Transform(v, transform);
+                                    Vector3 transformed = Vector3.Transform(vertices[i], transform);
                                     verticesList.Add(transformed);
                                 }
                             }
                             if (normals != null)
                             {
 
-                                foreach (var n in normals)
+                                for(int i = 0; i < normals.Length; i++)
                                 {
-                                    Vector3 transformed = Vector3.Normalize(Vector3.TransformNormal(n, normalTransform));
+                                    Vector3 transformed = Vector3.Normalize(Vector3.TransformNormal(normals[i], normalTransform));
                                     normalsList.Add(transformed);
                                 }
                             }
                             if (uvs != null)
                             {
-                                foreach (var uv in uvs)
+                                for(int i = 0;i < uvs.Length; i++)
                                 {
-                                    uvsList.Add(uv);
+                                    uvsList.Add(uvs[i]);
+                                }
+                            }
+                            if(normalUvs != null)
+                            {
+                                for(int i = 0; i < normalUvs.Length; i++)
+                                {
+                                    normalUvsList.Add(normalUvs[i]);
+                                }
+                            }
+                            if(tangents != null)
+                            {
+                                for(int i = 0; i < tangents.Length; i++)
+                                {
+                                    tangentsList.Add(tangents[i]);
                                 }
                             }
                             if (indicies != null)
@@ -263,7 +280,23 @@ namespace GraphicsLib
                                         triangleUvs = [indicies[index0] + tIndexOffset,
                                             indicies[index1] + tIndexOffset,
                                             indicies[index2] + tIndexOffset];
-                                    return new Face(triangleVertices, triangleUvs, triangleNormals, materialIndex);
+                                    int[]? triangleTangents = null;
+                                    if (tangentsList.Count > tangIndexOffset)
+                                        triangleTangents = [indicies[index0] + tangIndexOffset,
+                                            indicies[index1] + tangIndexOffset,
+                                            indicies[index2] + tangIndexOffset];
+                                    int[]? triangleNormalUvs = null;
+                                    if (normalUvsList.Count > ntIndexOffset)
+                                        triangleNormalUvs = [indicies[index0] + ntIndexOffset,
+                                            indicies[index1] + ntIndexOffset,
+                                            indicies[index2] + ntIndexOffset];
+                                    return new Face(triangleVertices, materialIndex)
+                                    {
+                                        nIndices = triangleNormals,
+                                        tIndices = triangleUvs,
+                                        tangentIndicies = triangleTangents,
+                                        ntIndicies = triangleNormalUvs
+                                    };
                                 }
 
                                 if (mode == GltfMeshMode.TRIANGLES)
@@ -304,36 +337,19 @@ namespace GraphicsLib
                     }
                 }
             }
-            StaticTriangle[] staticTriangles = new StaticTriangle[facesList.Count];
-            for (int i = 0; i < facesList.Count; i++)
-            {
-                Face face = facesList[i];
-                staticTriangles[i] = new StaticTriangle()
-                {
-                    position0 = verticesList[face.vIndices[0]],
-                    position1 = verticesList[face.vIndices[1]],
-                    position2 = verticesList[face.vIndices[2]],
-                };
-                if(face.nIndices != null)
-                {
-                    staticTriangles[i].normal0 = normalsList[face.nIndices[0]];
-                    staticTriangles[i].normal1 = normalsList[face.nIndices[1]];
-                    staticTriangles[i].normal2 = normalsList[face.nIndices[2]];
-                }
-                if(face.tIndices != null)
-                {
-                    staticTriangles[i].uvCoordinate0 = uvsList[face.tIndices[0]];
-                    staticTriangles[i].uvCoordinate1 = uvsList[face.tIndices[1]];
-                    staticTriangles[i].uvCoordinate2 = uvsList[face.tIndices[2]];
-                }
-                staticTriangles[i].material = materialsList[face.MaterialIndex];
-            }
-            obj.triangles = [.. staticTriangles];
             obj.materials = [.. materialsList];
             obj.faces = [.. facesList];
             obj.vertices = [.. verticesList];
             obj.normals = [.. normalsList];
+            obj.tangents = [.. tangentsList];
+            obj.normalUvs = [.. normalUvsList];
             obj.uvs = [.. uvsList];
+            StaticTriangle[] staticTriangles = new StaticTriangle[facesList.Count];
+            for (int i = 0; i < facesList.Count; i++)
+            {
+                staticTriangles[i] = StaticTriangle.FromFace(obj, obj.faces[i]);
+            }
+            obj.triangles = [.. staticTriangles];
             return obj;
         }
     

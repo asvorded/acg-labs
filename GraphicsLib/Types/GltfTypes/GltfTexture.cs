@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using SixLabors.ImageSharp.PixelFormats;
 using System.Configuration;
 
 namespace GraphicsLib.Types.GltfTypes
@@ -20,5 +21,19 @@ namespace GraphicsLib.Types.GltfTypes
         public GltfImage? Image { get; set; }
         [JsonIgnore]
         public GltfSampler? Sampler { get; set; }
+
+        public Sampler GetConvertedSampler()
+        {
+            if (Sampler == null || Image == null)
+            {
+                throw new Exception("Sampler or Image is null");
+            }
+            var image = Image.ImageData;
+            var sampler = Sampler.GetSampler();
+            Rgba32[] pixels = new Rgba32[image.Height * image.Width];
+            image.CopyPixelDataTo(pixels);
+            sampler.BindTexture(pixels, image.Width, image.Height);
+            return sampler;
+        }
     }
 }

@@ -34,9 +34,9 @@ namespace GraphicsLib.Types.GltfTypes
         [JsonIgnore]
         private Image<Rgba32>? textureBitmap;
         [JsonIgnore]
-        public Image<Rgba32> Texture { get => GetTextureBitmap(); set => textureBitmap = value; }
+        public Image<Rgba32> ImageData { get => GetImageData(); set => textureBitmap = value; }
 
-        private Image<Rgba32> GetTextureBitmap()
+        private Image<Rgba32> GetImageData()
         {
             if (textureBitmap == null)
             {

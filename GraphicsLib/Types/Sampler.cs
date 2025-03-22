@@ -32,9 +32,16 @@ namespace GraphicsLib.Types
             this.width = width;
             this.height = height;
         }
+        public void BindTexture(GltfImage gltfImage)
+        {
+            var textureImage = gltfImage.ImageData;
+            Rgba32[] pixels = new Rgba32[textureImage.Height * textureImage.Width];
+            textureImage.CopyPixelDataTo(pixels);
+            BindTexture(pixels, width, height);
+        }
         public Vector4 Sample(Vector2 uv)
         {
-            if(textureData == null)
+            if (textureData == null)
             {
                 throw new ConfigurationErrorsException("Texture data is not bound to sampler");
             }
@@ -82,16 +89,17 @@ namespace GraphicsLib.Types
                         int y1 = int.Clamp(y0 + 1, 0, width - 1);
                         float dx = uv.X * (width - 1) - x0;
                         float dy = uv.Y * (height - 1) - y0;
-                        Rgba32 sample = textureData[y0 * width + x0];
-                        Vector4 c00 = textureData[y0 * width + x0].ToScaledVector4();
-                        Vector4 c10 = textureData[y0 * width + x1].ToScaledVector4();
-                        Vector4 c01 = textureData[y1 * width + x0].ToScaledVector4();
-                        Vector4 c11 = textureData[y1 * width + x1].ToScaledVector4();
-                        Vector4 c = (c00 * (1 - dx) + c10 * dx) * (1 - dy) + (c01 * (1 - dx) + c11 * dx) * dy;
-                        return c;
+                        Vector4 topLeft = textureData[y0 * width + x0].ToScaledVector4();
+                        Vector4 topRight = textureData[y0 * width + x1].ToScaledVector4();
+                        Vector4 bottomLeft = textureData[y1 * width + x0].ToScaledVector4();
+                        Vector4 bottomRight = textureData[y1 * width + x1].ToScaledVector4();
+                        Vector4 result = Vector4.Lerp(Vector4.Lerp(topLeft, topRight, dx), Vector4.Lerp(bottomLeft, bottomRight, dx), dy);
+                        return result;
                     }
             }
-            return default;
+            int x2 = (int)(uv.X * (width - 1));
+            int y2 = (int)(uv.Y * (height - 1));
+            return textureData[y2 * width + x2].ToScaledVector4();
         }
     }
 }

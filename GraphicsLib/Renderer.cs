@@ -125,7 +125,7 @@ namespace GraphicsLib
 
             ResizeAndClearZBufferWithIndicies();
             // transform from model space to world space
-            Matrix4x4 worldTransform = obj.Transformation.Matrix;
+            Matrix4x4 worldTransform = obj.transformation.Matrix;
             // transform from world space to camera space
             Matrix4x4 cameraTransform = mainCamera.ViewMatrix;
 
@@ -687,7 +687,7 @@ namespace GraphicsLib
             ResizeAndClearZBuffer();
 
             // transform from model space to world space
-            Matrix4x4 worldTransform = obj.Transformation.Matrix;
+            Matrix4x4 worldTransform = obj.transformation.Matrix;
 
 
             Camera mainCamera = Scene.Camera;
@@ -869,7 +869,7 @@ namespace GraphicsLib
             ResizeBuffer(obj);
 
             // transform from model space to world space
-            Matrix4x4 worldTransform = obj.Transformation.Matrix;
+            Matrix4x4 worldTransform = obj.transformation.Matrix;
 
             // transform from world space to camera space
             Matrix4x4 cameraTransform = Scene.Camera.ViewMatrix;

@@ -43,6 +43,8 @@ namespace GraphicsLib.Types.GltfTypes
         public Vector3[]? Normal { get => GetNormals(); }
         [JsonIgnore]
         public int[]? PointIndices { get => GetPointIndices(); }
+        [JsonIgnore]
+        public Vector4[]? Tangent { get => GetTangents(); }
 
         public Vector2[]? GetTextureCoords(int v)
         {
@@ -63,7 +65,25 @@ namespace GraphicsLib.Types.GltfTypes
             }
             return vectors;
         }
-
+        private Vector4[]? GetTangents()
+        {
+            Vector4[]? vectors = null;
+            if (Attributes.TryGetValue("TANGENT", out int index))
+            {
+                if (Root == null)
+                {
+                    throw new ConfigurationErrorsException("Root is null.");
+                }
+                var accessor = Root.Accessors![index];
+                object[] data = GltfUtils.GetAccessorData(accessor);
+                vectors = new Vector4[accessor.Count];
+                for (int i = 0; i < accessor.Count; i++)
+                {
+                    vectors[i] = (Vector4)data[i];
+                }
+            }
+            return vectors;
+        }
         private Vector3[]? GetPosition()
         {
             Vector3[]? vectors = null;

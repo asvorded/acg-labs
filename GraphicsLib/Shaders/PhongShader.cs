@@ -24,8 +24,8 @@ namespace GraphicsLib.Shaders
             if (scene.Obj == null)
                 throw new ArgumentException("Scene object is null");
             //caching all values to avoid calling heavy properties
-            worldTransform = scene.Obj.Transformation.Matrix;
-            worldNormalTransform = scene.Obj.Transformation.NormalMatrix;
+            worldTransform = scene.Obj.transformation.Matrix;
+            worldNormalTransform = scene.Obj.transformation.NormalMatrix;
             cameraPos = scene.Camera.Position;
             ambient = scene.AmbientColor * scene.AmbientIntensity;
             diffuseColor = scene.DiffuseColor;

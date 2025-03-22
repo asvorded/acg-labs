@@ -49,52 +49,22 @@ namespace GraphicsLib.Types.GltfTypes
                 throw new ConfigurationErrorsException("Texture is not bind to Texture Info"); 
             set => texture = value; 
         }
+        public Sampler GetConvertedSampler()
+        {
+            return Texture.GetConvertedSampler();
+        }
     }
 
-    public class GltfMaterialOcclusionTextureInfo
+    public class GltfMaterialOcclusionTextureInfo : GltfMaterialTextureInfo
     {
-        [JsonProperty("index")]
-        public required int Index { get; set; }
-        [JsonProperty("texCoord")]
-        public int TexCoord { get; set; } = 0;
         [JsonProperty("strength")]
         public float Strength { get; set; } = 1.0f;
-        [JsonProperty("extensions")]
-        public Dictionary<string, object>? Extensions { get; set; }
-        [JsonProperty("extras")]
-        public object? Extras { get; set; }
-        [JsonIgnore]
-        private GltfTexture? texture;
-        [JsonIgnore]
-        public GltfTexture Texture
-        {
-            get => texture ??
-                throw new ConfigurationErrorsException("Texture is not bind to Texture Info");
-            set => texture = value;
-        }
     }
 
-    public class GltfMaterialNormalTextureInfo
+    public class GltfMaterialNormalTextureInfo : GltfMaterialTextureInfo
     {
-        [JsonProperty("index")]
-        public required int Index { get; set; }
-        [JsonProperty("texCoord")]
-        public int TexCoord { get; set; } = 0;
         [JsonProperty("scale")]
         public float Scale { get; set; } = 1.0f;
-        [JsonProperty("extensions")]
-        public Dictionary<string, object>? Extensions { get; set; }
-        [JsonProperty("extras")]
-        public object? Extras { get; set; }
-        [JsonIgnore]
-        private GltfTexture? texture;
-        [JsonIgnore]
-        public GltfTexture Texture
-        {
-            get => texture ??
-                throw new ConfigurationErrorsException("Texture is not bind to Texture Info");
-            set => texture = value;
-        }
     }
 
     public class GltfMaterialPbrMetallicRoughnessInfo

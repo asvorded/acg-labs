@@ -12,13 +12,13 @@ namespace GraphicsLib.Types
         public int[] vIndices;
         public int[]? tIndices;
         public int[]? nIndices;
+        public int[]? ntIndicies;
+        public int[]? tangentIndicies;
         public short MaterialIndex;
 
-        public Face(int[] vIndices, int[]? tIndices, int[]? nIndices, short materialIndex)
+        public Face(int[] vIndices, short materialIndex)
         {
             this.vIndices = vIndices;
-            this.tIndices = tIndices;
-            this.nIndices = nIndices;
             MaterialIndex = materialIndex;
         }
 

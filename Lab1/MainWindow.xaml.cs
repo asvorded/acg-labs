@@ -62,7 +62,7 @@ namespace Lab1
                 obj = Parser.ParseObjFile(ofd.FileName);
             else
                 obj = Parser.ParseGltfFile(ofd.FileName);
-            obj.Transformation.Reset();
+            obj.transformation.Reset();
             scene.Obj = obj;
             Draw();
 
@@ -189,22 +189,22 @@ namespace Lab1
         private static float speed = 4f;
         private Dictionary<Key, Action> moveActions = new() {
             {
-                Key.Left, () => { if (obj != null) obj.Transformation.Offset.X += speed; }
+                Key.Left, () => { if (obj != null) obj.transformation.Offset.X += speed; }
             },
             {
-                Key.Right, () => { if (obj != null) obj!.Transformation.Offset.X -= speed; }
+                Key.Right, () => { if (obj != null) obj!.transformation.Offset.X -= speed; }
             },
             {
                 Key.Up, () => {
                     if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
                     {
                         if (obj != null)
-                            obj.Transformation.Offset.Z += speed;
+                            obj.transformation.Offset.Z += speed;
                     }
                     else
                     {
                         if (obj != null)
-                            obj.Transformation.Offset.Y += speed;
+                            obj.transformation.Offset.Y += speed;
                     }
 
                 }
@@ -214,13 +214,13 @@ namespace Lab1
                     if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
                     {
                         if (obj != null)
-                            obj.Transformation.Offset.Z -= speed;
+                            obj.transformation.Offset.Z -= speed;
                     }
 
                     else
                     {
                         if (obj != null)
-                            obj.Transformation.Offset.Y -= speed;
+                            obj.transformation.Offset.Y -= speed;
                     }
                 }
             },
@@ -234,25 +234,25 @@ namespace Lab1
 
         private Dictionary<Key, Action> rotateActions = new() {
             {
-                Key.Up, () => { obj!.Transformation.AngleX += speed * 0.01f; }
+                Key.Up, () => { obj!.transformation.AngleX += speed * 0.01f; }
             },
             {
-                Key.Down, () => { obj!.Transformation.AngleX -= speed * 0.01f; }
+                Key.Down, () => { obj!.transformation.AngleX -= speed * 0.01f; }
             },
             {
                 Key.Left, () => {
                     if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
-                        obj!.Transformation.AngleY += speed * 0.01f;
+                        obj!.transformation.AngleY += speed * 0.01f;
                     else
-                        obj!.Transformation.AngleZ += speed * 0.01f;
+                        obj!.transformation.AngleZ += speed * 0.01f;
                 }
             },
             {
                 Key.Right, () => {
                     if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
-                        obj!.Transformation.AngleY -= speed * 0.01f;
+                        obj!.transformation.AngleY -= speed * 0.01f;
                     else
-                        obj!.Transformation.AngleZ -= speed * 0.01f;
+                        obj!.transformation.AngleZ -= speed * 0.01f;
                 }
             },
             {
@@ -266,13 +266,13 @@ namespace Lab1
         private static void MakeLarger()
         {
             if (obj != null)
-                obj.Transformation.Scale += speed / 10.0f;
+                obj.transformation.Scale += speed / 10.0f;
         }
 
         private static void MakeSmaller()
         {
             if (obj != null)
-                obj.Transformation.Scale -= speed / 10.0f;
+                obj.transformation.Scale -= speed / 10.0f;
         }
 
         private void canvas_KeyDown(object sender, KeyEventArgs e)
