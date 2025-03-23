@@ -128,11 +128,27 @@ namespace Lab1
         {
             if (e.LeftButton == MouseButtonState.Pressed && Mouse.Captured == canvas && oldPos.X != -1)
             {
+
                 Point newPos = Mouse.GetPosition(canvas);
                 float dx = (float)(newPos.X - oldPos.X);
                 float dy = (float)(newPos.Y - oldPos.Y);
+                if (Keyboard.Modifiers == ModifierKeys.Shift)
+                {
+                    Vector3 target = camera.Target;
+                    Matrix4x4.Invert(camera.ViewMatrix, out Matrix4x4 view);
+                    float distanceX = (float)((dx / canvas.ActualWidth * 2) * Math.Tan(camera.FieldOfView / 2) * camera.Distance * (canvas.ActualWidth / canvas.ActualHeight));
+                    float distanceY = (float)((dy / canvas.ActualHeight * 2) * Math.Tan(camera.FieldOfView / 2)) * camera.Distance;
+                    float length = MathF.Sqrt(distanceX * distanceX + distanceY * distanceY);
+                    Vector3 direction = Vector3.Normalize(Vector3.TransformNormal(new Vector3(-distanceX, distanceY, 0), view));
+                    direction *= length;
+                    camera.Target = target + direction;
+
+                }
+                else
+                {
                 camera.RotateAroundTargetHorizontal((float)(-dx * MathF.PI / canvas.ActualWidth));
                 camera.RotateAroundTargetVertical((float)(-dy * MathF.PI / canvas.ActualHeight));
+                }
                 Draw();
                 oldPos = newPos;
             }
