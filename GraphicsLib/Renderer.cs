@@ -628,7 +628,7 @@ namespace GraphicsLib
 
                         void TransformToViewPort(ref Vertex vertex)
                         {
-                            float invZ = MathF.ReciprocalEstimate(vertex.Position.W);
+                            float invZ = 1 / vertex.Position.W;
                             vertex *= invZ;
                             Vector4 ndcPosition = Vector4.Transform(vertex.Position, viewPortTransform);
                             // save 1/z to use it in interpolation correction
@@ -728,8 +728,8 @@ namespace GraphicsLib
                                 {
                                     if (zBufferV2!.Test(x, y, lineInterpolant.Position.Z))
                                     {
-                                        Vertex correctedPoint = lineInterpolant *  MathF.ReciprocalEstimate(lineInterpolant.Position.W);
-                                        //Vertex correctedPoint = lineInterpolant * (1 / lineInterpolant.Position.W);
+                                        //Vertex correctedPoint = lineInterpolant *  MathF.ReciprocalEstimate(lineInterpolant.Position.W);
+                                        Vertex correctedPoint = lineInterpolant * (1 / lineInterpolant.Position.W);
                                         zBufferV2.TestAndSet(x, y, lineInterpolant.Position.Z, shader.PixelShader(correctedPoint));
                                     }
 

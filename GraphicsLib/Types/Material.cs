@@ -9,6 +9,8 @@ namespace GraphicsLib.Types
 
 
         public string name;
+
+        //also known as albedo
         public Vector4 baseColor = new(1, 1, 1, 1);
         public Sampler? baseColorTextureSampler;
         public Sampler? normalTextureSampler;

@@ -41,7 +41,7 @@ namespace GraphicsLib.Types
         public Camera()
         {
             Azimuth = 0;
-            Polar = float.Pi / 3;
+            Polar = float.Pi / 2;// float.Pi / 3;
             Distance = 1000;
             Target = Vector3.Zero;
         }
