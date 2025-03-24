@@ -390,7 +390,7 @@ namespace GraphicsLib
 #if DEBUG
             for(int i = 0; i < bitmapHeight * bitmapWidth; i++)
 #else
-            Parallel.For(0, bitmapHeight, i =>
+            Parallel.For(0, bitmapHeight * bitmapWidth, i =>
 #endif
             {
                 int y = i / bitmapWidth;
