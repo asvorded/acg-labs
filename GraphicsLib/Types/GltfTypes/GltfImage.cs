@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.PixelFormats;
 using System.Buffers.Text;
 using System.Configuration;
@@ -69,8 +70,8 @@ namespace GraphicsLib.Types.GltfTypes
 
         public void Dispose()
         {
-            if(textureBitmap != null)
-                textureBitmap.Dispose();
+            textureBitmap?.Dispose();
+            GC.SuppressFinalize(this);
         }
     }
 }

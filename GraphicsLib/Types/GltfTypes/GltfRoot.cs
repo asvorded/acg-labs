@@ -73,6 +73,7 @@ namespace GraphicsLib.Types.GltfTypes
                     image.Dispose();
                 }
             }
+            GC.SuppressFinalize(this);
         }
     }
 }

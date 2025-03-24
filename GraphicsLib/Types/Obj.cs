@@ -14,6 +14,7 @@ namespace GraphicsLib.Types
         public Vector3[] normals = [];
         public Vector2[] uvs = [];
         public Vector2[] normalUvs = [];
+        public Vector2[] roughnessUvs = [];
         public Vector4[] tangents = [];
         public Material[] materials = [];
         public StaticTriangle[] triangles = [];

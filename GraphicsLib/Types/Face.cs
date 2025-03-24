@@ -14,6 +14,7 @@ namespace GraphicsLib.Types
         public int[]? nIndices;
         public int[]? ntIndicies;
         public int[]? tangentIndicies;
+        public int[]? rtIndicies;
         public short MaterialIndex;
 
         public Face(int[] vIndices, short materialIndex)

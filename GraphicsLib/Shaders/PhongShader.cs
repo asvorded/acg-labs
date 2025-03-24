@@ -28,7 +28,7 @@ namespace GraphicsLib.Shaders
             worldNormalTransform = scene.Obj.transformation.NormalMatrix;
             cameraPos = scene.Camera.Position;
             ambient = scene.AmbientColor * scene.AmbientIntensity;
-            diffuseColor = scene.DiffuseColor;
+            diffuseColor = scene.baseDiffuseColor;
             specularPower = scene.SpecularPower;
             lightColor = scene.LightColor * scene.LightIntensity;
             lightIntensity = scene.LightIntensity;

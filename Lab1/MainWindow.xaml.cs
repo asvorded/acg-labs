@@ -4,6 +4,7 @@ using GraphicsLib.Types;
 using Microsoft.Win32;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Numerics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -45,7 +46,6 @@ namespace Lab1
             ofd.FileOk += OnFileOpened;
             Height = SystemParameters.PrimaryScreenHeight / 1.25;
             Width = SystemParameters.PrimaryScreenWidth / 1.25;
-
             renderer = new Renderer(scene);
 #if DEBUG
             DebugPanel.Visibility = Visibility.Visible;
@@ -57,13 +57,19 @@ namespace Lab1
         private void OnFileOpened(object? sender, CancelEventArgs e)
         {
             fileName.Text = string.Join(' ', Resources["fileString"].ToString(), ofd.SafeFileName);
-
-            if (System.IO.Path.GetExtension(ofd.FileName).Equals(".obj"))
-                obj = Parser.ParseObjFile(ofd.FileName);
-            else
-                obj = Parser.ParseGltfFile(ofd.FileName);
-            obj.transformation.Reset();
-            scene.Obj = obj;
+            try
+            {
+                if (System.IO.Path.GetExtension(ofd.FileName).Equals(".obj"))
+                    obj = Parser.ParseObjFile(ofd.FileName);
+                else
+                    obj = Parser.ParseGltfFile(ofd.FileName);
+                obj.transformation.Reset();
+                scene.Obj = obj;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
             Draw();
 
         }
@@ -78,19 +84,20 @@ namespace Lab1
                 WriteableBitmap bitmap = new WriteableBitmap(
                 ((int)canvas.ActualWidth), ((int)canvas.ActualHeight), 96, 96, PixelFormats.Bgra32, null);
                 renderer.Bitmap = bitmap;
-                scene.LightPosition = camera.Position;
+                if (fixLightCheckBox.IsChecked == false)
+                    scene.LightPosition = camera.Position;
                 if (obj != null)
                 {
                     if (renderMode == "Flat")
                         renderer.RenderSolid();
-                        //renderer.Render<GouraudShader, GouraudShader.Vertex>();
+                    //renderer.Render<GouraudShader, GouraudShader.Vertex>();
                     else if (renderMode == "Smooth")
                         renderer.Render<PhongShader, PhongShader.Vertex>();
                     else if (renderMode == "Deferred")
                         renderer.RenderDeferred();
                     else if (renderMode == "Textured")
                         //renderer.Render<TextureShader, TextureShader.Vertex>();
-                        renderer.Render<PhongTexturedShader, PhongTexturedShader.Vertex>();
+                        renderer.Render<PbrShader, PbrShader.Vertex>();
                     else
                         renderer.RenderCarcass();
 
@@ -146,8 +153,8 @@ namespace Lab1
                 }
                 else
                 {
-                camera.RotateAroundTargetHorizontal((float)(-dx * MathF.PI / canvas.ActualWidth));
-                camera.RotateAroundTargetVertical((float)(-dy * MathF.PI / canvas.ActualHeight));
+                    camera.RotateAroundTargetHorizontal((float)(-dx * MathF.PI / canvas.ActualWidth));
+                    camera.RotateAroundTargetVertical((float)(-dy * MathF.PI / canvas.ActualHeight));
                 }
                 Draw();
                 oldPos = newPos;

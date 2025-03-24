@@ -11,6 +11,7 @@ using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
 using System.Numerics;
+using System.Windows;
 using System.Windows.Media.Imaging;
 namespace GraphicsLib
 {
@@ -165,11 +166,16 @@ namespace GraphicsLib
             string sourceDirectory = Path.GetDirectoryName(filePath)!;
             using GltfRoot gltfRoot = JsonConvert.DeserializeObject<GltfRoot>(data, GltfSerializerSettings.GetSettings(sourceDirectory))
                     ?? throw new FormatException("invalid json gltf");
+            if (gltfRoot.ExtensionsRequired != null && gltfRoot.ExtensionsRequired.Any())
+            {
+                MessageBox.Show($"Model requires extensions : {gltfRoot.ExtensionsRequired.Aggregate((a, b) => a + ", " + b)}.");
+            }
             List<Vector3> verticesList = [];
             List<Vector3> normalsList = [];
             List<Vector2> uvsList = [];
             List<Vector4> tangentsList = [];
             List<Vector2> normalUvsList = [];
+            List<Vector2> roughnessUvsList = [];
             List<Face> facesList = [];
             List<Material> materialsList = [];
             if (gltfRoot.Materials != null)
@@ -202,11 +208,13 @@ namespace GraphicsLib
                             int nIndexOffset = normalsList.Count;
                             int tIndexOffset = uvsList.Count;
                             int ntIndexOffset = normalUvsList.Count;
+                            int rtIndexOffset = roughnessUvsList.Count;
                             int tangIndexOffset = tangentsList.Count;
                             Vector3[]? vertices = primitive.Position;
                             Vector3[]? normals = primitive.Normal;
                             Vector2[]? uvs = null;
                             Vector2[]? normalUvs = null;
+                            Vector2[]? roughtnessUvs = null;
                             Vector4[]? tangents = primitive.Tangent;
                             int[]? indicies = primitive.PointIndices;
                             short materialIndex = (primitive.Material.HasValue) ? (short)primitive.Material.Value : (short)0;
@@ -218,6 +226,10 @@ namespace GraphicsLib
                                     if (gltfMaterial.PbrMetallicRoughness.BaseColorTexture != null)
                                     {
                                         uvs = primitive.GetTextureCoords(gltfMaterial.PbrMetallicRoughness.BaseColorTexture.TexCoord);
+                                    }
+                                    if(gltfMaterial.PbrMetallicRoughness.MetallicRoughnessTexture != null)
+                                    {
+                                        roughtnessUvs = primitive.GetTextureCoords(gltfMaterial.PbrMetallicRoughness.MetallicRoughnessTexture.TexCoord);
                                     }
                                 }
                                 if (gltfMaterial.NormalTexture != null)
@@ -263,6 +275,13 @@ namespace GraphicsLib
                                     tangentsList.Add(tangents[i]);
                                 }
                             }
+                            if(roughtnessUvs != null)
+                            {
+                                for(int i = 0; i < roughtnessUvs.Length; i++)
+                                {
+                                    roughnessUvsList.Add(roughtnessUvs[i]);
+                                }
+                            }
                             if (indicies != null)
                             {
                                 Face AssembleTriangle(int index0, int index1, int index2, short materialIndex)
@@ -290,12 +309,18 @@ namespace GraphicsLib
                                         triangleNormalUvs = [indicies[index0] + ntIndexOffset,
                                             indicies[index1] + ntIndexOffset,
                                             indicies[index2] + ntIndexOffset];
+                                    int[]? triangleRoughnessUVs = null;
+                                    if(roughnessUvsList.Count > rtIndexOffset)
+                                        triangleRoughnessUVs = [indicies[index0] + rtIndexOffset,
+                                            indicies[index1] + rtIndexOffset,
+                                            indicies[index2] + rtIndexOffset];
                                     return new Face(triangleVertices, materialIndex)
                                     {
                                         nIndices = triangleNormals,
                                         tIndices = triangleUvs,
                                         tangentIndicies = triangleTangents,
-                                        ntIndicies = triangleNormalUvs
+                                        ntIndicies = triangleNormalUvs,
+                                        rtIndicies = triangleRoughnessUVs
                                     };
                                 }
 
@@ -344,6 +369,7 @@ namespace GraphicsLib
             obj.tangents = [.. tangentsList];
             obj.normalUvs = [.. normalUvsList];
             obj.uvs = [.. uvsList];
+            obj.roughnessUvs = [.. roughnessUvsList];
             StaticTriangle[] staticTriangles = new StaticTriangle[facesList.Count];
             for (int i = 0; i < facesList.Count; i++)
             {

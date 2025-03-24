@@ -18,7 +18,7 @@ namespace GraphicsLib.Types
         }
         public Vector3 AmbientColor { get; set; } = new(1f, 1f, 1f);
         public float AmbientIntensity { get; set; } = 0.1f;
-        public Vector3 DiffuseColor { get; set; } = new(0f, 0.5f, 1f);
+        public Vector3 baseDiffuseColor { get; set; } = new(0f, 0.5f, 1f);
         public float SpecularPower { get; set; } = 100f;
 
         public Vector3 LightColor { get; set; } = new(1f, 1f, 1f);
