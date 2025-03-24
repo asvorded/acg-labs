@@ -14,8 +14,7 @@ namespace GraphicsLib
         private int bufferLength;
         private Zbuffer? zBuffer;
         private ZbufferV2? zBufferV2;
-        private GBuffer? zBufferWithIndices;
-
+        private GBuffer? gBuffer;
         public Renderer(Scene scene)
         {
             Scene = scene;
@@ -24,7 +23,7 @@ namespace GraphicsLib
             Bitmap = default;
             zBuffer = default;
             zBufferV2 = default;
-            zBufferWithIndices = default;
+            gBuffer = default;
         }
         private void ResizeBuffer(Obj obj)
         {
@@ -90,26 +89,25 @@ namespace GraphicsLib
             {
                 return;
             }
-            if (zBufferWithIndices == null)
+            if (gBuffer == null)
             {
-                zBufferWithIndices = new(Bitmap.PixelWidth, Bitmap.PixelHeight);
+                gBuffer = new(Bitmap.PixelWidth, Bitmap.PixelHeight);
             }
             else
             {
                 int width = Bitmap.PixelWidth;
                 int height = Bitmap.PixelHeight;
-                if (zBufferWithIndices.Width != width && zBufferWithIndices.Height != height)
+                if (gBuffer.Width != width && gBuffer.Height != height)
                 {
-                    zBufferWithIndices = new(Bitmap.PixelWidth, Bitmap.PixelHeight);
+                    gBuffer = new(Bitmap.PixelWidth, Bitmap.PixelHeight);
                 }
                 else
                 {
-                    zBufferWithIndices.Clear();
+                    gBuffer.Clear();
                 }
             }
 
         }
-
         public void RenderDeferred()
         {
             if (Bitmap == null)
@@ -135,6 +133,14 @@ namespace GraphicsLib
 
             // transform from NDC space to viewport space
             Matrix4x4 viewPortTransform = mainCamera.ViewPortMatrix;
+
+            PbrShader pbrShader = new()
+            {
+                Scene = Scene
+            };
+            Vector3 cameraPosition = Scene.Camera.Position;
+            Matrix4x4.Invert(projectionTransform, out Matrix4x4 invProjectionTransform);
+            Matrix4x4.Invert(cameraTransform, out Matrix4x4 invCameraTransform);
             /*#if DEBUG
                         for (int triangleIndex = 0; triangleIndex < obj.faces.Length; triangleIndex++)
             #else
@@ -367,7 +373,7 @@ namespace GraphicsLib
                             float z = leftPoint.Z + dzdx * xPrestep;
                             for (int x = xStart; x < xEnd; x++)
                             {
-                                zBufferWithIndices!.TestAndSet(x, y, z, triangleIndex);
+                                gBuffer!.TestAndSet(x, y, z, triangleIndex);
                                 z += dzdx;
                             }
                             leftPoint += dLeftPoint;
@@ -381,14 +387,79 @@ namespace GraphicsLib
 #else
             });
 #endif
-            for (int y = 0; y < bitmapHeight; y++)
-                for (int x = 0; x < bitmapWidth; x++)
+#if DEBUG
+            for(int i = 0; i < bitmapHeight * bitmapWidth; i++)
+#else
+            Parallel.For(0, bitmapHeight, i =>
+#endif
+            {
+                int y = i / bitmapWidth;
+                int x = i % bitmapWidth;
+                int triangleIndex = gBuffer!.TriangleIndex(x, y);
+                if (triangleIndex == -1)
                 {
-                    if (zBufferWithIndices!.TriangleIndex(x,y) != -1)
-                    {
-                        Bitmap.SetPixelLockedNoDirty(x, y, 0xFFFFFFFF);
-                    }
+#if DEBUG
+                    continue;
+#else
+                    return;
+#endif
                 }
+                Vector3 rayOrigin = cameraPosition;
+                Vector3 farNdc = new Vector3(((float)x / bitmapWidth) * 2.0f - 1.0f,
+                    1.0f - ((float)y / bitmapHeight) * 2.0f, 0.999f);
+                Vector4 farView = Vector4.Transform(new Vector4(farNdc, 1), invProjectionTransform);
+                farView /= farView.W;
+                farView = Vector4.Transform(farView, invCameraTransform);
+                Vector3 rayDirection = Vector3.Normalize(farView.AsVector3() - rayOrigin);
+                PbrShader.Vertex v0 = pbrShader.GetVertexWithWorldPositionFromTriangle(obj, triangleIndex, 0);
+                PbrShader.Vertex v1 = pbrShader.GetVertexWithWorldPositionFromTriangle(obj, triangleIndex, 1);
+                PbrShader.Vertex v2 = pbrShader.GetVertexWithWorldPositionFromTriangle(obj, triangleIndex, 2);
+                PbrShader.Vertex e1 = v1 - v0;
+                PbrShader.Vertex e2 = v2 - v0;
+                Vector3 p0 = v0.WorldPosition;
+                Vector3 p1 = v1.WorldPosition;
+                Vector3 p2 = v2.WorldPosition;
+                Vector3 edge1 = p1 - p0;
+                Vector3 edge2 = p2 - p0;
+                Vector3 h = Vector3.Cross(rayDirection, edge2);
+                float a = Vector3.Dot(edge1, h);
+                if (a > -float.Epsilon && a < float.Epsilon)
+                {
+#if DEBUG
+                    continue;
+#else
+                    return;
+#endif
+                }
+                float f = 1.0f / a;
+                Vector3 s = rayOrigin - p0;
+                float u = f * Vector3.Dot(s, h);
+                if (u < 0 || u > 1)
+                {
+#if DEBUG
+                    continue;
+#else
+                    return;
+#endif
+                }
+                Vector3 q = Vector3.Cross(s, edge1);
+                float v = f * Vector3.Dot(rayDirection, q);
+                if (v < 0 || u + v > 1)
+                {
+#if DEBUG
+                    continue;
+#else
+                    return;
+#endif
+                }
+                PbrShader.Vertex point = v0 + e1 * u + e2 * v;
+                gBuffer.SetColor(x, y, pbrShader.PixelShader(point));
+#if DEBUG
+            }
+#else
+            });
+#endif
+            Bitmap.FlushZGBuffer(gBuffer!);
         }
         public void Render<Shader, Vertex>() where Shader : IShader<Vertex>, new() where Vertex : struct, IVertex<Vertex>
         {
@@ -554,7 +625,7 @@ namespace GraphicsLib
                         TransformToViewPort(ref p0);
                         TransformToViewPort(ref p1);
                         TransformToViewPort(ref p2);
-                        
+
                         void TransformToViewPort(ref Vertex vertex)
                         {
                             float invZ = MathF.ReciprocalEstimate(vertex.Position.W);
@@ -661,7 +732,7 @@ namespace GraphicsLib
                                         //Vertex correctedPoint = lineInterpolant * (1 / lineInterpolant.Position.W);
                                         zBufferV2.TestAndSet(x, y, lineInterpolant.Position.Z, shader.PixelShader(correctedPoint));
                                     }
-                                        
+
                                     lineInterpolant += dLineInterpolant;
                                 }
                                 leftPoint += dLeftPoint;
