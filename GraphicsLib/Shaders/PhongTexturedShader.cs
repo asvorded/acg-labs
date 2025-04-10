@@ -58,6 +58,7 @@ namespace GraphicsLib.Shaders
             public Vector4 Tangent { get; set; }
             public Vector2 NormalUv { get; set; }
             public Material Material { get; set; }
+            public Vector2 RoughnessUv { get; set; }
             public static Vertex Lerp(Vertex a, Vertex b, float t)
             {
                 return new Vertex
@@ -68,6 +69,7 @@ namespace GraphicsLib.Shaders
                     Uv = Vector2.Lerp(a.Uv, b.Uv, t),
                     Tangent = Vector4.Lerp(a.Tangent, b.Tangent, t),
                     NormalUv = Vector2.Lerp(a.NormalUv, b.NormalUv, t),
+                    RoughnessUv = Vector2.Lerp(a.RoughnessUv, b.RoughnessUv, t),
                     Material = a.Material
                 };
             }
@@ -81,6 +83,7 @@ namespace GraphicsLib.Shaders
                     Uv = lhs.Uv + rhs.Uv,
                     Tangent = lhs.Tangent + rhs.Tangent,
                     NormalUv = lhs.NormalUv + rhs.NormalUv,
+                    RoughnessUv = lhs.RoughnessUv + rhs.RoughnessUv,
                     Material = lhs.Material
                 };
             }
@@ -94,6 +97,7 @@ namespace GraphicsLib.Shaders
                     Uv = lhs.Uv - rhs.Uv,
                     Tangent = lhs.Tangent - rhs.Tangent,
                     NormalUv = lhs.NormalUv - rhs.NormalUv,
+                    RoughnessUv = lhs.RoughnessUv - rhs.RoughnessUv,
                     Material = lhs.Material
                 };
             }
@@ -107,25 +111,17 @@ namespace GraphicsLib.Shaders
                     Uv = lhs.Uv * scalar,
                     Tangent = lhs.Tangent * scalar,
                     NormalUv = lhs.NormalUv * scalar,
+                    RoughnessUv = lhs.RoughnessUv * scalar,
                     Material = lhs.Material
                 };
             }
             public static Vertex operator *(float scalar, Vertex rhs)
             {
-                return new Vertex
-                {
-                    Position = rhs.Position * scalar,
-                    Normal = rhs.Normal * scalar,
-                    WorldPosition = rhs.WorldPosition * scalar,
-                    Uv = rhs.Uv * scalar,
-                    Tangent = rhs.Tangent * scalar,
-                    NormalUv = rhs.NormalUv * scalar,
-                    Material = rhs.Material
-                };
+                return rhs * scalar;
             }
             public static Vertex operator /(Vertex lhs, float scalar)
             {
-                return lhs * (1/scalar );
+                return lhs * (1/scalar);
             }
         }
 
@@ -136,20 +132,29 @@ namespace GraphicsLib.Shaders
             
             //calculate normal
             Vector3 normal = Vector3.Normalize(input.Normal);
-            if(material.normalTextureSampler != null)
+            if (material.normalTextureSampler != null)
             {
-                Vector2 normalUV = input.NormalUv;
+                float sign = input.Tangent.W;
                 Vector3 tangent = input.Tangent.AsVector3();
                 Vector3 tangentSpaceNormal = material.normalTextureSampler.Sample(input.NormalUv).AsVector3();
+                //decode
                 tangentSpaceNormal = tangentSpaceNormal * 2 - new Vector3(1, 1, 1);
-                Vector3 bitangent = Vector3.Cross(normal, tangent);
+                Vector3 bitangent = sign * Vector3.Cross(normal, tangent);
                 normal = Vector3.Normalize(tangent * tangentSpaceNormal.X + bitangent * tangentSpaceNormal.Y + normal * tangentSpaceNormal.Z);
             }
+            float roughness = material.roughness;
+            float metallic = material.metallic;
+            if (material.metallicRoughnessTextureSampler != null)
+            {
+                Vector4 metallicRoughness = material.metallicRoughnessTextureSampler.Sample(input.RoughnessUv);
+                roughness *= metallicRoughness.Y;
+                metallic *= metallicRoughness.Z;
+            }
             //calculate diffuse color based on base color texture
-            Vector2 uv = input.Uv;
             Vector4 diffuseColor = material.baseColor;
             if (material.baseColorTextureSampler != null)
             {
+                Vector2 uv = input.Uv;
                 diffuseColor *= material.baseColorTextureSampler.Sample(uv);
             }
             //ambient component
@@ -162,9 +167,10 @@ namespace GraphicsLib.Shaders
             Vector3 camDir = Vector3.Normalize(cameraPos - input.WorldPosition);    
             Vector3 reflectDir = Vector3.Reflect(-lightDir, normal);
             float specularBase = Math.Max(Vector3.Dot(reflectDir, camDir), 0);
-            float specularePowerLocal = 1 / (material.roughness * material.roughness);
+            float adjustedRoughness = roughness * (1.0f - metallic * 0.2f);
+            float specularPowerLocal = MathF.Pow(2, ((((adjustedRoughness) * 10.0f ) + 1.0f)));
 
-            float specularFactor = (specularBase > 0) ? MathF.Pow(specularBase, specularPower) : 0;
+            float specularFactor = (specularBase > 0) ? MathF.Pow(specularBase, specularPowerLocal) : 0;
             Vector3 specular = lightColor * (specularFactor * lightIntensity);
             Vector3 finalColor = Vector3.Clamp(ambient + diffuse + specular, Vector3.Zero, new Vector3(1, 1, 1));
             uint color = (uint)(diffuseColor.W * 0xFF) << 24
@@ -190,6 +196,8 @@ namespace GraphicsLib.Shaders
                 vertex.Tangent = obj.tangents[face.tangentIndicies[vertexIndex]];
             if(face.ntIndicies != null)
                 vertex.NormalUv = obj.normalUvs[face.ntIndicies[vertexIndex]];
+            if(face.rtIndicies != null)
+                vertex.RoughnessUv = obj.roughnessUvs[face.rtIndicies[vertexIndex]];
             vertex.Material = obj.materials[face.MaterialIndex];
             return vertex;
         }
@@ -205,6 +213,7 @@ namespace GraphicsLib.Shaders
                     vertex.Uv = triangle.uvCoordinate0;
                     vertex.Tangent = triangle.tangent0;
                     vertex.NormalUv = triangle.normalUvCoordinate0;
+                    vertex.RoughnessUv = triangle.roughnessUvCoordinate0;
                     break;
                 case 1:
                     vertex.Position = Vector4.Transform(new Vector4(triangle.position1, 1), worldTransform);
@@ -212,6 +221,7 @@ namespace GraphicsLib.Shaders
                     vertex.Uv = triangle.uvCoordinate1;
                     vertex.Tangent = triangle.tangent1;
                     vertex.NormalUv = triangle.normalUvCoordinate1;
+                    vertex.RoughnessUv = triangle.roughnessUvCoordinate1;
                     break;
                 case 2:
                     vertex.Position = Vector4.Transform(new Vector4(triangle.position2, 1), worldTransform);
@@ -219,6 +229,7 @@ namespace GraphicsLib.Shaders
                     vertex.Uv = triangle.uvCoordinate2;
                     vertex.Tangent = triangle.tangent2;
                     vertex.NormalUv = triangle.normalUvCoordinate2;
+                    vertex.RoughnessUv = triangle.roughnessUvCoordinate2;
                     break;
                 default:
                     throw new ArgumentException("Invalid vertex index");

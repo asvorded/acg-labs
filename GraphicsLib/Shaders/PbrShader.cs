@@ -61,17 +61,25 @@ namespace GraphicsLib.Shaders
 
             public static Vertex Lerp(Vertex a, Vertex b, float t)
             {
-                return new Vertex
+                if (Avx2.IsSupported)
                 {
-                    Position = Vector4.Lerp(a.Position, b.Position, t),
-                    normal = Vector3.Lerp(a.normal, b.normal, t),
-                    worldPosition = Vector3.Lerp(a.worldPosition, b.worldPosition, t),
-                    uv = Vector2.Lerp(a.uv, b.uv, t),
-                    tangent = Vector4.Lerp(a.tangent, b.tangent, t),
-                    normalUv = Vector2.Lerp(a.normalUv, b.normalUv, t),
-                    roughnessUv = Vector2.Lerp(a.roughnessUv, b.roughnessUv, t),
-                    Material = a.Material
-                };
+                    return a * (1-t) + b * t;
+                }
+                else
+                {
+                    return new Vertex
+                    {
+                        Position = Vector4.Lerp(a.Position, b.Position, t),
+                        normal = Vector3.Lerp(a.normal, b.normal, t),
+                        worldPosition = Vector3.Lerp(a.worldPosition, b.worldPosition, t),
+                        uv = Vector2.Lerp(a.uv, b.uv, t),
+                        tangent = Vector4.Lerp(a.tangent, b.tangent, t),
+                        normalUv = Vector2.Lerp(a.normalUv, b.normalUv, t),
+                        roughnessUv = Vector2.Lerp(a.roughnessUv, b.roughnessUv, t),
+                        Material = a.Material
+                    };
+                }
+
             }
             public static Vertex operator +(Vertex lhs, Vertex rhs)
             {
