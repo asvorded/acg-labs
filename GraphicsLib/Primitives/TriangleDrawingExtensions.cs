@@ -173,6 +173,7 @@ namespace GraphicsLib.Primitives
                 }
             }
         }
+        [Obsolete("use gbuffer method instead")]
         public static void FlushZGBuffer(this WriteableBitmap bitmap, GBuffer gbuffer)
         {
             unsafe

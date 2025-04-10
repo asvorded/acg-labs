@@ -77,8 +77,8 @@ namespace GraphicsLib.Types
             {
                 case MagnificationFilterMode.Nearest:
                     {
-                        int x = (int)(uv.X * (width - 1));
-                        int y = (int)(uv.Y * (height - 1));
+                        int x = (int)MathF.Round((uv.X * (width - 1)));
+                        int y = (int)MathF.Round((uv.Y * (height - 1)));
                         return textureData[y * width + x].ToScaledVector4();
                     }
                 case MagnificationFilterMode.Linear:

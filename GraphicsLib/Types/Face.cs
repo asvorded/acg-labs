@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace GraphicsLib.Types
 {
-    public class Face
+    public struct Face
     {
         public int[] vIndices;
         public int[]? tIndices;
@@ -25,8 +25,8 @@ namespace GraphicsLib.Types
 
         public override string? ToString()
         {
-            StringBuilder stringBuilder = new StringBuilder();
-            stringBuilder.Append("f");
+            StringBuilder stringBuilder = new();
+            stringBuilder.Append('f');
             for (int i = 0; i < vIndices.Length; i++)
             {
                 stringBuilder.AppendFormat(" {0}",vIndices[i].ToString());

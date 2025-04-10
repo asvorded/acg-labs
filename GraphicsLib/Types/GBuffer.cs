@@ -1,4 +1,6 @@
-﻿using System.Runtime.InteropServices;
+﻿using System;
+using System.Runtime.InteropServices;
+using System.Windows.Media.Imaging;
 
 namespace GraphicsLib.Types
 {
@@ -74,6 +76,18 @@ namespace GraphicsLib.Types
                 throw new ArgumentOutOfRangeException("x or y out of buffer range");
             }
             colors[y * width + x] = color;
+        }
+        public void FlushToBitmap(WriteableBitmap bitmap)
+        {
+            unsafe
+            {
+                uint* ptr = (uint*)bitmap.BackBuffer;
+                int length = Width * Height;
+                for (int i = 0; i < length; i++)
+                {
+                    ptr[i] = colors[i];
+                }
+            }
         }
     }
 }

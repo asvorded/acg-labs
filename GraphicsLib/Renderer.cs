@@ -2,6 +2,7 @@
 using GraphicsLib.Shaders;
 using GraphicsLib.Types;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Windows.Media.Imaging;
 
 namespace GraphicsLib
@@ -141,27 +142,27 @@ namespace GraphicsLib
             Vector3 cameraPosition = Scene.Camera.Position;
             Matrix4x4.Invert(projectionTransform, out Matrix4x4 invProjectionTransform);
             Matrix4x4.Invert(cameraTransform, out Matrix4x4 invCameraTransform);
-            /*#if DEBUG
+#if !RELEASE
                         for (int triangleIndex = 0; triangleIndex < obj.faces.Length; triangleIndex++)
-            #else
-                        Parallel.For(0, obj.faces.Length, triangleIndex =>
-            #endif
-                        {
-                            Face triangle = obj.faces[triangleIndex];
-                            Vector4 p0 = new Vector4(obj.vertices[triangle.vIndices[0]], 1);
-                            Vector4 p1 = new Vector4(obj.vertices[triangle.vIndices[1]], 1);
-                            Vector4 p2 = new Vector4(obj.vertices[triangle.vIndices[2]], 1);*/
+#else
+            Parallel.For(0, obj.faces.Length, triangleIndex =>
+#endif
+            {
+                Face triangle = obj.faces[triangleIndex];
+                Vector4 p0 = new Vector4(obj.vertices[triangle.vIndices[0]], 1);
+                Vector4 p1 = new Vector4(obj.vertices[triangle.vIndices[1]], 1);
+                Vector4 p2 = new Vector4(obj.vertices[triangle.vIndices[2]], 1);
 
-#if DEBUG
+/*#if !RELEASE
             for (int triangleIndex = 0; triangleIndex < obj.triangles.Length; triangleIndex++)
 #else
-            Parallel.For(0, obj.triangles.Length, triangleIndex =>
+                Parallel.For(0, obj.triangles.Length, triangleIndex =>
 #endif
             {
                 StaticTriangle triangle = obj.triangles[triangleIndex];
                 Vector4 p0 = new Vector4(triangle.position0, 1);
                 Vector4 p1 = new Vector4(triangle.position1, 1);
-                Vector4 p2 = new Vector4(triangle.position2, 1);
+                Vector4 p2 = new Vector4(triangle.position2, 1);*/
                 p0 = Vector4.Transform(p0, modelToCamera);
                 p1 = Vector4.Transform(p1, modelToCamera);
                 p2 = Vector4.Transform(p2, modelToCamera);
@@ -170,7 +171,7 @@ namespace GraphicsLib
 
                 //Cull triangle if its orientation is facing away from the camera
                 if (orientation <= 0)
-#if DEBUG
+#if !RELEASE
                     continue;
 #else
                     return;
@@ -181,37 +182,37 @@ namespace GraphicsLib
 
                 //Cull triangle if it is not in frustum and all points are on the same side from it
                 if (p0.X > p0.W && p1.X > p1.W && p2.X > p2.W)
-#if DEBUG
+#if !RELEASE
                     continue;
 #else
                     return;
 #endif
                 if (p0.X < -p0.W && p1.X < -p1.W && p2.X < -p2.W)
-#if DEBUG
+#if !RELEASE
                     continue;
 #else
                     return;
 #endif
                 if (p0.Y > p0.W && p1.Y > p1.W && p2.Y > p2.W)
-#if DEBUG
+#if !RELEASE
                     continue;
 #else
                     return;
 #endif
                 if (p0.Y < -p0.W && p1.Y < -p1.W && p2.Y < -p2.W)
-#if DEBUG
+#if !RELEASE
                     continue;
 #else
                     return;
 #endif
                 if (p0.Z > p0.W && p1.Z > p1.W && p2.Z > p2.W)
-#if DEBUG
+#if !RELEASE
                     continue;
 #else
                     return;
 #endif
                 if (p0.Z < 0 && p1.Z < 0 && p2.Z < 0)
-#if DEBUG
+#if !RELEASE
                     continue;
 #else
                     return;
@@ -382,12 +383,12 @@ namespace GraphicsLib
 
                     }
                 }
-#if DEBUG
+#if !RELEASE
             }
 #else
             });
 #endif
-#if DEBUG
+#if !RELEASE
             for(int i = 0; i < bitmapHeight * bitmapWidth; i++)
 #else
             Parallel.For(0, bitmapHeight * bitmapWidth, i =>
@@ -398,7 +399,7 @@ namespace GraphicsLib
                 int triangleIndex = gBuffer!.TriangleIndex(x, y);
                 if (triangleIndex == -1)
                 {
-#if DEBUG
+#if !RELEASE
                     continue;
 #else
                     return;
@@ -416,16 +417,16 @@ namespace GraphicsLib
                 PbrShader.Vertex v2 = pbrShader.GetVertexWithWorldPositionFromTriangle(obj, triangleIndex, 2);
                 PbrShader.Vertex e1 = v1 - v0;
                 PbrShader.Vertex e2 = v2 - v0;
-                Vector3 p0 = v0.WorldPosition;
-                Vector3 p1 = v1.WorldPosition;
-                Vector3 p2 = v2.WorldPosition;
+                Vector3 p0 = v0.worldPosition;
+                Vector3 p1 = v1.worldPosition;
+                Vector3 p2 = v2.worldPosition;
                 Vector3 edge1 = p1 - p0;
                 Vector3 edge2 = p2 - p0;
                 Vector3 h = Vector3.Cross(rayDirection, edge2);
                 float a = Vector3.Dot(edge1, h);
                 if (a > -float.Epsilon && a < float.Epsilon)
                 {
-#if DEBUG
+#if !RELEASE
                     continue;
 #else
                     return;
@@ -434,33 +435,36 @@ namespace GraphicsLib
                 float f = 1.0f / a;
                 Vector3 s = rayOrigin - p0;
                 float u = f * Vector3.Dot(s, h);
-                if (u < 0 || u > 1)
+                u = float.Clamp(u, 0.0f, 1.0f);
+                /*if (u < 0 || u > 1)
                 {
-#if DEBUG
+#if !RELEASE
                     continue;
 #else
                     return;
 #endif
-                }
+                }*/
                 Vector3 q = Vector3.Cross(s, edge1);
                 float v = f * Vector3.Dot(rayDirection, q);
-                if (v < 0 || u + v > 1)
-                {
-#if DEBUG
-                    continue;
-#else
-                    return;
-#endif
-                }
+                /*                if (v < 0 || u + v > 1)
+                                {
+                #if !RELEASE
+                                    continue;
+                #else
+                                    return;
+                #endif
+                                }*/
+                v = float.Clamp(v, 0.0f, 1.0f - u);
                 PbrShader.Vertex point = v0 + e1 * u + e2 * v;
                 gBuffer.SetColor(x, y, pbrShader.PixelShader(point));
-#if DEBUG
+#if !RELEASE
             }
 #else
             });
 #endif
-            Bitmap.FlushZGBuffer(gBuffer!);
+            gBuffer!.FlushToBitmap(Bitmap);
         }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Render<Shader, Vertex>() where Shader : IShader<Vertex>, new() where Vertex : struct, IVertex<Vertex>
         {
             if (Bitmap == null)
@@ -488,20 +492,20 @@ namespace GraphicsLib
             // transform from NDC space to viewport space
             Matrix4x4 viewPortTransform = mainCamera.ViewPortMatrix;
             //For debugging purpose multithreading is disabled
-            /*#if DEBUG
+/*#if !RELEASE
                         for (int i = 0; i < obj.faces.Length; i++)
-            #else
-                        Parallel.For(0, obj.faces.Length, i =>
-            #endif
-                        {
-                            Face triangle = obj.faces[i];
-                            Vertex p0 = shader.GetVertexWithWorldPositionFromFace(obj, i, 0);
-                            Vertex p1 = shader.GetVertexWithWorldPositionFromFace(obj, i, 1);
-                            Vertex p2 = shader.GetVertexWithWorldPositionFromFace(obj, i, 2);*/
-#if DEBUG
+#else
+            Parallel.For(0, obj.faces.Length, i =>
+#endif
+            {
+                Face triangle = obj.faces[i];
+                Vertex p0 = shader.GetVertexWithWorldPositionFromFace(obj, i, 0);
+                Vertex p1 = shader.GetVertexWithWorldPositionFromFace(obj, i, 1);
+                Vertex p2 = shader.GetVertexWithWorldPositionFromFace(obj, i, 2);*/
+#if !RELEASE
             for (int i = 0; i < obj.triangles.Length; i++)
 #else
-            Parallel.For(0, obj.triangles.Length, i =>
+                Parallel.For(0, obj.triangles.Length, i =>
 #endif
                 {
                     Face triangle = obj.faces[i];
@@ -519,7 +523,7 @@ namespace GraphicsLib
                     float orientation = Vector4.Dot(normal, p0Position);
                     //Cull triangle if its orientation is facing away from the camera
                     if (orientation <= 0)
-#if DEBUG
+#if !RELEASE
                     continue;
 #else
                         return;
@@ -533,37 +537,37 @@ namespace GraphicsLib
                     p2Position = p2.Position;
                     //Cull triangle if it is not in frustum and all points are on the same side from it
                     if (p0Position.X > p0Position.W && p1Position.X > p1Position.W && p2Position.X > p2Position.W)
-#if DEBUG
+#if !RELEASE
                     continue;
 #else
                         return;
 #endif
                     if (p0Position.X < -p0Position.W && p1Position.X < -p1Position.W && p2Position.X < -p2Position.W)
-#if DEBUG
+#if !RELEASE
                     continue;
 #else
                         return;
 #endif
                     if (p0Position.Y > p0Position.W && p1Position.Y > p1Position.W && p2Position.Y > p2Position.W)
-#if DEBUG
+#if !RELEASE
                     continue;
 #else
                         return;
 #endif
                     if (p0Position.Y < -p0Position.W && p1Position.Y < -p1Position.W && p2Position.Y < -p2Position.W)
-#if DEBUG
+#if !RELEASE
                     continue;
 #else
                         return;
 #endif
                     if (p0Position.Z > p0Position.W && p1Position.Z > p1Position.W && p2Position.Z > p2Position.W)
-#if DEBUG
+#if !RELEASE
                     continue;
 #else
                         return;
 #endif
                     if (p0Position.Z < 0 && p1Position.Z < 0 && p2Position.Z < 0)
-#if DEBUG
+#if !RELEASE
                     continue;
 #else
                         return;
@@ -728,7 +732,6 @@ namespace GraphicsLib
                                 {
                                     if (zBufferV2!.Test(x, y, lineInterpolant.Position.Z))
                                     {
-                                        //Vertex correctedPoint = lineInterpolant *  MathF.ReciprocalEstimate(lineInterpolant.Position.W);
                                         Vertex correctedPoint = lineInterpolant * (1 / lineInterpolant.Position.W);
                                         zBufferV2.TestAndSet(x, y, lineInterpolant.Position.Z, shader.PixelShader(correctedPoint));
                                     }
@@ -741,7 +744,7 @@ namespace GraphicsLib
 
                         }
                     }
-#if DEBUG
+#if !RELEASE
             }
 #else
                 });

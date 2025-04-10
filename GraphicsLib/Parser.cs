@@ -119,6 +119,16 @@ namespace GraphicsLib
                         break;
                 }
             }
+            obj.faces = [.. facesList];
+            obj.vertices = [.. verticesList];
+            obj.normals = [.. normalsList];
+            obj.uvs = [.. uvsList];
+            obj.materials = [.. materialsList];
+            StaticTriangle[] staticTriangles = new StaticTriangle[facesList.Count];
+            for (int i = 0; i < facesList.Count; i++)
+            {
+                staticTriangles[i] = StaticTriangle.FromFace(obj, obj.faces[i]);
+            }
             foreach (var face in obj.faces)
             {
                 for (int i = 0; i < face.vIndices.Length; i++)
@@ -127,7 +137,7 @@ namespace GraphicsLib
                     if (p < 0)
                         p = verticesList.Count + p + 1;
                     face.vIndices[i] = p;
-                    if(face.nIndices!= null)
+                    if (face.nIndices != null)
                     {
                         int n = face.nIndices[i];
                         if (n < 0)
@@ -142,16 +152,6 @@ namespace GraphicsLib
                         face.tIndices[i] = t;
                     }
                 }
-            }
-            obj.faces = [.. facesList];
-            obj.vertices = [.. verticesList];
-            obj.normals = [.. normalsList];
-            obj.uvs = [.. uvsList];
-            obj.materials = [.. materialsList];
-            StaticTriangle[] staticTriangles = new StaticTriangle[facesList.Count];
-            for (int i = 0; i < facesList.Count; i++)
-            {
-                staticTriangles[i] = StaticTriangle.FromFace(obj, obj.faces[i]);
             }
             obj.triangles = [.. staticTriangles];
             
