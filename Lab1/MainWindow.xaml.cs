@@ -88,6 +88,7 @@ namespace Lab1
                     scene.LightPosition = camera.Position;
                 if (obj != null)
                 {
+                    camera.UpdateViewPort(bitmap.PixelWidth, bitmap.PixelHeight);
                     if (renderMode == "Flat")
                         renderer.RenderSolid();
                     //renderer.Render<GouraudShader, GouraudShader.Vertex>();
@@ -97,7 +98,7 @@ namespace Lab1
                         renderer.RenderDeferred();
                     else if (renderMode == "Textured")
                         //renderer.Render<TextureShader, TextureShader.Vertex>();
-                        renderer.Render<PbrShader, PbrShader.Vertex>();
+                        renderer.Render<PhongTexturedShader, PhongTexturedShader.Vertex>();
                     else
                         renderer.RenderCarcass();
 

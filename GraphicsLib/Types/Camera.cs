@@ -52,6 +52,11 @@ namespace GraphicsLib.Types
             Distance = distance;
             Target = target;
         }
+        public void UpdateViewPort(float width, float height)
+        {
+            ScreenHeight = height;
+            ScreenWidth = width;
+        }
         private void SetNearClipPlane(float value)
         {
             if (value <= 0 || value >= FarClipPlane)
