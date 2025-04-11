@@ -5,7 +5,7 @@ namespace GraphicsLib.Types.GltfTypes
     public class GltfBufferView
     {
         [JsonProperty("buffer")]
-        public required int Buffer { get; set; }
+        public required int BufferIndex { get; set; }
         [JsonProperty("byteOffset")]
         public int ByteOffset { get; set; } = 0;
         [JsonProperty("byteLength")]

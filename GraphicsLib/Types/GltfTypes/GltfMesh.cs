@@ -37,15 +37,53 @@ namespace GraphicsLib.Types.GltfTypes
 
         [JsonIgnore]
         public GltfRoot? Root { get; set; }
-
         [JsonIgnore]
         public Vector3[]? Position { get => GetPosition(); }
-
         [JsonIgnore]
         public Vector3[]? Normal { get => GetNormals(); }
-
+        [JsonIgnore]
         public int[]? PointIndices { get => GetPointIndices(); }
+        [JsonIgnore]
+        public Vector4[]? Tangent { get => GetTangents(); }
 
+        public Vector2[]? GetTextureCoords(int v)
+        {
+            Vector2[]? vectors = null;
+            if (Attributes.TryGetValue($"TEXCOORD_{v}", out int index))
+            {
+                if (Root == null)
+                {
+                    throw new ConfigurationErrorsException("Root is null.");
+                }
+                var accessor = Root.Accessors![index];
+                object[] data = GltfUtils.GetAccessorData(accessor);
+                vectors = new Vector2[accessor.Count];
+                for (int i = 0; i < accessor.Count; i++)
+                {
+                    vectors[i] = (Vector2)data[i];
+                }
+            }
+            return vectors;
+        }
+        private Vector4[]? GetTangents()
+        {
+            Vector4[]? vectors = null;
+            if (Attributes.TryGetValue("TANGENT", out int index))
+            {
+                if (Root == null)
+                {
+                    throw new ConfigurationErrorsException("Root is null.");
+                }
+                var accessor = Root.Accessors![index];
+                object[] data = GltfUtils.GetAccessorData(accessor);
+                vectors = new Vector4[accessor.Count];
+                for (int i = 0; i < accessor.Count; i++)
+                {
+                    vectors[i] = (Vector4)data[i];
+                }
+            }
+            return vectors;
+        }
         private Vector3[]? GetPosition()
         {
             Vector3[]? vectors = null;

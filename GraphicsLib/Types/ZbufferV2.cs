@@ -77,8 +77,20 @@ namespace GraphicsLib.Types
                 buffer[y * Width + x] = value;
             }
         }
+        public bool Test(int x, int y, float depth)
+        {
+            if (x < 0 || x >= width || y < 0 || y >= height)
+            {
+                throw new ArgumentOutOfRangeException("x or y out of buffer range");
+            }
+            int pos = y * width + x;
+            PixelData pixelData = buffer[pos];
+            return depth <= pixelData.depth;
+        }
         public bool TestAndSet(int x, int y, float depth, uint color)
         {
+            if ((color >> 24 & 0xFF) == 0)
+                return false;
             if (x < 0 || x >= width || y < 0 || y >= height)
             {
                 throw new ArgumentOutOfRangeException("x or y out of buffer range");
@@ -101,126 +113,6 @@ namespace GraphicsLib.Types
                 }
                 spinWait.SpinOnce();
             }
-        }
-        public void MapTriangle(
-            Vector4 p0, Vector4 p1, Vector4 p2,
-            uint color
-        )
-        {
-            Vector4 min = p0;
-            Vector4 mid = p1;
-            Vector4 max = p2;
-            // Correct min, mid and max
-            if (mid.Y < min.Y)
-            {
-                (min, mid) = (mid, min);
-            }
-            if (max.Y < min.Y)
-            {
-                (min, max) = (max, min);
-            }
-            if (max.Y < mid.Y)
-            {
-                (mid, max) = (max, mid);
-            }
-
-            if (min.Y == mid.Y)
-            {
-                //flat top
-                //   ----
-                //   \  /
-                //    \/
-                if (mid.X < min.X)
-                {
-                    (min, mid) = (mid, min);
-                }
-                MapFlatTopTriangle(min, mid, max, color);
-            }
-            else if (max.Y == mid.Y)
-            {
-                //flat bottom
-                //    /\
-                //   /  \
-                //   ----
-                if (max.X > mid.X)
-                {
-                    (mid, max) = (max, mid);
-                }
-                MapFlatBottomTriangle(min, mid, max, color);
-            }
-            else
-            {
-                float c = (mid.Y - min.Y) / (max.Y - min.Y);
-                Vector4 interpolant = Vector4.Lerp(min, max, c);
-                if (interpolant.X > mid.X)
-                {
-                    //right major
-                    //    min
-                    //       
-                    // mid     interpolant
-                    //                    
-                    //  
-                    //                       max
-
-                    MapFlatBottomTriangle(min, interpolant, mid, color);
-                    MapFlatTopTriangle(mid, interpolant, max, color);
-                }
-                else
-                {
-                    //left major
-                    //                  min
-                    //       
-                    //      interpolant     mid
-                    //                    
-                    //  
-                    // max                      
-                    MapFlatBottomTriangle(min, mid, interpolant, color);
-                    MapFlatTopTriangle(interpolant, mid, max, color);
-                }
-            }
-
-        }
-
-        private void MapFlatTopTriangle(Vector4 leftTopPoint, Vector4 rightTopPoint, Vector4 bottomPoint, uint color)
-        {
-            float dy = bottomPoint.Y - leftTopPoint.Y;
-            Vector4 dLeftPoint = (bottomPoint - leftTopPoint) / dy;
-            Vector4 dRightPoint = (bottomPoint - rightTopPoint) / dy;
-            float dzdx = (rightTopPoint.W - leftTopPoint.W) / (rightTopPoint.X - leftTopPoint.X);
-            Vector4 rightPoint = rightTopPoint;
-            MapFlatTriangle(leftTopPoint, rightPoint, bottomPoint.Y, dLeftPoint, dRightPoint, dzdx, color);
-        }
-        private void MapFlatBottomTriangle(Vector4 topPoint, Vector4 rightBottomPoint, Vector4 leftBottomPoint, uint color)
-        {
-            float dy = rightBottomPoint.Y - topPoint.Y;
-            Vector4 dRightPoint = (rightBottomPoint - topPoint) / dy;
-            Vector4 dLeftPoint = (leftBottomPoint - topPoint) / dy;
-            float dzdx = (rightBottomPoint.W - leftBottomPoint.W) / (rightBottomPoint.X - leftBottomPoint.X);
-            Vector4 rightPoint = topPoint;
-            MapFlatTriangle(topPoint, rightPoint, rightBottomPoint.Y, dLeftPoint, dRightPoint, dzdx, color);
-        }
-        private void MapFlatTriangle(Vector4 leftPoint, Vector4 rightPoint, float yMax, Vector4 dLeftPoint, Vector4 dRightPoint, float dzdx, uint color)
-        {
-            int yStart = Math.Max((int)Math.Ceiling(leftPoint.Y), 0);
-            int yEnd = Math.Min((int)Math.Ceiling(yMax), height);
-            float yPrestep = yStart - leftPoint.Y;
-            leftPoint += dLeftPoint * yPrestep;
-            rightPoint += dRightPoint * yPrestep;
-            for (int y = yStart; y < yEnd; y++)
-            {
-                int xStart = Math.Max((int)Math.Ceiling(leftPoint.X), 0);
-                int xEnd = Math.Min((int)Math.Ceiling(rightPoint.X), width);
-                float xPrestep = xStart - leftPoint.X;
-                float z = leftPoint.W + dzdx * xPrestep;
-                for (int x = xStart; x < xEnd; x++)
-                {
-                    TestAndSet(x, y, z, color);
-                    z += dzdx;
-                }
-                leftPoint += dLeftPoint;
-                rightPoint += dRightPoint;
-            }
-
         }
     }
 }

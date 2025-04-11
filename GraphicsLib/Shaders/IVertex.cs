@@ -5,7 +5,7 @@ using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GraphicsLib.Types
+namespace GraphicsLib.Shaders
 {
     public interface IVertex<T> where T : IVertex<T>
     {

@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace GraphicsLib.Types {
-    public class GltfObject {
-
-
+namespace GraphicsLib.Types
+{
+    public class SceneLight
+    {
     }
 }

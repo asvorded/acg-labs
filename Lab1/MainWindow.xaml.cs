@@ -1,8 +1,10 @@
 ﻿using GraphicsLib;
+using GraphicsLib.Shaders;
 using GraphicsLib.Types;
 using Microsoft.Win32;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Numerics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -44,7 +46,6 @@ namespace Lab1
             ofd.FileOk += OnFileOpened;
             Height = SystemParameters.PrimaryScreenHeight / 1.25;
             Width = SystemParameters.PrimaryScreenWidth / 1.25;
-
             renderer = new Renderer(scene);
 #if DEBUG
             DebugPanel.Visibility = Visibility.Visible;
@@ -56,13 +57,19 @@ namespace Lab1
         private void OnFileOpened(object? sender, CancelEventArgs e)
         {
             fileName.Text = string.Join(' ', Resources["fileString"].ToString(), ofd.SafeFileName);
-
-            if (System.IO.Path.GetExtension(ofd.FileName).Equals(".obj"))
-                obj = Parser.ParseObjFile(ofd.FileName);
-            else
-                obj = Parser.ParseGltfFile(ofd.FileName);
-            obj.Transformation.Reset();
-            scene.Obj = obj;
+            try
+            {
+                if (System.IO.Path.GetExtension(ofd.FileName).Equals(".obj"))
+                    obj = Parser.ParseObjFile(ofd.FileName);
+                else
+                    obj = Parser.ParseGltfFile(ofd.FileName);
+                obj.transformation.Reset();
+                scene.Obj = obj;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
             Draw();
 
         }
@@ -77,13 +84,21 @@ namespace Lab1
                 WriteableBitmap bitmap = new WriteableBitmap(
                 ((int)canvas.ActualWidth), ((int)canvas.ActualHeight), 96, 96, PixelFormats.Bgra32, null);
                 renderer.Bitmap = bitmap;
-
+                if (fixLightCheckBox.IsChecked == false)
+                    scene.LightPosition = camera.Position;
                 if (obj != null)
                 {
+                    camera.UpdateViewPort(bitmap.PixelWidth, bitmap.PixelHeight);
                     if (renderMode == "Flat")
                         renderer.RenderSolid();
+                    //renderer.Render<GouraudShader, GouraudShader.Vertex>();
                     else if (renderMode == "Smooth")
                         renderer.Render<PhongShader, PhongShader.Vertex>();
+                    else if (renderMode == "Deferred")
+                        renderer.RenderDeferred();
+                    else if (renderMode == "Textured")
+                        //renderer.Render<TextureShader, TextureShader.Vertex>();
+                        renderer.Render<PhongTexturedShader, PhongTexturedShader.Vertex>();
                     else
                         renderer.RenderCarcass();
 
@@ -96,7 +111,7 @@ namespace Lab1
                 bitmap.AddDirtyRect(new Int32Rect(0, 0, bitmap.PixelWidth, bitmap.PixelHeight));
                 bitmap.Unlock();
                 stopwatch.Stop();
-                DebugPanel.Text = (TimeSpan.TicksPerSecond / stopwatch.ElapsedTicks).ToString() + " fps";
+                DebugPanel.Text = $"{TimeSpan.TicksPerSecond / stopwatch.ElapsedTicks} fps/ {stopwatch.ElapsedMilliseconds} + ms";
                 canvas.Child = new Image { Source = bitmap };
                 renderer.Bitmap = null;
             }
@@ -121,12 +136,24 @@ namespace Lab1
         {
             if (e.LeftButton == MouseButtonState.Pressed && Mouse.Captured == canvas && oldPos.X != -1)
             {
+
                 Point newPos = Mouse.GetPosition(canvas);
                 float dx = (float)(newPos.X - oldPos.X);
                 float dy = (float)(newPos.Y - oldPos.Y);
-                if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0) {
-                    // ....
-                } else {
+                if (Keyboard.Modifiers == ModifierKeys.Shift)
+                {
+                    Vector3 target = camera.Target;
+                    Matrix4x4.Invert(camera.ViewMatrix, out Matrix4x4 view);
+                    float distanceX = (float)((dx / canvas.ActualWidth * 2) * Math.Tan(camera.FieldOfView / 2) * camera.Distance * (canvas.ActualWidth / canvas.ActualHeight));
+                    float distanceY = (float)((dy / canvas.ActualHeight * 2) * Math.Tan(camera.FieldOfView / 2)) * camera.Distance;
+                    float length = MathF.Sqrt(distanceX * distanceX + distanceY * distanceY);
+                    Vector3 direction = Vector3.Normalize(Vector3.TransformNormal(new Vector3(-distanceX, distanceY, 0), view));
+                    direction *= length;
+                    camera.Target = target + direction;
+
+                }
+                else
+                {
                     camera.RotateAroundTargetHorizontal((float)(-dx * MathF.PI / canvas.ActualWidth));
                     camera.RotateAroundTargetVertical((float)(-dy * MathF.PI / canvas.ActualHeight));
                 }
@@ -179,25 +206,25 @@ namespace Lab1
 
         }
 
-        private static float speed = 0.5f;
+        private static float speed = 4f;
         private Dictionary<Key, Action> moveActions = new() {
             {
-                Key.Left, () => { if (obj != null) obj.Transformation.Offset.X += speed; }
+                Key.Left, () => { if (obj != null) obj.transformation.Offset.X += speed; }
             },
             {
-                Key.Right, () => { if (obj != null) obj!.Transformation.Offset.X -= speed; }
+                Key.Right, () => { if (obj != null) obj!.transformation.Offset.X -= speed; }
             },
             {
                 Key.Up, () => {
                     if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
                     {
                         if (obj != null)
-                            obj.Transformation.Offset.Z += speed;
+                            obj.transformation.Offset.Z += speed;
                     }
                     else
                     {
                         if (obj != null)
-                            obj.Transformation.Offset.Y += speed;
+                            obj.transformation.Offset.Y += speed;
                     }
 
                 }
@@ -207,13 +234,13 @@ namespace Lab1
                     if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
                     {
                         if (obj != null)
-                            obj.Transformation.Offset.Z -= speed;
+                            obj.transformation.Offset.Z -= speed;
                     }
 
                     else
                     {
                         if (obj != null)
-                            obj.Transformation.Offset.Y -= speed;
+                            obj.transformation.Offset.Y -= speed;
                     }
                 }
             },
@@ -227,25 +254,25 @@ namespace Lab1
 
         private Dictionary<Key, Action> rotateActions = new() {
             {
-                Key.Up, () => { obj!.Transformation.AngleX += speed; }
+                Key.Up, () => { obj!.transformation.AngleX += speed * 0.01f; }
             },
             {
-                Key.Down, () => { obj!.Transformation.AngleX -= speed; }
+                Key.Down, () => { obj!.transformation.AngleX -= speed * 0.01f; }
             },
             {
                 Key.Left, () => {
                     if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
-                        obj!.Transformation.AngleY += speed;
+                        obj!.transformation.AngleY += speed * 0.01f;
                     else
-                        obj!.Transformation.AngleZ += speed;
+                        obj!.transformation.AngleZ += speed * 0.01f;
                 }
             },
             {
                 Key.Right, () => {
                     if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
-                        obj!.Transformation.AngleY -= speed;
+                        obj!.transformation.AngleY -= speed * 0.01f;
                     else
-                        obj!.Transformation.AngleZ -= speed;
+                        obj!.transformation.AngleZ -= speed * 0.01f;
                 }
             },
             {
@@ -258,14 +285,14 @@ namespace Lab1
 
         private static void MakeLarger()
         {
-            if(obj != null)
-                obj.Transformation.Scale += speed / 10.0f;
+            if (obj != null)
+                obj.transformation.Scale += speed / 10.0f;
         }
 
         private static void MakeSmaller()
         {
             if (obj != null)
-                obj.Transformation.Scale -= speed / 10.0f;
+                obj.transformation.Scale -= speed / 10.0f;
         }
 
         private void canvas_KeyDown(object sender, KeyEventArgs e)

@@ -3,8 +3,13 @@ using Newtonsoft.Json;
 
 namespace GraphicsLib.Types.JsonConverters
 {
-    class GtlfRootConverter : JsonConverter<GltfRoot>
+    class GltfRootConverter : JsonConverter<GltfRoot>
     {
+        private string sourcePath;
+        public GltfRootConverter(string sourcePath)
+        {
+            this.sourcePath = sourcePath;
+        }
         public override GltfRoot? ReadJson(JsonReader reader, Type objectType, GltfRoot? existingValue, bool hasExistingValue, JsonSerializer serializer)
         {
             JsonSerializerSettings settings = new JsonSerializerSettings
@@ -15,6 +20,7 @@ namespace GraphicsLib.Types.JsonConverters
             GltfRoot? gltfRoot = JsonSerializer.CreateDefault(settings).Deserialize<GltfRoot>(reader);
             if (gltfRoot is not null)
             {
+                gltfRoot.SourcePath = sourcePath;
                 GltfUtils.PreprocessGltfRoot(gltfRoot);
             }
             return gltfRoot;

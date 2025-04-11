@@ -173,6 +173,20 @@ namespace GraphicsLib.Primitives
                 }
             }
         }
-
+        [Obsolete("use gbuffer method instead")]
+        public static void FlushZGBuffer(this WriteableBitmap bitmap, GBuffer gbuffer)
+        {
+            unsafe
+            {
+                uint* ptr = (uint*)bitmap.BackBuffer;
+                int x = bitmap.PixelWidth;
+                int y = bitmap.PixelHeight;
+                int length = x * y;
+                for (int i = 0; i < length; i++)
+                {
+                    ptr[i] = gbuffer.GetColor(i % x, i / x);
+                }
+            }
+        }
     }
 }

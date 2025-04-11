@@ -1,10 +1,18 @@
-﻿using GraphicsLib.Types;
+﻿using GraphicsLib.Primitives;
+using GraphicsLib.Types;
 using GraphicsLib.Types.GltfTypes;
 using GraphicsLib.Types.JsonConverters;
 using Newtonsoft.Json;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats;
+using SixLabors.ImageSharp.PixelFormats;
+using System.Drawing;
+using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
 using System.Numerics;
+using System.Windows;
+using System.Windows.Media.Imaging;
 namespace GraphicsLib
 {
     public static class Parser
@@ -14,14 +22,17 @@ namespace GraphicsLib
         /// </summary>
         /// <param name="source">Входной текст</param>
         /// <returns>Модель</returns>
+        [Obsolete("not updated since 3 lab")]
         public static Obj ParseObjFile(string filePath)
         {
             Obj obj = new();
             using FileStream fileStream = new(filePath, FileMode.Open);
             using StreamReader sr = new(fileStream);
-            List<Vector3> verticesList = new();
-            List<Vector3> normalsList = new();
-            List<Face> facesList = new();
+            List<Vector3> verticesList = [];
+            List<Vector3> normalsList = [];
+            List<Vector2> uvsList = [];
+            List<Face> facesList = [];
+            List<Material> materialsList = [Material.defaultMaterial];
             while (!sr.EndOfStream)
             {
                 string? line = sr.ReadLine();
@@ -40,11 +51,18 @@ namespace GraphicsLib
                             newVertex.Z = Single.Parse(parts[3], NumberStyles.Float, CultureInfo.InvariantCulture);
                             if (parts.Length == 5)
                             {
-                                //Нормализуем
                                 Single w = Single.Parse(parts[4], NumberStyles.Float, CultureInfo.InvariantCulture);
                                 newVertex /= w;
                             }
                             verticesList.Add(newVertex);
+                        }
+                        break;
+                    case "vt":
+                        {
+                            Vector2 newTextureCoord;
+                            newTextureCoord.X = Single.Parse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture);
+                            newTextureCoord.Y = Single.Parse(parts[2], NumberStyles.Float, CultureInfo.InvariantCulture);
+                            uvsList.Add(newTextureCoord);
                         }
                         break;
                     case "vn":
@@ -85,7 +103,11 @@ namespace GraphicsLib
                                 int[] triangleVertices = [vertices[0], vertices[i + 1], vertices[i + 2]];
                                 int[]? triangleTextures = hasTextureIndices ? [textures![0], textures[i + 1], textures[i + 2]] : null;
                                 int[]? triangleNormals = hasNormalIndices ? [normals![0], normals[i + 1], normals[i + 2]] : null;
-                                Face newFace = new(triangleVertices, triangleTextures, triangleNormals);
+                                Face newFace = new(triangleVertices, 0)
+                                {
+                                    nIndices = triangleNormals,
+                                    tIndices = triangleTextures,
+                                };
                                 facesList.Add(newFace);
                             }
 
@@ -97,6 +119,16 @@ namespace GraphicsLib
                         break;
                 }
             }
+            obj.faces = [.. facesList];
+            obj.vertices = [.. verticesList];
+            obj.normals = [.. normalsList];
+            obj.uvs = [.. uvsList];
+            obj.materials = [.. materialsList];
+            StaticTriangle[] staticTriangles = new StaticTriangle[facesList.Count];
+            for (int i = 0; i < facesList.Count; i++)
+            {
+                staticTriangles[i] = StaticTriangle.FromFace(obj, obj.faces[i]);
+            }
             foreach (var face in obj.faces)
             {
                 for (int i = 0; i < face.vIndices.Length; i++)
@@ -105,18 +137,24 @@ namespace GraphicsLib
                     if (p < 0)
                         p = verticesList.Count + p + 1;
                     face.vIndices[i] = p;
-                    if(face.nIndices!= null)
+                    if (face.nIndices != null)
                     {
                         int n = face.nIndices[i];
                         if (n < 0)
                             n = normalsList.Count + n + 1;
                         face.nIndices[i] = n;
                     }
+                    if (face.tIndices != null)
+                    {
+                        int t = face.tIndices[i];
+                        if (t < 0)
+                            t = uvsList.Count + t + 1;
+                        face.tIndices[i] = t;
+                    }
                 }
             }
-            obj.faces = [.. facesList];
-            obj.vertices = [.. verticesList];
-            obj.normals = [.. normalsList];
+            obj.triangles = [.. staticTriangles];
+            
             return obj;
         }
         public static Obj ParseGltfFile(string filePath)
@@ -126,12 +164,34 @@ namespace GraphicsLib
             using StreamReader sr = new(fileStream);
             string data = sr.ReadToEnd();
             string sourceDirectory = Path.GetDirectoryName(filePath)!;
-            GltfRoot gltfRoot = JsonConvert.DeserializeObject<GltfRoot>(data, GltfSerializerSettings.GetSettings(sourceDirectory))
-                ?? throw new FormatException("invalid json gltf");
-            List<Vector3> verticesList = new();
-            List<Vector3> normalsList = new();
-            List<Face> facesList = new();
+            using GltfRoot gltfRoot = JsonConvert.DeserializeObject<GltfRoot>(data, GltfSerializerSettings.GetSettings(sourceDirectory))
+                    ?? throw new FormatException("invalid json gltf");
+            if (gltfRoot.ExtensionsRequired != null && gltfRoot.ExtensionsRequired.Any())
+            {
+                MessageBox.Show($"Model requires extensions : {gltfRoot.ExtensionsRequired.Aggregate((a, b) => a + ", " + b)}.");
+            }
+            List<Vector3> verticesList = [];
+            List<Vector3> normalsList = [];
+            List<Vector2> uvsList = [];
+            List<Vector4> tangentsList = [];
+            List<Vector2> normalUvsList = [];
+            List<Vector2> roughnessUvsList = [];
+            List<Face> facesList = [];
+            List<Material> materialsList = [];
+            if (gltfRoot.Materials != null)
+            {
+                foreach (var material in gltfRoot.Materials)
+                {
+                    Material newMaterial = Material.FromGltfMaterial(material);
+                    materialsList.Add(newMaterial);
+                }
+            }
+            else
+            {
+                materialsList.Add(Material.defaultMaterial);
+            }
             if (gltfRoot.Nodes != null)
+            {
                 foreach (var node in gltfRoot.Nodes)
                 {
                     Matrix4x4 transform = node.GlobalTransform;
@@ -143,40 +203,135 @@ namespace GraphicsLib
                         foreach (var primitive in mesh.Primitives)
                         {
                             var mode = primitive.Mode;
-                            var attributes = primitive.Attributes;
+                            //var attributes = primitive.Attributes;
                             int vIndexOffset = verticesList.Count;
                             int nIndexOffset = normalsList.Count;
+                            int tIndexOffset = uvsList.Count;
+                            int ntIndexOffset = normalUvsList.Count;
+                            int rtIndexOffset = roughnessUvsList.Count;
+                            int tangIndexOffset = tangentsList.Count;
                             Vector3[]? vertices = primitive.Position;
                             Vector3[]? normals = primitive.Normal;
+                            Vector2[]? uvs = null;
+                            Vector2[]? normalUvs = null;
+                            Vector2[]? roughtnessUvs = null;
+                            Vector4[]? tangents = primitive.Tangent;
+                            int[]? indicies = primitive.PointIndices;
+                            short materialIndex = (primitive.Material.HasValue) ? (short)primitive.Material.Value : (short)0;
+                            var gltfMaterial = gltfRoot.Materials?[materialIndex];
+                            if (gltfMaterial != null)
+                            {
+                                if (gltfMaterial.PbrMetallicRoughness != null)
+                                {
+                                    if (gltfMaterial.PbrMetallicRoughness.BaseColorTexture != null)
+                                    {
+                                        uvs = primitive.GetTextureCoords(gltfMaterial.PbrMetallicRoughness.BaseColorTexture.TexCoord);
+                                    }
+                                    if(gltfMaterial.PbrMetallicRoughness.MetallicRoughnessTexture != null)
+                                    {
+                                        roughtnessUvs = primitive.GetTextureCoords(gltfMaterial.PbrMetallicRoughness.MetallicRoughnessTexture.TexCoord);
+                                    }
+                                }
+                                if (gltfMaterial.NormalTexture != null)
+                                {
+                                    normalUvs = primitive.GetTextureCoords(gltfMaterial.NormalTexture.TexCoord);
+                                }
+                            }
                             if (vertices != null)
                             {
-                                foreach (var v in vertices)
+                                for(int i = 0; i < vertices.Length; i++) 
                                 {
-                                    Vector3 transformed = Vector3.Transform(v, transform);
+                                    Vector3 transformed = Vector3.Transform(vertices[i], transform);
                                     verticesList.Add(transformed);
                                 }
                             }
-                            if(normals != null)
+                            if (normals != null)
                             {
-                                
-                                foreach (var n in normals)
+
+                                for(int i = 0; i < normals.Length; i++)
                                 {
-                                    Vector3 transformed = Vector3.Normalize(Vector3.TransformNormal(n, normalTransform));
+                                    Vector3 transformed = Vector3.Normalize(Vector3.TransformNormal(normals[i], normalTransform));
                                     normalsList.Add(transformed);
                                 }
                             }
-                            int[]? indicies = primitive.PointIndices;
+                            if (uvs != null)
+                            {
+                                for(int i = 0;i < uvs.Length; i++)
+                                {
+                                    uvsList.Add(uvs[i]);
+                                }
+                            }
+                            if(normalUvs != null)
+                            {
+                                for(int i = 0; i < normalUvs.Length; i++)
+                                {
+                                    normalUvsList.Add(normalUvs[i]);
+                                }
+                            }
+                            if(tangents != null)
+                            {
+                                for(int i = 0; i < tangents.Length; i++)
+                                {
+                                    tangentsList.Add(tangents[i]);
+                                }
+                            }
+                            if(roughtnessUvs != null)
+                            {
+                                for(int i = 0; i < roughtnessUvs.Length; i++)
+                                {
+                                    roughnessUvsList.Add(roughtnessUvs[i]);
+                                }
+                            }
                             if (indicies != null)
                             {
+                                Face AssembleTriangle(int index0, int index1, int index2, short materialIndex)
+                                {
+                                    int[] triangleVertices = [indicies[index0] + vIndexOffset,
+                                            indicies[index1] + vIndexOffset,
+                                            indicies[index2] + vIndexOffset];
+                                    int[]? triangleNormals = null;
+                                    if (normalsList.Count > nIndexOffset)
+                                        triangleNormals = [indicies[index0] + nIndexOffset,
+                                            indicies[index1] + nIndexOffset,
+                                            indicies[index2] + nIndexOffset];
+                                    int[]? triangleUvs = null;
+                                    if (uvsList.Count > tIndexOffset)
+                                        triangleUvs = [indicies[index0] + tIndexOffset,
+                                            indicies[index1] + tIndexOffset,
+                                            indicies[index2] + tIndexOffset];
+                                    int[]? triangleTangents = null;
+                                    if (tangentsList.Count > tangIndexOffset)
+                                        triangleTangents = [indicies[index0] + tangIndexOffset,
+                                            indicies[index1] + tangIndexOffset,
+                                            indicies[index2] + tangIndexOffset];
+                                    int[]? triangleNormalUvs = null;
+                                    if (normalUvsList.Count > ntIndexOffset)
+                                        triangleNormalUvs = [indicies[index0] + ntIndexOffset,
+                                            indicies[index1] + ntIndexOffset,
+                                            indicies[index2] + ntIndexOffset];
+                                    int[]? triangleRoughnessUVs = null;
+                                    if(roughnessUvsList.Count > rtIndexOffset)
+                                        triangleRoughnessUVs = [indicies[index0] + rtIndexOffset,
+                                            indicies[index1] + rtIndexOffset,
+                                            indicies[index2] + rtIndexOffset];
+                                    return new Face(triangleVertices, materialIndex)
+                                    {
+                                        nIndices = triangleNormals,
+                                        tIndices = triangleUvs,
+                                        tangentIndicies = triangleTangents,
+                                        ntIndicies = triangleNormalUvs,
+                                        rtIndicies = triangleRoughnessUVs
+                                    };
+                                }
+
                                 if (mode == GltfMeshMode.TRIANGLES)
                                 {
                                     for (int i = 0; i < indicies.Length; i += 3)
                                     {
-                                        int[] triangleVertices = [indicies[i] + vIndexOffset, indicies[i + 1] + vIndexOffset, indicies[i + 2] + vIndexOffset];
-                                        int[]? triangleNormals = null;
-                                        if (normalsList.Count > nIndexOffset)
-                                            triangleNormals = [indicies[i] + nIndexOffset, indicies[i + 1] + nIndexOffset, indicies[i + 2] + nIndexOffset];
-                                        Face newFace = new(triangleVertices, null, triangleNormals);
+                                        int index0 = i;
+                                        int index1 = i + 1;
+                                        int index2 = i + 2;
+                                        Face newFace = AssembleTriangle(index0, index1, index2, materialIndex);
                                         facesList.Add(newFace);
                                     }
                                 }
@@ -184,11 +339,10 @@ namespace GraphicsLib
                                 {
                                     for (int i = 0; i < indicies.Length - 2; i++)
                                     {
-                                        int[] triangleVertices = [indicies[i] + vIndexOffset, indicies[i + 1] + vIndexOffset, indicies[i + 2] + vIndexOffset];
-                                        int[]? triangleNormals = null;
-                                        if(normalsList.Count > nIndexOffset)
-                                            triangleNormals = [indicies[i] + nIndexOffset, indicies[i + 1] + nIndexOffset, indicies[i + 2] + nIndexOffset];
-                                        Face newFace = new(triangleVertices, null, triangleNormals);
+                                        int index0 = i;
+                                        int index1 = i + 1;
+                                        int index2 = i + 2;
+                                        Face newFace = AssembleTriangle(index0, index1, index2, materialIndex);
                                         facesList.Add(newFace);
                                     }
                                 }
@@ -196,11 +350,10 @@ namespace GraphicsLib
                                 {
                                     for (int i = 0; i < indicies.Length - 2; i++)
                                     {
-                                        int[] triangleVertices = [indicies[0] + vIndexOffset, indicies[i + 1] + vIndexOffset, indicies[i + 2] + vIndexOffset];
-                                        int[]? triangleNormals = null;
-                                        if (normalsList.Count > nIndexOffset)
-                                            triangleNormals = [indicies[0] + nIndexOffset, indicies[i + 1] + nIndexOffset, indicies[i + 2] + nIndexOffset];
-                                        Face newFace = new(triangleVertices, null, triangleNormals);
+                                        int index0 = 0;
+                                        int index1 = i + 1;
+                                        int index2 = i + 2;
+                                        Face newFace = AssembleTriangle(index0, index1, index2, materialIndex);
                                         facesList.Add(newFace);
                                     }
                                 }
@@ -208,11 +361,24 @@ namespace GraphicsLib
                         }
                     }
                 }
+            }
+            obj.materials = [.. materialsList];
             obj.faces = [.. facesList];
             obj.vertices = [.. verticesList];
             obj.normals = [.. normalsList];
+            obj.tangents = [.. tangentsList];
+            obj.normalUvs = [.. normalUvsList];
+            obj.uvs = [.. uvsList];
+            obj.roughnessUvs = [.. roughnessUvsList];
+            StaticTriangle[] staticTriangles = new StaticTriangle[facesList.Count];
+            for (int i = 0; i < facesList.Count; i++)
+            {
+                staticTriangles[i] = StaticTriangle.FromFace(obj, obj.faces[i]);
+            }
+            obj.triangles = [.. staticTriangles];
             return obj;
         }
+    
     }
 }
 
