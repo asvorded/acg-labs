@@ -1,5 +1,8 @@
 ﻿using System.Configuration;
+using System.Linq.Expressions;
 using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Security.AccessControl;
 
 namespace GraphicsLib.Types.GltfTypes
 {
@@ -111,6 +114,55 @@ namespace GraphicsLib.Types.GltfTypes
             }
         }
 
+
+        public static object[] GetAccessorData(GltfAccessor accessor)
+        {
+            Func<ArraySegment<byte>, int, object> byteConverter = ResolveByteConverter(accessor.ComponentType);
+            Func<object[], object> outConverter = ResolveOutConverter(accessor.Type);
+            return ReadFromBufferView(accessor, byteConverter, outConverter);
+        }
+        public static Array GetAccessorData<TTarget>(GltfAccessor accessor) where TTarget : unmanaged
+        {
+            Type sourceType = accessor.ComponentType.GetComponentType();
+
+            return (Array)typeof(GltfUtils)
+                .GetMethod("ReadFromBytes", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!
+                .MakeGenericMethod(sourceType, typeof(TTarget))
+                .Invoke(null, [accessor])!;
+        }
+        private static Array ReadFromBytes<TSource, TTarget>(
+        GltfAccessor accessor) where TSource : unmanaged
+                          where TTarget : unmanaged
+        {
+            if (accessor.BufferView == null)
+                throw new ConfigurationErrorsException("accessor has no buffer view object. Make sure to preprocess root");
+            var bufferView = accessor.BufferView;
+            ArraySegment<byte> data = bufferView.Data;
+            int startOffset = accessor.ByteOffset;
+            int componentByteCount = accessor.ComponentType.GetBytesCount();
+            int componentCount = accessor.Type.GetComponentCount();
+            int count = accessor.Count;
+            int totalComponentCount = accessor.Count * componentCount;
+            int byteStride = bufferView.ByteStride ?? componentByteCount * componentCount;
+            Func<TSource, TTarget> converter = GetConverter<TSource, TTarget>();
+            TTarget[] result = new TTarget[totalComponentCount];
+            for (int i = 0; i < count; i++)
+            {
+                for(int j = 0; j < componentCount; j++)
+                {
+                    int index = startOffset + i * byteStride + j * componentByteCount;
+                    TSource value = Unsafe.ReadUnaligned<TSource>(ref data.Array![data.Offset + index]);
+                    result[i * componentCount + j] = converter(value);
+                }
+            }
+            return result;
+        }
+        private static Func<TSource, TTarget> GetConverter<TSource, TTarget>()
+        {
+            var param = Expression.Parameter(typeof(TSource));
+            var convert = Expression.Convert(param, typeof(TTarget));
+            return Expression.Lambda<Func<TSource, TTarget>>(convert, param).Compile();
+        }
         private static object[] ReadFromBufferView(GltfAccessor accessor, Func<ArraySegment<byte>, int, object> byteConverter, Func<object[], object> outConverter)
         {
             if (accessor.BufferView == null)
@@ -157,14 +209,6 @@ namespace GraphicsLib.Types.GltfTypes
             GltfComponentType.FLOAT => 4,
             _ => throw new ArgumentOutOfRangeException(nameof(componentType), componentType, null),
         };
-
-        public static object[] GetAccessorData(GltfAccessor accessor)
-        {
-            Func<ArraySegment<byte>, int, object> byteConverter = ResolveByteConverter(accessor.ComponentType);
-            Func<object[], object> outConverter = ResolveOutConverter(accessor.Type);
-            return ReadFromBufferView(accessor, byteConverter, outConverter);
-        }
-
         private static Func<object[], object> ResolveOutConverter(GltfAccessorType outType) => outType switch
         {
             GltfAccessorType.SCALAR => (components) => Convert.ToInt32(components[0]),

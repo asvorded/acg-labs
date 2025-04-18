@@ -45,85 +45,24 @@ namespace GraphicsLib.Types.GltfTypes
         public int[]? PointIndices { get => GetPointIndices(); }
         [JsonIgnore]
         public Vector4[]? Tangent { get => GetTangents(); }
-
         public Vector2[]? GetTextureCoords(int v)
         {
-            Vector2[]? vectors = null;
-            if (Attributes.TryGetValue($"TEXCOORD_{v}", out int index))
-            {
-                if (Root == null)
-                {
-                    throw new ConfigurationErrorsException("Root is null.");
-                }
-                var accessor = Root.Accessors![index];
-                object[] data = GltfUtils.GetAccessorData(accessor);
-                vectors = new Vector2[accessor.Count];
-                for (int i = 0; i < accessor.Count; i++)
-                {
-                    vectors[i] = (Vector2)data[i];
-                }
-            }
-            return vectors;
+            return GetVector2($"TEXCOORD_{v}");           
         }
-        private Vector4[]? GetTangents()
+        public Vector4[]? GetTangents()
         {
-            Vector4[]? vectors = null;
-            if (Attributes.TryGetValue("TANGENT", out int index))
-            {
-                if (Root == null)
-                {
-                    throw new ConfigurationErrorsException("Root is null.");
-                }
-                var accessor = Root.Accessors![index];
-                object[] data = GltfUtils.GetAccessorData(accessor);
-                vectors = new Vector4[accessor.Count];
-                for (int i = 0; i < accessor.Count; i++)
-                {
-                    vectors[i] = (Vector4)data[i];
-                }
-            }
-            return vectors;
+            return GetVector4("TANGENT");
         }
-        private Vector3[]? GetPosition()
+        public Vector3[]? GetPosition()
         {
-            Vector3[]? vectors = null;
-            if (Attributes.ContainsKey("POSITION"))
-            {
-                if (Root == null)
-                {
-                    throw new ConfigurationErrorsException("Root is null.");
-                }
-                var accessor = Root.Accessors![Attributes["POSITION"]];
-                object[] uncastedData = GltfUtils.GetAccessorData(accessor);
-                vectors = new Vector3[accessor.Count];
-                for (int i = 0; i < accessor.Count; i++)
-                {
-                    vectors[i] = (Vector3)uncastedData[i];
-                }
-            }
-            return vectors;
+            return GetVector3("POSITION");
         }
-
-        private Vector3[]? GetNormals() {
-            if (Attributes.TryGetValue("NORMAL", out int index)) {
-                if (Root == null) {
-                    throw new ConfigurationErrorsException("Root is null.");
-                }
-                var accessor = Root.Accessors![index];
-                object[] data = GltfUtils.GetAccessorData(accessor);
-                Vector3[] vectors = new Vector3[accessor.Count];
-                for (int i = 0; i < accessor.Count; i++) {
-                    vectors[i] = (Vector3)data[i];
-                }
-                return vectors;
-            } else {
-                return null;
-            }
+        public Vector3[]? GetNormals()
+        {
+            return GetVector3("NORMAL");
         }
-
         private int[]? GetPointIndices()
         {
-            int[]? indices = null;
             if (Indices.HasValue)
             {
                 if (Root == null)
@@ -131,14 +70,91 @@ namespace GraphicsLib.Types.GltfTypes
                     throw new ConfigurationErrorsException("Root is null.");
                 }
                 var accessor = Root.Accessors![Indices.Value];
-                object[] uncastedData = GltfUtils.GetAccessorData(accessor);
-                indices = new int[accessor.Count];
+                return (int[])GltfUtils.GetAccessorData<int>(accessor);
+            }
+            return null;
+        }
+        private TTarget[]? GetScalar<TTarget>(string attribute) where TTarget : unmanaged
+        {
+            if (Attributes.TryGetValue(attribute, out int index))
+            {
+                if (Root == null)
+                {
+                    throw new ConfigurationErrorsException("Root is null.");
+                }
+                var accessor = Root.Accessors![index];
+                return (TTarget[]?)GltfUtils.GetAccessorData<TTarget>(accessor);
+            }
+            else
+            {
+                return null;
+            }
+        }
+        private Vector2[]? GetVector2(string attribute)
+        {
+            if (Attributes.TryGetValue(attribute, out int index))
+            {
+                if (Root == null)
+                {
+                    throw new ConfigurationErrorsException("Root is null.");
+                }
+                var accessor = Root.Accessors![index];
+                float[] floats = (float[])GltfUtils.GetAccessorData<float>(accessor);
+                Vector2[] vectors = new Vector2[accessor.Count];
                 for (int i = 0; i < accessor.Count; i++)
                 {
-                    indices[i] = (int)uncastedData[i];
+                    vectors[i] = new Vector2(floats[i * 2], floats[i * 2 + 1]);
                 }
+                return vectors;
             }
-            return indices;
+            else
+            {
+                return null;
+            }
+        }
+        private Vector3[]? GetVector3(string attribute)
+        {
+            if (Attributes.TryGetValue(attribute, out int index))
+            {
+                if (Root == null)
+                {
+                    throw new ConfigurationErrorsException("Root is null.");
+                }
+                var accessor = Root.Accessors![index];
+                float[] floats = (float[])GltfUtils.GetAccessorData<float>(accessor);
+                Vector3[] vectors = new Vector3[accessor.Count];
+                for (int i = 0; i < accessor.Count; i++)
+                {
+                    vectors[i] = new Vector3(floats[i * 3], floats[i * 3 + 1], floats[i * 3 + 2]);
+                }
+                return vectors;
+            }
+            else
+            {
+                return null;
+            }
+        }
+        private Vector4[]? GetVector4(string attribute)
+        {
+            if (Attributes.TryGetValue(attribute, out int index))
+            {
+                if (Root == null)
+                {
+                    throw new ConfigurationErrorsException("Root is null.");
+                }
+                var accessor = Root.Accessors![index];
+                float[] floats = (float[])GltfUtils.GetAccessorData<float>(accessor);
+                Vector4[] vectors = new Vector4[accessor.Count];
+                for (int i = 0; i < accessor.Count; i++)
+                {
+                    vectors[i] = new Vector4(floats[i * 4], floats[i * 4 + 1], floats[i * 4 + 2], floats[i * 4 + 3]);
+                }
+                return vectors;
+            }
+            else
+            {
+                return null;
+            }
         }
     }
     public enum GltfMeshMode

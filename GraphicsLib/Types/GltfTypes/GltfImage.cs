@@ -1,20 +1,12 @@
 ﻿using Newtonsoft.Json;
 using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats;
 using SixLabors.ImageSharp.PixelFormats;
-using System.Buffers.Text;
 using System.Configuration;
 using System.IO;
-using System.Numerics;
-using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
 using Image = SixLabors.ImageSharp.Image;
-
 namespace GraphicsLib.Types.GltfTypes
 {
-    public class GltfImage : IDisposable
+    public class GltfImage
     {
         [JsonProperty("uri")]
         public string? UriString { get; set; }
@@ -33,45 +25,74 @@ namespace GraphicsLib.Types.GltfTypes
         [JsonIgnore]
         public GltfRoot? GltfRoot { get; set; }
         [JsonIgnore]
-        private Image<Rgba32>? textureBitmap;
+        private int? width;
         [JsonIgnore]
-        public Image<Rgba32> ImageData { get => GetImageData(); set => textureBitmap = value; }
+        private int? height;
+        [JsonIgnore]
+        private Rgba32[]? data;
+        [JsonIgnore]
+        public int Width { get => GetWidth(); }
 
-        private Image<Rgba32> GetImageData()
+        private int GetWidth()
         {
-            if (textureBitmap == null)
+            if (!width.HasValue)
             {
-                if (UriString == null)
-                {
-                    throw new ConfigurationErrorsException("Uri is null and Data is null");
-                }
-                if (UriString.StartsWith("data:"))
-                {
-                    string base64Data = UriString.Split(',')[1];
-
-                    // Convert the base64 string into a byte array
-                    byte[] imageBytes = Convert.FromBase64String(base64Data);
-
-                    // Load the image from the byte array
-                    using (var ms = new MemoryStream(imageBytes))
-                    {
-                        textureBitmap = Image.Load<Rgba32>(ms);
-                    }
-                }
-                else
-                {
-                    if (GltfRoot?.SourcePath == null)
-                        throw new ConfigurationErrorsException("SourcePath for buffer is null.");
-                    textureBitmap = Image.Load<Rgba32>(Path.Combine(GltfRoot.SourcePath, UriString));
-                }
+                GetImageData();
             }
-            return textureBitmap;
+            return width!.Value;
         }
 
-        public void Dispose()
+        [JsonIgnore]
+        public int Height { get=> GetHeight(); }
+
+        private int GetHeight()
         {
-            textureBitmap?.Dispose();
-            GC.SuppressFinalize(this);
+            if(!height.HasValue)
+            {
+                GetImageData();
+            }
+            return height!.Value;
+        }
+
+        public Rgba32[] ImageData { get => GetData(); }
+
+        private Rgba32[] GetData()
+        {
+            if(data == null)
+            {
+                GetImageData();
+            }
+            return data!;
+        }
+        private void GetImageData()
+        {
+            Image<Rgba32> textureBitmap;
+            if (UriString == null)
+            {
+                throw new ConfigurationErrorsException("Uri is null and Data is null");
+            }
+            if (UriString.StartsWith("data:"))
+            {
+                string base64Data = UriString.Split(',')[1];
+
+                // Convert the base64 string into a byte array
+                byte[] imageBytes = Convert.FromBase64String(base64Data);
+
+                // Load the image from the byte array
+                using var ms = new MemoryStream(imageBytes);
+                textureBitmap = Image.Load<Rgba32>(ms);
+            }
+            else
+            {
+                if (GltfRoot?.SourcePath == null)
+                    throw new ConfigurationErrorsException("SourcePath for buffer is null.");
+                textureBitmap = Image.Load<Rgba32>(Path.Combine(GltfRoot.SourcePath, UriString));
+            }
+            width = textureBitmap.Width;
+            height = textureBitmap.Height;
+            data = new Rgba32[textureBitmap.Width * textureBitmap.Height];
+            textureBitmap.CopyPixelDataTo(data);
+            textureBitmap.Dispose();
         }
     }
 }

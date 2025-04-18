@@ -34,10 +34,7 @@ namespace GraphicsLib.Types
         }
         public void BindTexture(GltfImage gltfImage)
         {
-            var textureImage = gltfImage.ImageData;
-            Rgba32[] pixels = new Rgba32[textureImage.Height * textureImage.Width];
-            textureImage.CopyPixelDataTo(pixels);
-            BindTexture(pixels, width, height);
+            BindTexture(gltfImage.ImageData, gltfImage.Width, gltfImage.Height);
         }
         public Vector4 Sample(Vector2 uv)
         {

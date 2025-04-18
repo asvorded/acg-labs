@@ -164,9 +164,9 @@ namespace GraphicsLib
             using StreamReader sr = new(fileStream);
             string data = sr.ReadToEnd();
             string sourceDirectory = Path.GetDirectoryName(filePath)!;
-            using GltfRoot gltfRoot = JsonConvert.DeserializeObject<GltfRoot>(data, GltfSerializerSettings.GetSettings(sourceDirectory))
+            GltfRoot gltfRoot = JsonConvert.DeserializeObject<GltfRoot>(data, GltfSerializerSettings.GetSettings(sourceDirectory))
                     ?? throw new FormatException("invalid json gltf");
-            if (gltfRoot.ExtensionsRequired != null && gltfRoot.ExtensionsRequired.Any())
+            if (gltfRoot.ExtensionsRequired != null && gltfRoot.ExtensionsRequired.Count != 0)
             {
                 MessageBox.Show($"Model requires extensions : {gltfRoot.ExtensionsRequired.Aggregate((a, b) => a + ", " + b)}.");
             }

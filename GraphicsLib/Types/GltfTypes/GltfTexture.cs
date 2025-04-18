@@ -28,11 +28,8 @@ namespace GraphicsLib.Types.GltfTypes
             {
                 throw new Exception("Sampler or Image is null");
             }
-            var image = Image.ImageData;
             var sampler = Sampler.GetSampler();
-            Rgba32[] pixels = new Rgba32[image.Height * image.Width];
-            image.CopyPixelDataTo(pixels);
-            sampler.BindTexture(pixels, image.Width, image.Height);
+            sampler.BindTexture(Image);
             return sampler;
         }
     }
