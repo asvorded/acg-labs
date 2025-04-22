@@ -2,7 +2,7 @@
 
 namespace GraphicsLib.Types.GltfTypes
 {
-    public class gltfScene
+    public class GltfScene
     {
         [JsonProperty("nodes")]
         public int[]? Nodes { get; set; }

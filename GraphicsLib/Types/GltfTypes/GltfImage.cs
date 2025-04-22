@@ -31,6 +31,8 @@ namespace GraphicsLib.Types.GltfTypes
         [JsonIgnore]
         private Rgba32[]? data;
         [JsonIgnore]
+        private readonly Lock dataLock = new();
+        [JsonIgnore]
         public int Width { get => GetWidth(); }
 
         private int GetWidth()
@@ -58,9 +60,16 @@ namespace GraphicsLib.Types.GltfTypes
 
         private Rgba32[] GetData()
         {
-            if(data == null)
+            if (data == null)
             {
-                GetImageData();
+                lock (dataLock)
+                {
+                    if (data == null)
+                    {
+                        GetImageData();
+                    }
+                    
+                }
             }
             return data!;
         }

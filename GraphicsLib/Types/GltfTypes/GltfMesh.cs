@@ -70,7 +70,7 @@ namespace GraphicsLib.Types.GltfTypes
                     throw new ConfigurationErrorsException("Root is null.");
                 }
                 var accessor = Root.Accessors![Indices.Value];
-                return (int[])GltfUtils.GetAccessorData<int>(accessor);
+                return GltfUtils.GetAccessorData<int>(accessor);
             }
             return null;
         }
@@ -83,7 +83,7 @@ namespace GraphicsLib.Types.GltfTypes
                     throw new ConfigurationErrorsException("Root is null.");
                 }
                 var accessor = Root.Accessors![index];
-                return (TTarget[]?)GltfUtils.GetAccessorData<TTarget>(accessor);
+                return GltfUtils.GetAccessorData<TTarget>(accessor);
             }
             else
             {
@@ -99,7 +99,7 @@ namespace GraphicsLib.Types.GltfTypes
                     throw new ConfigurationErrorsException("Root is null.");
                 }
                 var accessor = Root.Accessors![index];
-                float[] floats = (float[])GltfUtils.GetAccessorData<float>(accessor);
+                float[] floats = GltfUtils.GetAccessorData<float>(accessor);
                 Vector2[] vectors = new Vector2[accessor.Count];
                 for (int i = 0; i < accessor.Count; i++)
                 {
@@ -121,7 +121,7 @@ namespace GraphicsLib.Types.GltfTypes
                     throw new ConfigurationErrorsException("Root is null.");
                 }
                 var accessor = Root.Accessors![index];
-                float[] floats = (float[])GltfUtils.GetAccessorData<float>(accessor);
+                float[] floats = GltfUtils.GetAccessorData<float>(accessor);
                 Vector3[] vectors = new Vector3[accessor.Count];
                 for (int i = 0; i < accessor.Count; i++)
                 {
@@ -143,7 +143,7 @@ namespace GraphicsLib.Types.GltfTypes
                     throw new ConfigurationErrorsException("Root is null.");
                 }
                 var accessor = Root.Accessors![index];
-                float[] floats = (float[])GltfUtils.GetAccessorData<float>(accessor);
+                float[] floats = GltfUtils.GetAccessorData<float>(accessor);
                 Vector4[] vectors = new Vector4[accessor.Count];
                 for (int i = 0; i < accessor.Count; i++)
                 {

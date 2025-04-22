@@ -47,7 +47,7 @@ namespace GraphicsLib.Types.GltfTypes
         public int? Scene { get; set; }
 
         [JsonPropertyName("scenes")]
-        public List<gltfScene>? Scenes { get; set; }
+        public List<GltfScene>? Scenes { get; set; }
 
         [JsonPropertyName("skins")]
         public List<GltfSkin>? Skins { get; set; }

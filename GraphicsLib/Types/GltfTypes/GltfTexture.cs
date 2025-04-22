@@ -26,7 +26,7 @@ namespace GraphicsLib.Types.GltfTypes
         {
             if (Sampler == null || Image == null)
             {
-                throw new Exception("Sampler or Image is null");
+                throw new ConfigurationErrorsException("Sampler or Image is null");
             }
             var sampler = Sampler.GetSampler();
             sampler.BindTexture(Image);

@@ -1,4 +1,5 @@
-﻿using System.Configuration;
+﻿using System.Collections.Concurrent;
+using System.Configuration;
 using System.Linq.Expressions;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -8,6 +9,7 @@ namespace GraphicsLib.Types.GltfTypes
 {
     public static class GltfUtils
     {
+        private static readonly ConcurrentDictionary<(Type, Type), Delegate> converterCache = new();
         public static void PreprocessGltfRoot(GltfRoot gltfRoot)
         {
             //bind accessors, buffer views, buffers
@@ -51,13 +53,9 @@ namespace GraphicsLib.Types.GltfTypes
             }
             if (gltfRoot.Meshes != null)
             {
-                foreach (var mesh in gltfRoot.Meshes)
+                foreach (var primitive in gltfRoot.Meshes.SelectMany(mesh => mesh.Primitives))
                 {
-                    if (mesh.Primitives != null)
-                    {
-                        foreach (var primitive in mesh.Primitives)
-                            primitive.Root = gltfRoot;
-                    }
+                    primitive.Root = gltfRoot;
                 }
             }
             if (gltfRoot.Images != null)
@@ -121,16 +119,16 @@ namespace GraphicsLib.Types.GltfTypes
             Func<object[], object> outConverter = ResolveOutConverter(accessor.Type);
             return ReadFromBufferView(accessor, byteConverter, outConverter);
         }
-        public static Array GetAccessorData<TTarget>(GltfAccessor accessor) where TTarget : unmanaged
+        public static TTarget[] GetAccessorData<TTarget>(GltfAccessor accessor) where TTarget : unmanaged
         {
             Type sourceType = accessor.ComponentType.GetComponentType();
 
-            return (Array)typeof(GltfUtils)
-                .GetMethod("ReadFromBytes", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!
+            return (TTarget[])typeof(GltfUtils)
+                .GetMethod("ReadFromBytes", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public)!
                 .MakeGenericMethod(sourceType, typeof(TTarget))
                 .Invoke(null, [accessor])!;
         }
-        private static Array ReadFromBytes<TSource, TTarget>(
+        public static TTarget[] ReadFromBytes<TSource, TTarget>(
         GltfAccessor accessor) where TSource : unmanaged
                           where TTarget : unmanaged
         {
@@ -159,8 +157,19 @@ namespace GraphicsLib.Types.GltfTypes
         }
         private static Func<TSource, TTarget> GetConverter<TSource, TTarget>()
         {
-            var param = Expression.Parameter(typeof(TSource));
-            var convert = Expression.Convert(param, typeof(TTarget));
+            Type sourceType = typeof(TSource);
+            Type targetType = typeof(TTarget);
+            var converter = (Func<TSource, TTarget>)converterCache.GetOrAdd(
+                (sourceType, targetType),
+                key => CreateConverter<TSource, TTarget>(key.Item1, key.Item2)
+            );
+            return converter;
+        }
+
+        private static Func<TSource, TTarget> CreateConverter<TSource, TTarget>(Type sourceType, Type targetType)
+        {
+            var param = Expression.Parameter(sourceType);
+            var convert = Expression.Convert(param, targetType);
             return Expression.Lambda<Func<TSource, TTarget>>(convert, param).Compile();
         }
         private static object[] ReadFromBufferView(GltfAccessor accessor, Func<ArraySegment<byte>, int, object> byteConverter, Func<object[], object> outConverter)

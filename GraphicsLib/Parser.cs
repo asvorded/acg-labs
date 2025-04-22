@@ -180,11 +180,14 @@ namespace GraphicsLib
             List<Material> materialsList = [];
             if (gltfRoot.Materials != null)
             {
-                foreach (var material in gltfRoot.Materials)
+                materialsList = new(gltfRoot.Materials.Count);
+                for (int i = 0; i < gltfRoot.Materials.Count; i++)
                 {
-                    Material newMaterial = Material.FromGltfMaterial(material);
-                    materialsList.Add(newMaterial);
+                    materialsList.Add(null!);//Lol
                 }
+                Parallel.For(0, gltfRoot.Materials.Count, i => 
+                materialsList[i] = Material.FromGltfMaterial(gltfRoot.Materials[i])
+                );
             }
             else
             {
