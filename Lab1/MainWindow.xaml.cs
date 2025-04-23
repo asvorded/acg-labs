@@ -25,6 +25,7 @@ namespace Lab1
         private static Scene scene;
         private Renderer renderer;
         private Point oldPos;
+        private WriteableBitmap? bitmap;
 
         static MainWindow()
         {
@@ -70,42 +71,65 @@ namespace Lab1
             {
                 MessageBox.Show(ex.Message);
             }
+            bitmap = new WriteableBitmap(
+    ((int)canvas.ActualWidth), ((int)canvas.ActualHeight), 96, 96, PixelFormats.Bgra32, null);
             Draw();
 
         }
 
         private void Draw()
         {
-            if (renderer == null)
+            if (renderer == null || bitmap == null || obj == null)
                 return;
             try
             {
-                Stopwatch stopwatch = Stopwatch.StartNew();
-                WriteableBitmap bitmap = new WriteableBitmap(
-                ((int)canvas.ActualWidth), ((int)canvas.ActualHeight), 96, 96, PixelFormats.Bgra32, null);
-                renderer.Bitmap = bitmap;
                 if (fixLightCheckBox.IsChecked == false)
                     scene.LightPosition = camera.Position;
-                if (obj != null)
+                Stopwatch stopwatch = Stopwatch.StartNew();
+                renderer.Bitmap = bitmap;
+                camera.UpdateViewPort(bitmap.PixelWidth, bitmap.PixelHeight);
+                switch (renderMode)
                 {
+                    case "Wireframe":
+                        {
+                            bitmap = new WriteableBitmap(
+                ((int)canvas.ActualWidth), ((int)canvas.ActualHeight), 96, 96, PixelFormats.Bgra32, null);
+                renderer.Bitmap = bitmap;
+                            camera.UpdateViewPort(bitmap.PixelWidth, bitmap.PixelHeight);
+                            renderer.RenderWireframe();
+                        }
+                        break;
+                    case "Flat":
+                {
+                            bitmap = new WriteableBitmap(
+((int)canvas.ActualWidth), ((int)canvas.ActualHeight), 96, 96, PixelFormats.Bgra32, null);
+                            renderer.Bitmap = bitmap;
                     camera.UpdateViewPort(bitmap.PixelWidth, bitmap.PixelHeight);
-                    if (renderMode == "Flat")
                         renderer.RenderSolid();
-                    //renderer.Render<GouraudShader, GouraudShader.Vertex>();
-                    else if (renderMode == "Smooth")
+                        }
+                        break;
+                    case "Smooth":
+                        {
                         renderer.Render<PhongShader, PhongShader.Vertex>();
-                    else if (renderMode == "Deferred")
+                        }
+                        break;
+                    case "Textured":
+                        {
+                            renderer.Render<PbrShader, PbrShader.Vertex>();
+                        }
+                        break;
+                    case "Deferred":
+                        {
                         renderer.RenderDeferred();
-                    else if (renderMode == "Textured")
-                        //renderer.Render<TextureShader, TextureShader.Vertex>();
-                        renderer.Render<PhongTexturedShader, PhongTexturedShader.Vertex>();
-                    else
-                        renderer.RenderCarcass();
-
                 }
-                else
+                        break;
+                    case "Shadows":
                 {
-
+                            renderer.RenderShadow();
+                        }
+                        break;
+                    default:
+                        break;
                 }
                 bitmap.Lock();
                 bitmap.AddDirtyRect(new Int32Rect(0, 0, bitmap.PixelWidth, bitmap.PixelHeight));

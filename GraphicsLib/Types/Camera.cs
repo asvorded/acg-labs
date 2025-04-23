@@ -12,7 +12,7 @@ namespace GraphicsLib.Types
 
         public float Azimuth { get => azimuth; set => SetAzimuth(value); }
         public float Polar { get => polar; set => SetPolar(value); }
-        public Vector3 Position { get => GetPosition(); }
+        public Vector3 Position { get => GetPosition(); set => SetPosition(value); }
         public float Distance { get => distance; set => distance = value > 0 ? value : 1; }
         public Vector3 Target { get; set; }
         public Matrix4x4 ViewMatrix { get => GetViewMatrix(); }
@@ -41,8 +41,8 @@ namespace GraphicsLib.Types
         public Camera()
         {
             Azimuth = 0;
-            Polar = float.Pi / 2;// float.Pi / 3;
-            Distance = 1000;
+            Polar = 0;// MathF.PI / 2;// float.Pi / 3;
+            Distance = 2;
             Target = Vector3.Zero;
         }
         public Camera(float azimuth, float polar, float distance, Vector3 target)
@@ -50,6 +50,12 @@ namespace GraphicsLib.Types
             Azimuth = azimuth;
             Polar = polar;
             Distance = distance;
+            Target = target;
+        }
+        
+        public Camera(Vector3 position,  Vector3 target)
+        {
+            Position = position;
             Target = target;
         }
         public void UpdateViewPort(float width, float height)
@@ -74,10 +80,10 @@ namespace GraphicsLib.Types
         private void SetPolar(float value)
         {
             polar = value;
-            if (polar > MathF.PI - 0.01f)
-                polar = MathF.PI - 0.01f;
-            if (polar < 0.01f)
-                polar = 0.01f;
+            if (polar > MathF.PI - 0.001f)
+                polar = MathF.PI - 0.001f;
+            if (polar < 0.001f)
+                polar = 0.001f;
         }
         private Vector3 GetPosition()
         {
@@ -89,6 +95,13 @@ namespace GraphicsLib.Types
             position.Y = Distance * cosPolar;
             position += Target;
             return position;
+        }
+        private void SetPosition(Vector3 newPos)
+        {
+            Distance = Vector3.Distance(Target, newPos);
+            Polar = MathF.Asin((newPos.Y - Target.Y) / Distance);
+            float newAzimuth = MathF.Atan2(newPos.X - Target.X, newPos.Z - Target.Z);
+            Azimuth = newAzimuth;
         }
         public void RotateAroundTargetHorizontal(float angleRadians)
         {

@@ -1,6 +1,7 @@
 ﻿using GraphicsLib.Primitives;
 using GraphicsLib.Shaders;
 using GraphicsLib.Types;
+using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Windows.Media.Imaging;
@@ -16,6 +17,9 @@ namespace GraphicsLib
         private Zbuffer? zBuffer;
         private ZbufferV2? zBufferV2;
         private GBuffer? gBuffer;
+        private ZbufferV2[] shadowMaps;
+        private static readonly int shadowMapWidth = 8196;
+        private static readonly int shadowMapHeight = 8196;
         public Renderer(Scene scene)
         {
             Scene = scene;
@@ -25,6 +29,11 @@ namespace GraphicsLib
             zBuffer = default;
             zBufferV2 = default;
             gBuffer = default;
+            shadowMaps = new ZbufferV2[6];
+            for (int i = 0; i < shadowMaps.Length; i++)
+            {
+                shadowMaps[i] = new ZbufferV2(shadowMapWidth, shadowMapHeight);
+            }
         }
         private void ResizeBuffer(Obj obj)
         {
@@ -436,24 +445,8 @@ namespace GraphicsLib
                 Vector3 s = rayOrigin - p0;
                 float u = f * Vector3.Dot(s, h);
                 u = float.Clamp(u, 0.0f, 1.0f);
-                /*if (u < 0 || u > 1)
-                {
-#if !RELEASE
-                    continue;
-#else
-                    return;
-#endif
-                }*/
                 Vector3 q = Vector3.Cross(s, edge1);
                 float v = f * Vector3.Dot(rayDirection, q);
-                /*                if (v < 0 || u + v > 1)
-                                {
-                #if !RELEASE
-                                    continue;
-                #else
-                                    return;
-                #endif
-                                }*/
                 v = float.Clamp(v, 0.0f, 1.0f - u);
                 PbrShader.Vertex point = v0 + e1 * u + e2 * v;
                 gBuffer.SetColor(x, y, pbrShader.PixelShader(point));
@@ -464,7 +457,60 @@ namespace GraphicsLib
 #endif
             gBuffer!.FlushToBitmap(Bitmap);
         }
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+
+
+        private static readonly float[] azimuths = [0, MathF.PI / 2, MathF.PI, 3 * MathF.PI / 2, 0, 0];
+        private static readonly float[] polars = [MathF.PI / 2, MathF.PI / 2, MathF.PI / 2, MathF.PI / 2, 0, MathF.PI];
+        private static readonly Vector3[] targetOffsets = [new(0, 0, -1), new(-1, 0, 0), new(0, 0, 1), new(1, 0, 0), new(0, -1, 0), new(0, 1, 0)];
+        public void RenderShadow()
+        {
+            if (Bitmap == null)
+                return;
+            if (Scene.Obj == null)
+                return;
+            ResizeAndClearZBufferV2();
+            var originalCamera = Scene.Camera;
+            var originalZBufferV2 = zBufferV2;
+            //render 6 shadow maps
+            for (int i = 0; i < 6; i++)
+            {
+                Vector3 lightSourcePos = Scene.LightPosition;
+                Camera camera = new Camera(azimuths[i], polars[i], 1f, lightSourcePos + targetOffsets[i])
+                {
+                    ScreenHeight = shadowMapHeight,
+                    ScreenWidth = shadowMapWidth,
+                    FieldOfView = MathF.PI / 2,
+                    FarClipPlane = 1000f,
+                };
+                Scene.Camera = camera;
+                shadowMaps[i].Clear();
+                zBufferV2 = shadowMaps[i];
+                Pipeline<ShadowShader, ShadowShader.Vertex> pipeline = new(this);
+                pipeline.Render();
+            }
+            zBufferV2 = originalZBufferV2;
+            Scene.Camera = originalCamera;
+
+            ////render scene with shadow maps
+            var shader = new ShadowedPbrShader();
+            shader.SetShadowMaps(shadowMaps);
+            shader.Scene = Scene;
+            Pipeline<ShadowedPbrShader, ShadowedPbrShader.Vertex> finalPipeline = new(this, shader);
+            finalPipeline.Render();
+            /*var debugOutput = shadowMaps[4];
+            for (int y = 0; y < zBufferV2.Height && y < debugOutput.Height; y++)
+            {
+                for (int x = 0; x < zBufferV2.Width && x < debugOutput.Width; x++)
+                {
+                    zBufferV2.TestAndSet(x, y, 0f, debugOutput[x, y].color);
+                }
+            }
+            Scene.Camera = originalCamera;*/
+            Bitmap!.FlushZBufferV2(zBufferV2!);
+            
+            return;
+        }
+
         public void Render<Shader, Vertex>() where Shader : IShader<Vertex>, new() where Vertex : struct, IVertex<Vertex>
         {
             if (Bitmap == null)
@@ -474,6 +520,7 @@ namespace GraphicsLib
             ResizeAndClearZBufferV2();
             Pipeline<Shader, Vertex> pipeline = new(this);
             pipeline.Render();
+            Bitmap!.FlushZBufferV2(zBufferV2!);
             return;
         }
 
@@ -501,13 +548,22 @@ namespace GraphicsLib
                 screenHeight = Convert.ToInt32(scene.Camera.ScreenHeight);
                 screenWidth = Convert.ToInt32(scene.Camera.ScreenWidth);
             }
-
+            public Pipeline(Renderer renderer, Shader shader)
+            {
+                this.renderer = renderer;
+                scene = renderer.Scene;
+                this.shader = shader;
+                cameraTransform = scene.Camera.ViewMatrix;
+                projectionTransform = scene.Camera.ProjectionMatrix;
+                viewPortTransform = scene.Camera.ViewPortMatrix;
+                screenHeight = Convert.ToInt32(scene.Camera.ScreenHeight);
+                screenWidth = Convert.ToInt32(scene.Camera.ScreenWidth);
+            }
             public void Render()
             {
                 int triangleCount = scene.Obj!.triangles.Length;
-                Parallel.For(0, triangleCount,
-                    AssembleTriangle);
-                renderer.Bitmap!.FlushZBufferV2(renderer.zBufferV2!);
+                Parallel.For(0, triangleCount, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount * 4}, AssembleTriangle);
+                //for(int i = 0; i < triangleCount; i++) AssembleTriangle(i);
             }
 
             private void AssembleTriangle(int i)
@@ -516,6 +572,9 @@ namespace GraphicsLib
                 Vertex p0 = shader.GetVertexWithWorldPositionFromTriangle(obj, i, 0);
                 Vertex p1 = shader.GetVertexWithWorldPositionFromTriangle(obj, i, 1);
                 Vertex p2 = shader.GetVertexWithWorldPositionFromTriangle(obj, i, 2);
+                //Vertex p0 = shader.GetVertexWithWorldPositionFromFace(obj, i, 0);
+                //Vertex p1 = shader.GetVertexWithWorldPositionFromFace(obj, i, 1);
+                //Vertex p2 = shader.GetVertexWithWorldPositionFromFace(obj, i, 2);
                 p0.Position = Vector4.Transform(p0.Position, cameraTransform);
                 p1.Position = Vector4.Transform(p1.Position, cameraTransform);
                 p2.Position = Vector4.Transform(p2.Position, cameraTransform);
@@ -535,8 +594,9 @@ namespace GraphicsLib
                 CullAndClipTriangle(p0, p1, p2);
             }
 
-            private void CullAndClipTriangle(Vertex p0, Vertex p1, Vertex p2)
+            private void CullAndClipTriangle(in Vertex p0, in Vertex p1, in Vertex p2)
             {
+                //check if triangle is outside the view frustum
                 if (p0.Position.X > p0.Position.W && p1.Position.X > p1.Position.W && p2.Position.X > p2.Position.W)
                     return;
                 if (p0.Position.X < -p0.Position.W && p1.Position.X < -p1.Position.W && p2.Position.X < -p2.Position.W)
@@ -586,7 +646,7 @@ namespace GraphicsLib
                 }
 
             }
-            private void ClipTriangleIntoTwo(Vertex pointBehind, Vertex p1, Vertex p2)
+            private void ClipTriangleIntoTwo(in Vertex pointBehind, in Vertex p1, in Vertex p2)
             {
                 float c0 = (-pointBehind.Position.Z) / (p1.Position.Z - pointBehind.Position.Z);
                 float c1 = (-pointBehind.Position.Z) / (p2.Position.Z - pointBehind.Position.Z);
@@ -595,7 +655,7 @@ namespace GraphicsLib
                 ProjectTriangleToViewPort(leftInterpolant, p1, p2);
                 ProjectTriangleToViewPort(rightInterpolant, leftInterpolant, p2);
             }
-            private void ClipTriangleIntoOne(Vertex leftPointBehind, Vertex rightPointBehind, Vertex p2)
+            private void ClipTriangleIntoOne(in Vertex leftPointBehind, in Vertex rightPointBehind, in Vertex p2)
             {
                 float c0 = (-leftPointBehind.Position.Z) / (p2.Position.Z - leftPointBehind.Position.Z);
                 float c1 = (-rightPointBehind.Position.Z) / (p2.Position.Z - rightPointBehind.Position.Z);
@@ -620,7 +680,7 @@ namespace GraphicsLib
                 ndcPosition.W = invZ;
                 vertex.Position = ndcPosition;
             }
-            private void DrawTriangle(Vertex p0, Vertex p1, Vertex p2)
+            private void DrawTriangle(in Vertex p0, in Vertex p1, in Vertex p2)
             {
                 Vertex min = p0;
                 Vertex mid = p1;
@@ -675,7 +735,7 @@ namespace GraphicsLib
                     }
                 }
             }
-            void DrawFlatTopTriangle(Vertex leftTopPoint, Vertex rightTopPoint, Vertex bottomPoint)
+            void DrawFlatTopTriangle(in Vertex leftTopPoint, in Vertex rightTopPoint, in Vertex bottomPoint)
             {
                 float dy = bottomPoint.Position.Y - leftTopPoint.Position.Y;
                 Vertex dLeftPoint = (bottomPoint - leftTopPoint) / dy;
@@ -684,7 +744,7 @@ namespace GraphicsLib
                 Vertex rightPoint = rightTopPoint;
                 DrawFlatTriangle(leftTopPoint, rightPoint, bottomPoint.Position.Y, dLeftPoint, dRightPoint, dLineInterpolant);
             }
-            void DrawFlatBottomTriangle(Vertex topPoint, Vertex rightBottomPoint, Vertex leftBottomPoint)
+            void DrawFlatBottomTriangle(in Vertex topPoint, in Vertex rightBottomPoint, in Vertex leftBottomPoint)
             {
                 float dy = rightBottomPoint.Position.Y - topPoint.Position.Y;
                 Vertex dRightPoint = (rightBottomPoint - topPoint) / dy;
@@ -693,31 +753,31 @@ namespace GraphicsLib
                 Vertex DLineInterpolant = (rightBottomPoint - leftBottomPoint) / (rightBottomPoint.Position.X - leftBottomPoint.Position.X);
                 DrawFlatTriangle(topPoint, rightPoint, rightBottomPoint.Position.Y, dLeftPoint, dRightPoint, DLineInterpolant);
             }
-            void DrawFlatTriangle(Vertex leftPoint, Vertex rightPoint, float yMax, Vertex dLeftPoint, Vertex dRightPoint, Vertex dLineInterpolant)
+            void DrawFlatTriangle(Vertex leftPoint, Vertex rightPoint, float yMax, in Vertex dLeftPoint, in Vertex dRightPoint, in Vertex dLineInterpolant)
             {
-                int yStart = Math.Max((int)Math.Ceiling(leftPoint.Position.Y), 0);
-                int yEnd = Math.Min((int)Math.Ceiling(yMax), screenHeight);
+                int yStart = Math.Max((int)MathF.Ceiling(leftPoint.Position.Y), 0);
+                int yEnd = Math.Min((int)MathF.Ceiling(yMax), screenHeight);
                 float yPrestep = yStart - leftPoint.Position.Y;
                 leftPoint += dLeftPoint * yPrestep;
                 rightPoint += dRightPoint * yPrestep;
-                for (int y = yStart; y < yEnd; y++)
+                for (int y = yStart; y < yEnd; y++, leftPoint += dLeftPoint, rightPoint += dRightPoint)
                 {
-                    int xStart = Math.Max((int)Math.Ceiling(leftPoint.Position.X), 0);
-                    int xEnd = Math.Min((int)Math.Ceiling(rightPoint.Position.X), screenWidth);
+                    int xStart = Math.Max((int)MathF.Ceiling(leftPoint.Position.X), 0);
+                    int xEnd = Math.Min((int)MathF.Ceiling(rightPoint.Position.X), screenWidth);
+                    if (xStart >= xEnd)
+                    {
+                        continue;
+                    }
                     float xPrestep = xStart - leftPoint.Position.X;
                     Vertex lineInterpolant = leftPoint + xPrestep * dLineInterpolant;
-                    for (int x = xStart; x < xEnd; x++)
+                    for (int x = xStart; x < xEnd; x++, lineInterpolant += dLineInterpolant)
                     {
-                        if (renderer.zBufferV2!.Test(x, y, lineInterpolant.Position.Z))
+                        if (renderer.zBufferV2!.Test(x, y, -lineInterpolant.Position.W))
                         {
                             Vertex correctedPoint = lineInterpolant * (1 / lineInterpolant.Position.W);
-                            renderer.zBufferV2.TestAndSet(x, y, lineInterpolant.Position.Z, shader.PixelShader(correctedPoint));
+                            renderer.zBufferV2.TestAndSet(x, y, -lineInterpolant.Position.W, shader.PixelShader(correctedPoint));
                         }
-
-                        lineInterpolant += dLineInterpolant;
                     }
-                    leftPoint += dLeftPoint;
-                    rightPoint += dRightPoint;
                 }
             }
         }
@@ -850,7 +910,7 @@ namespace GraphicsLib
                 //            |
                 void ClipTriangleIntoOne(Vector4 leftPointBehind, Vector4 rightPointBehind, Vector4 p2)
                 {
-                    float c0 = (-leftPointBehind.Z) / (p2.Z - leftPointBehind.Z);
+                    float c0 = (0-leftPointBehind.Z) / (p2.Z - leftPointBehind.Z);
                     float c1 = (-rightPointBehind.Z) / (p2.Z - rightPointBehind.Z);
                     Vector4 leftInterpolant = Vector4.Lerp(leftPointBehind, p2, c0);
                     Vector4 rightInterpolant = Vector4.Lerp(rightPointBehind, p2, c1);
@@ -907,7 +967,7 @@ namespace GraphicsLib
                 }
             }
         }
-        public void RenderCarcass()
+        public void RenderWireframe()
         {
             if (Bitmap == null)
                 return;

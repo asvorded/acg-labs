@@ -74,7 +74,7 @@ namespace GraphicsLib.Types
                 {
                     throw new ArgumentOutOfRangeException("x or y out of buffer range");
                 }
-                buffer[y * Width + x] = value;
+                buffer[y * width + x] = value;
             }
         }
         public bool Test(int x, int y, float depth)
