@@ -94,8 +94,6 @@ namespace Lab1
                     //renderer.Render<GouraudShader, GouraudShader.Vertex>();
                     else if (renderMode == "Smooth")
                         renderer.Render<PhongShader, PhongShader.Vertex>();
-                    else if (renderMode == "Deferred")
-                        renderer.RenderDeferred();
                     else if (renderMode == "Textured")
                         //renderer.Render<TextureShader, TextureShader.Vertex>();
                         renderer.Render<PhongTexturedShader, PhongTexturedShader.Vertex>();
@@ -310,7 +308,8 @@ namespace Lab1
                 return;
             }
 
-            obj.Transformation.Reset();
+            camera.Target = new Vector3();
+            //obj.transformation.Reset();
             Draw();
         }
     }

@@ -53,7 +53,7 @@
                     VerticalAlignment="Center"
                     Text="{StaticResource fileString}" />
             </StackPanel>
-            <Button DockPanel.Dock="Right" Content="Reset transformation" Click="Reset_Click"/>
+            <Button DockPanel.Dock="Right" Content="Reset camera" Click="Reset_Click"/>
             <StackPanel
                 HorizontalAlignment="Right"
                 DockPanel.Dock="Right"
@@ -71,11 +71,6 @@
                     VerticalAlignment="Center"
                     Checked="RadioButton_Checked"
                     Content="Smooth"
-                    GroupName="RenderingMode" />
-                <RadioButton
-                    VerticalAlignment="Center"
-                    Checked="RadioButton_Checked"
-                    Content="Deferred"
                     GroupName="RenderingMode" />
                 <RadioButton
                     VerticalAlignment="Center"
