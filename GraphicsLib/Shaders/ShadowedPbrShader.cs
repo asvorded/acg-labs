@@ -197,11 +197,11 @@ namespace GraphicsLib.Shaders
             Vector2 uv;
             float depth = maxComponent;
             int bufferIndex;
-            if(maxComponent == absInputToLight.X && inputToLight.X > 0)
+            if (maxComponent == absInputToLight.X && inputToLight.X > 0)
             {
                 uv = new Vector2(projection.Z, -projection.Y) * 0.5f + new Vector2(0.5f);
                 bufferIndex = 3;
-            }else if (maxComponent == absInputToLight.X && inputToLight.X <= 0)
+            } else if (maxComponent == absInputToLight.X && inputToLight.X <= 0)
             {
                 uv = new Vector2(-projection.Z, -projection.Y) * 0.5f + new Vector2(0.5f);
                 bufferIndex = 1;
@@ -210,7 +210,7 @@ namespace GraphicsLib.Shaders
             {
                 uv = new Vector2(projection.X, -projection.Z) * 0.5f + new Vector2(0.5f);
                 bufferIndex = 5;
-            }else if (maxComponent == absInputToLight.Y && inputToLight.Y <= 0)
+            } else if (maxComponent == absInputToLight.Y && inputToLight.Y <= 0)
             {
                 uv = new Vector2(projection.X, projection.Z) * 0.5f + new Vector2(0.5f);
                 bufferIndex = 4;
@@ -229,14 +229,22 @@ namespace GraphicsLib.Shaders
             {
                 return 0f;
             }
-            if (uv.X < 0 || uv.X > 1 || uv.Y < 0 || uv.Y > 1)
-                throw new Exception("kys");
             uv = Vector2.Clamp(uv, Vector2.Zero, new Vector2(1));
-            int x = (int)(uv.X * (mapWidth - 1));
-            int y = (int)(uv.Y * (mapHeight - 1));
-            float sampledDepth = 1f/shadowMaps[bufferIndex][x,y].depth;
-            float bias = 0.02f;
-            return (depth - bias) > -sampledDepth ? 1.0f : 0.0f;
+            int centerX = (int)(uv.X * (mapWidth - 1));
+            int centerY = (int)(uv.Y * (mapHeight - 1));
+            float shadow = 0;
+            for (int dy = -1; dy <= 1; dy++)
+            {
+                for (int dx = -1; dx <= 1; dx++)
+                {
+                    int x = int.Clamp(centerX + dx, 0, mapWidth - 1);
+                    int y = int.Clamp(centerY + dy, 0, mapHeight - 1);
+                    float sampledDepth = 1f / shadowMaps[bufferIndex][x, y].depth;
+                    float bias = 0.01f;
+                    shadow += (depth - bias) > -sampledDepth ? 1.0f : 0.0f;
+                }
+            }
+            return shadow / 9;
         }
         public uint PixelShader(Vertex input)
         {
