@@ -23,7 +23,7 @@ namespace GraphicsLib.Shaders
         private Vector3 lightColor;
         private float lightIntensity;
         private Vector3 lightPosition;
-        private ZbufferV2[] shadowMaps;
+        private ZBufferV2[] shadowMaps;
         private void SetSceneParams(Scene value)
         {
             scene = value;
@@ -39,7 +39,7 @@ namespace GraphicsLib.Shaders
             lightIntensity = scene.LightIntensity;
             lightPosition = scene.LightPosition;
         }
-        public void SetShadowMaps(ZbufferV2[] shadowMaps)
+        public void SetShadowMaps(ZBufferV2[] shadowMaps)
         {
             this.shadowMaps = shadowMaps;
         }
@@ -48,145 +48,6 @@ namespace GraphicsLib.Shaders
         private Matrix4x4 worldNormalTransform;
         private Scene scene;
         private Vector3 cameraPos;
-        [StructLayout(LayoutKind.Sequential, Pack = 4)]
-        public struct Vertex : IVertex<Vertex>
-        {
-            public Material Material { get; set; }
-            public Vector4 Position { readonly get => position; set => position = value; }
-            private Vector4 position;
-            public Vector4 tangent;
-            public Vector3 normal;
-            public Vector3 worldPosition;
-            public Vector2 uv;
-            public Vector2 normalUv;
-            public Vector2 roughnessUv;
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public static Vertex Lerp(Vertex a, Vertex b, float t)
-            {
-                if (Avx2.IsSupported)
-                {
-                    return a * (1 - t) + b * t;
-                }
-                else
-                {
-                    return new Vertex
-                    {
-                        Position = Vector4.Lerp(a.Position, b.Position, t),
-                        normal = Vector3.Lerp(a.normal, b.normal, t),
-                        worldPosition = Vector3.Lerp(a.worldPosition, b.worldPosition, t),
-                        uv = Vector2.Lerp(a.uv, b.uv, t),
-                        tangent = Vector4.Lerp(a.tangent, b.tangent, t),
-                        normalUv = Vector2.Lerp(a.normalUv, b.normalUv, t),
-                        roughnessUv = Vector2.Lerp(a.roughnessUv, b.roughnessUv, t),
-                        Material = a.Material
-                    };
-                }
-
-            }
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public static Vertex operator +(Vertex lhs, Vertex rhs)
-            {
-                if (Avx2.IsSupported)
-                {
-                    unsafe
-                    {
-                        Vertex vertex = default;
-                        Avx2.Store((float*)&vertex.position, Avx2.Add(Avx2.LoadVector256((float*)&lhs.position), Avx2.LoadVector256((float*)&rhs.position)));
-                        Avx2.Store((float*)&vertex.normal, Avx2.Add(Avx2.LoadVector256((float*)&lhs.normal), Avx2.LoadVector256((float*)&rhs.normal)));
-                        Avx2.Store((float*)&vertex.normalUv, Avx2.Add(Avx2.LoadVector128((float*)&lhs.normalUv), Avx2.LoadVector128((float*)&rhs.normalUv)));
-                        vertex.Material = lhs.Material;
-                        return vertex;
-                    }
-                }
-                else
-                {
-                    return new Vertex
-                    {
-                        Position = lhs.Position + rhs.Position,
-                        normal = lhs.normal + rhs.normal,
-                        worldPosition = lhs.worldPosition + rhs.worldPosition,
-                        uv = lhs.uv + rhs.uv,
-                        tangent = lhs.tangent + rhs.tangent,
-                        normalUv = lhs.normalUv + rhs.normalUv,
-                        roughnessUv = lhs.roughnessUv + rhs.roughnessUv,
-                        Material = lhs.Material
-                    };
-
-                }
-
-            }
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public static Vertex operator -(Vertex lhs, Vertex rhs)
-            {
-                if (Avx2.IsSupported)
-                {
-                    unsafe
-                    {
-                        Vertex vertex = default;
-                        Avx2.Store((float*)&vertex.position, Avx2.Subtract(Avx2.LoadVector256((float*)&lhs.position), Avx2.LoadVector256((float*)&rhs.position)));
-                        Avx2.Store((float*)&vertex.normal, Avx2.Subtract(Avx2.LoadVector256((float*)&lhs.normal), Avx2.LoadVector256((float*)&rhs.normal)));
-                        Avx2.Store((float*)&vertex.normalUv, Avx2.Subtract(Avx2.LoadVector128((float*)&lhs.normalUv), Avx2.LoadVector128((float*)&rhs.normalUv)));
-                        vertex.Material = lhs.Material;
-                        return vertex;
-                    }
-                }
-                else
-                {
-                    return new Vertex
-                    {
-                        Position = lhs.Position - rhs.Position,
-                        normal = lhs.normal - rhs.normal,
-                        worldPosition = lhs.worldPosition - rhs.worldPosition,
-                        uv = lhs.uv - rhs.uv,
-                        tangent = lhs.tangent - rhs.tangent,
-                        normalUv = lhs.normalUv - rhs.normalUv,
-                        roughnessUv = lhs.roughnessUv - rhs.roughnessUv,
-                        Material = lhs.Material
-                    };
-                }
-            }
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public static Vertex operator *(Vertex lhs, float scalar)
-            {
-                if (Avx2.IsSupported)
-                {
-                    unsafe
-                    {
-                        Vertex vertex = default;
-                        Vector256<float> multiplier = Avx2.BroadcastScalarToVector256(&scalar);
-                        Avx2.Store((float*)&vertex.position, Avx2.Multiply(Avx2.LoadVector256((float*)&lhs.position), multiplier));
-                        Avx2.Store((float*)&vertex.normal, Avx2.Multiply(Avx2.LoadVector256((float*)&lhs.normal), multiplier));
-                        Avx2.Store((float*)&vertex.normalUv, Avx2.Multiply(Avx2.LoadVector128((float*)&lhs.normalUv), multiplier.GetLower()));
-                        vertex.Material = lhs.Material;
-                        return vertex;
-                    }
-                }
-                else
-                {
-                    return new Vertex
-                    {
-                        Position = lhs.Position * scalar,
-                        normal = lhs.normal * scalar,
-                        worldPosition = lhs.worldPosition * scalar,
-                        uv = lhs.uv * scalar,
-                        tangent = lhs.tangent * scalar,
-                        normalUv = lhs.normalUv * scalar,
-                        roughnessUv = lhs.roughnessUv * scalar,
-                        Material = lhs.Material
-                    };
-                }
-
-            }
-            public static Vertex operator *(float scalar, Vertex rhs)
-            {
-                return rhs * scalar;
-            }
-            public static Vertex operator /(Vertex lhs, float scalar)
-            {
-                return lhs * (1 / scalar);
-            }
-        }
         private float CalculateShadow(Vector3 inputToLight)
         {
             Vector3 absInputToLight = Vector3.Abs(inputToLight);
@@ -246,7 +107,7 @@ namespace GraphicsLib.Shaders
             }
             return shadow / 9;
         }
-        public uint PixelShader(Vertex input)
+        public uint PixelShader(in Vertex input)
         {
             Material material = input.Material;
 
@@ -396,6 +257,146 @@ namespace GraphicsLib.Shaders
             vertex.Material = triangle.material;
             vertex.worldPosition = vertex.Position.AsVector3();
             return vertex;
+        }
+
+        [StructLayout(LayoutKind.Sequential, Pack = 4)]
+        public struct Vertex : IVertex<Vertex>
+        {
+            public Material Material { get; set; }
+            public Vector4 Position { readonly get => position; set => position = value; }
+            private Vector4 position;
+            public Vector4 tangent;
+            public Vector3 normal;
+            public Vector3 worldPosition;
+            public Vector2 uv;
+            public Vector2 normalUv;
+            public Vector2 roughnessUv;
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public static Vertex Lerp(Vertex a, Vertex b, float t)
+            {
+                if (Avx2.IsSupported)
+                {
+                    return a * (1 - t) + b * t;
+                }
+                else
+                {
+                    return new Vertex
+                    {
+                        Position = Vector4.Lerp(a.Position, b.Position, t),
+                        normal = Vector3.Lerp(a.normal, b.normal, t),
+                        worldPosition = Vector3.Lerp(a.worldPosition, b.worldPosition, t),
+                        uv = Vector2.Lerp(a.uv, b.uv, t),
+                        tangent = Vector4.Lerp(a.tangent, b.tangent, t),
+                        normalUv = Vector2.Lerp(a.normalUv, b.normalUv, t),
+                        roughnessUv = Vector2.Lerp(a.roughnessUv, b.roughnessUv, t),
+                        Material = a.Material
+                    };
+                }
+
+            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public static Vertex operator +(Vertex lhs, Vertex rhs)
+            {
+                if (Avx2.IsSupported)
+                {
+                    unsafe
+                    {
+                        Vertex vertex = default;
+                        Avx2.Store((float*)&vertex.position, Avx2.Add(Avx2.LoadVector256((float*)&lhs.position), Avx2.LoadVector256((float*)&rhs.position)));
+                        Avx2.Store((float*)&vertex.normal, Avx2.Add(Avx2.LoadVector256((float*)&lhs.normal), Avx2.LoadVector256((float*)&rhs.normal)));
+                        Avx2.Store((float*)&vertex.normalUv, Avx2.Add(Avx2.LoadVector128((float*)&lhs.normalUv), Avx2.LoadVector128((float*)&rhs.normalUv)));
+                        vertex.Material = lhs.Material;
+                        return vertex;
+                    }
+                }
+                else
+                {
+                    return new Vertex
+                    {
+                        Position = lhs.Position + rhs.Position,
+                        normal = lhs.normal + rhs.normal,
+                        worldPosition = lhs.worldPosition + rhs.worldPosition,
+                        uv = lhs.uv + rhs.uv,
+                        tangent = lhs.tangent + rhs.tangent,
+                        normalUv = lhs.normalUv + rhs.normalUv,
+                        roughnessUv = lhs.roughnessUv + rhs.roughnessUv,
+                        Material = lhs.Material
+                    };
+
+                }
+
+            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public static Vertex operator -(Vertex lhs, Vertex rhs)
+            {
+                if (Avx2.IsSupported)
+                {
+                    unsafe
+                    {
+                        Vertex vertex = default;
+                        Avx2.Store((float*)&vertex.position, Avx2.Subtract(Avx2.LoadVector256((float*)&lhs.position), Avx2.LoadVector256((float*)&rhs.position)));
+                        Avx2.Store((float*)&vertex.normal, Avx2.Subtract(Avx2.LoadVector256((float*)&lhs.normal), Avx2.LoadVector256((float*)&rhs.normal)));
+                        Avx2.Store((float*)&vertex.normalUv, Avx2.Subtract(Avx2.LoadVector128((float*)&lhs.normalUv), Avx2.LoadVector128((float*)&rhs.normalUv)));
+                        vertex.Material = lhs.Material;
+                        return vertex;
+                    }
+                }
+                else
+                {
+                    return new Vertex
+                    {
+                        Position = lhs.Position - rhs.Position,
+                        normal = lhs.normal - rhs.normal,
+                        worldPosition = lhs.worldPosition - rhs.worldPosition,
+                        uv = lhs.uv - rhs.uv,
+                        tangent = lhs.tangent - rhs.tangent,
+                        normalUv = lhs.normalUv - rhs.normalUv,
+                        roughnessUv = lhs.roughnessUv - rhs.roughnessUv,
+                        Material = lhs.Material
+                    };
+                }
+            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public static Vertex operator *(Vertex lhs, float scalar)
+            {
+                if (Avx2.IsSupported)
+                {
+                    unsafe
+                    {
+                        Vertex vertex = default;
+                        Vector256<float> multiplier = Avx2.BroadcastScalarToVector256(&scalar);
+                        Avx2.Store((float*)&vertex.position, Avx2.Multiply(Avx2.LoadVector256((float*)&lhs.position), multiplier));
+                        Avx2.Store((float*)&vertex.normal, Avx2.Multiply(Avx2.LoadVector256((float*)&lhs.normal), multiplier));
+                        Avx2.Store((float*)&vertex.normalUv, Avx2.Multiply(Avx2.LoadVector128((float*)&lhs.normalUv), multiplier.GetLower()));
+                        vertex.Material = lhs.Material;
+                        return vertex;
+                    }
+                }
+                else
+                {
+                    return new Vertex
+                    {
+                        Position = lhs.Position * scalar,
+                        normal = lhs.normal * scalar,
+                        worldPosition = lhs.worldPosition * scalar,
+                        uv = lhs.uv * scalar,
+                        tangent = lhs.tangent * scalar,
+                        normalUv = lhs.normalUv * scalar,
+                        roughnessUv = lhs.roughnessUv * scalar,
+                        Material = lhs.Material
+                    };
+                }
+
+            }
+            public static Vertex operator *(float scalar, Vertex rhs)
+            {
+                return rhs * scalar;
+            }
+            public static Vertex operator /(Vertex lhs, float scalar)
+            {
+                return lhs * (1 / scalar);
+            }
         }
     }
 }

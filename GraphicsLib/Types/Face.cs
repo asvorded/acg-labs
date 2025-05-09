@@ -23,7 +23,7 @@ namespace GraphicsLib.Types
             MaterialIndex = materialIndex;
         }
 
-        public override string? ToString()
+        public override readonly string? ToString()
         {
             StringBuilder stringBuilder = new();
             stringBuilder.Append('f');

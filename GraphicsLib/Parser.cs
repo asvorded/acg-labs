@@ -3,16 +3,10 @@ using GraphicsLib.Types;
 using GraphicsLib.Types.GltfTypes;
 using GraphicsLib.Types.JsonConverters;
 using Newtonsoft.Json;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats;
-using SixLabors.ImageSharp.PixelFormats;
-using System.Drawing;
-using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
 using System.Numerics;
 using System.Windows;
-using System.Windows.Media.Imaging;
 namespace GraphicsLib
 {
     public static class Parser
@@ -200,9 +194,9 @@ namespace GraphicsLib
                     Matrix4x4 transform = node.GlobalTransform;
                     Matrix4x4 normalTransform = node.GlobalNormalTransform;
                     //Matrix4x4 normalTransform = node.GlobalTransform;
-                    if (node.Mesh.HasValue)
+                    if (node.Mesh != null)
                     {
-                        var mesh = gltfRoot.Meshes![node.Mesh.Value];
+                        var mesh = node.Mesh;
                         foreach (var primitive in mesh.Primitives)
                         {
                             var mode = primitive.Mode;

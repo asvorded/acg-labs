@@ -1,4 +1,5 @@
-﻿using System.Collections.Concurrent;
+﻿using GraphicsLib.Types2;
+using System.Collections.Concurrent;
 using System.Configuration;
 using System.Linq.Expressions;
 using System.Numerics;
@@ -48,7 +49,18 @@ namespace GraphicsLib.Types.GltfTypes
                         {
                             gltfRoot.Nodes[index].Parent = node;
                         }
+                        var childrenNodes = new GltfNode[node.Children.Length];
+                        for (int i = 0; i < node.Children.Length; i++)
+                        {
+                            childrenNodes[i] = gltfRoot.Nodes[node.Children[i]];
+                        }
+                        node.ChildrenNodes = childrenNodes;
                     }
+                    if (node.MeshIndex.HasValue)
+                    {
+                        node.Mesh = gltfRoot.Meshes![node.MeshIndex.Value];
+                    }
+
                 }
             }
             if (gltfRoot.Meshes != null)
@@ -263,5 +275,35 @@ namespace GraphicsLib.Types.GltfTypes
             GltfAccessorType.MAT4 => typeof(Matrix4x4),
             _ => throw new ArgumentOutOfRangeException(nameof(accessorType), accessorType, null)
         };
+
+        public static BoundingBox? GetBoundingBox(Dictionary<string, GltfAccessor> attributes, float[] positions)
+        {
+            if (attributes.TryGetValue("POSITION", out GltfAccessor? positionAccessor) && positionAccessor.Type == GltfAccessorType.VEC3)
+            {
+                if (positionAccessor.Min!= null && positionAccessor.Max!= null)
+                {
+                    float[] min = positionAccessor.Min;
+                    float[] max = positionAccessor.Max;
+                    return new(new(min[0], min[1], min[2]), new(max[0], max[1], max[2]));
+                }
+                else
+                {
+                    Vector3 min = new(positions[0], positions[1], positions[2]);
+                    Vector3 max = min;
+                    for (int i = 1; i < positionAccessor.Count; i++)
+                    {
+                        var position = new Vector3(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
+                        min = Vector3.Min(min, position);
+                        max = Vector3.Max(max, position);
+                    }
+                    return new(min, max);
+                }
+            }
+            else
+            {
+                return null;
+            }
+            
+        }
     }
 }

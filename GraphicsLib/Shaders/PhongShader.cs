@@ -46,7 +46,59 @@ namespace GraphicsLib.Shaders
         {
             Scene = scene;
         }
+        public uint PixelShader(in Vertex input)
+        {
+            Vector3 camDir = Vector3.Normalize(cameraPos - input.WorldPosition);
+            Vector3 normal = Vector3.Normalize(input.Normal);
+            Vector3 lightDir = Vector3.Normalize(lightPosition - input.WorldPosition);
+            Vector3 reflectDir = Vector3.Reflect(-lightDir, normal);
+            float diffuseFactor = Math.Max(Vector3.Dot(normal, lightDir), 0);
+            Vector3 diffuse = diffuseColor * diffuseFactor * lightIntensity;
+            float specularFactor = MathF.Pow(Math.Max(Vector3.Dot(reflectDir, camDir), 0), specularPower);
+            Vector3 specular = lightColor * specularFactor * lightIntensity;
+            Vector3 finalColor = Vector3.Clamp(ambient + diffuse + specular, Vector3.Zero, new Vector3(1, 1, 1));
+            uint color = (uint) 0xFF << 24
+                         | (uint)(finalColor.X * 0xFF) << 16 
+                         | (uint)(finalColor.Y * 0xFF) << 8 
+                         | (uint)(finalColor.Z * 0xFF);
+            return color;
+        }
 
+        public Vertex GetVertexWithWorldPositionFromFace(Obj obj, int faceIndex, int vertexIndex)
+        {
+            Face face = obj.faces[faceIndex];
+            Vertex vertex = default;
+            vertex.Position = Vector4.Transform(new Vector4(obj.vertices[face.vIndices[vertexIndex]],1), worldTransform);
+            if(face.nIndices == null)
+                throw new ArgumentException("Face has no normal indices, BRUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUH");
+            vertex.Normal = Vector3.TransformNormal(obj.normals[face.nIndices[vertexIndex]], worldNormalTransform);
+            vertex.WorldPosition = vertex.Position.AsVector3();
+            return vertex;
+        }
+        public Vertex GetVertexWithWorldPositionFromTriangle(Obj obj, int triangleIndex, int vertexIndex)
+        {
+            StaticTriangle triangle = obj.triangles[triangleIndex];
+            Vertex vertex = default;
+            switch (vertexIndex)
+            {
+                case 0:
+                    vertex.Position = Vector4.Transform(new Vector4(triangle.position0, 1), worldTransform);
+                    vertex.Normal = Vector3.TransformNormal(triangle.normal0, worldNormalTransform);
+                    break;
+                case 1:
+                    vertex.Position = Vector4.Transform(new Vector4(triangle.position1, 1), worldTransform);
+                    vertex.Normal = Vector3.TransformNormal(triangle.normal1, worldNormalTransform);
+                    break;
+                case 2:
+                    vertex.Position = Vector4.Transform(new Vector4(triangle.position2, 1), worldTransform);
+                    vertex.Normal = Vector3.TransformNormal(triangle.normal2, worldNormalTransform);
+                    break;
+                default:
+                    throw new ArgumentException("Invalid vertex index");
+            }
+            vertex.WorldPosition = vertex.Position.AsVector3();
+            return vertex;
+        }
         public struct Vertex : IVertex<Vertex>
         {
             public Vector4 Position { get; set; }
@@ -107,60 +159,6 @@ namespace GraphicsLib.Shaders
                     WorldPosition = lhs.WorldPosition / scalar
                 };
             }
-        }
-
-        public uint PixelShader(Vertex input)
-        {
-            Vector3 camDir = Vector3.Normalize(cameraPos - input.WorldPosition);
-            Vector3 normal = Vector3.Normalize(input.Normal);
-            Vector3 lightDir = Vector3.Normalize(lightPosition - input.WorldPosition);
-            Vector3 reflectDir = Vector3.Reflect(-lightDir, normal);
-            float diffuseFactor = Math.Max(Vector3.Dot(normal, lightDir), 0);
-            Vector3 diffuse = diffuseColor * diffuseFactor * lightIntensity;
-            float specularFactor = MathF.Pow(Math.Max(Vector3.Dot(reflectDir, camDir), 0), specularPower);
-            Vector3 specular = lightColor * specularFactor * lightIntensity;
-            Vector3 finalColor = Vector3.Clamp(ambient + diffuse + specular, Vector3.Zero, new Vector3(1, 1, 1));
-            uint color = (uint) 0xFF << 24
-                         | (uint)(finalColor.X * 0xFF) << 16 
-                         | (uint)(finalColor.Y * 0xFF) << 8 
-                         | (uint)(finalColor.Z * 0xFF);
-            return color;
-        }
-
-        public Vertex GetVertexWithWorldPositionFromFace(Obj obj, int faceIndex, int vertexIndex)
-        {
-            Face face = obj.faces[faceIndex];
-            Vertex vertex = default;
-            vertex.Position = Vector4.Transform(new Vector4(obj.vertices[face.vIndices[vertexIndex]],1), worldTransform);
-            if(face.nIndices == null)
-                throw new ArgumentException("Face has no normal indices, BRUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUH");
-            vertex.Normal = Vector3.TransformNormal(obj.normals[face.nIndices[vertexIndex]], worldNormalTransform);
-            vertex.WorldPosition = vertex.Position.AsVector3();
-            return vertex;
-        }
-        public Vertex GetVertexWithWorldPositionFromTriangle(Obj obj, int triangleIndex, int vertexIndex)
-        {
-            StaticTriangle triangle = obj.triangles[triangleIndex];
-            Vertex vertex = default;
-            switch (vertexIndex)
-            {
-                case 0:
-                    vertex.Position = Vector4.Transform(new Vector4(triangle.position0, 1), worldTransform);
-                    vertex.Normal = Vector3.TransformNormal(triangle.normal0, worldNormalTransform);
-                    break;
-                case 1:
-                    vertex.Position = Vector4.Transform(new Vector4(triangle.position1, 1), worldTransform);
-                    vertex.Normal = Vector3.TransformNormal(triangle.normal1, worldNormalTransform);
-                    break;
-                case 2:
-                    vertex.Position = Vector4.Transform(new Vector4(triangle.position2, 1), worldTransform);
-                    vertex.Normal = Vector3.TransformNormal(triangle.normal2, worldNormalTransform);
-                    break;
-                default:
-                    throw new ArgumentException("Invalid vertex index");
-            }
-            vertex.WorldPosition = vertex.Position.AsVector3();
-            return vertex;
         }
     }
 }

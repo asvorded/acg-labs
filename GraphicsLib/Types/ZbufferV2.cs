@@ -1,5 +1,6 @@
 ﻿using System.Numerics;
 using System.Runtime.InteropServices;
+using System.Windows;
 
 namespace GraphicsLib.Types
 {
@@ -34,25 +35,39 @@ namespace GraphicsLib.Types
             return HashCode.Combine(depth, color);
         }
     }
-    public class ZbufferV2
+    public class ZBufferV2
     {
         public int Width { get => width; private set => width = value; }
         public int Height { get => height; private set => height = value; }
         private PixelData[] buffer;
+        private PixelData filler = new();
         private int width;
         private int height;
 
-        public ZbufferV2(int width, int height)
+        public ZBufferV2(int width, int height)
         {
             this.Width = width;
             this.Height = height;
             buffer = new PixelData[width * height];
             Clear();
         }
+        public void ChangeDefaultColor(uint color)
+        {
+            filler.color = color;
+        }
+        public void ResizeAndClear(int width, int height)
+        {
+            if (width != this.width || height != this.height)
+            {
+                Width = width;
+                Height = height;
+                buffer = new PixelData[width * height];
+            }
+            Clear();
+        }
         public void Clear()
         {
-            Array.Fill<PixelData>(buffer, new PixelData());
-
+            Array.Fill<PixelData>(buffer, filler);
         }
         public PixelData At(int pos)
         {
@@ -90,7 +105,7 @@ namespace GraphicsLib.Types
         public bool TestAndSet(int x, int y, float depth, uint color)
         {
             if ((color >> 24 & 0xFF) == 0)
-                return false;
+               return false;
             if (x < 0 || x >= width || y < 0 || y >= height)
             {
                 throw new ArgumentOutOfRangeException("x or y out of buffer range");

@@ -71,7 +71,7 @@ namespace GraphicsLib.Shaders
             return vertex;
         }
 
-        public uint PixelShader(Vertex input)
+        public uint PixelShader(in Vertex input)
         {
             Vector3 finalColor = input.Color;
             return (uint)0xFF << 24

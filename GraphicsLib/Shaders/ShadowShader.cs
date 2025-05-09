@@ -58,7 +58,7 @@ namespace GraphicsLib.Shaders
             return vertex;
         }
 
-        public uint PixelShader(Vertex input)
+        public uint PixelShader(in Vertex input)
         {
             Vector2 uv = input.Uv;
             Material material = input.Material;

@@ -12,7 +12,7 @@ namespace GraphicsLib.Shaders
     public interface IShader<Vertex> where Vertex : IVertex<Vertex>
     {
         public Scene Scene { get; set; }
-        public uint PixelShader(Vertex input);
+        public uint PixelShader(in Vertex input);
         public Vertex GetVertexWithWorldPositionFromFace(Obj obj, int faceIndex, int vertexIndex);
         public Vertex GetVertexWithWorldPositionFromTriangle(Obj obj, int triangleIndex, int vertexIndex);
     }

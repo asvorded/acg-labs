@@ -7,7 +7,7 @@ namespace GraphicsLib.Types.GltfTypes
     public class GltfMesh
     {
         [JsonProperty("primitives")]
-        public required GtlfMeshPrimitive[] Primitives { get; set; }
+        public required GltfMeshPrimitive[] Primitives { get; set; }
         [JsonProperty("weights")]
         public float[]? Weights { get; set; }
         [JsonProperty("name")]
@@ -18,7 +18,7 @@ namespace GraphicsLib.Types.GltfTypes
         public object? Extras { get; set; }
     }
 
-    public class GtlfMeshPrimitive
+    public class GltfMeshPrimitive
     {
         [JsonProperty("attributes")]
         public required Dictionary<string, int> Attributes { get; set; }

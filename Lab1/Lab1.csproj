@@ -8,6 +8,7 @@
     <UseWPF>true</UseWPF>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <Platforms>AnyCPU;x64</Platforms>
+    <Configurations>Debug;Release;Profiling</Configurations>
   </PropertyGroup>
 
   <ItemGroup>

@@ -15,7 +15,7 @@ namespace GraphicsLib.Types.GltfTypes
         [JsonProperty("matrix")]
         public Matrix4x4? Matrix { get; set; }
         [JsonProperty("mesh")]
-        public int? Mesh { get; set; }
+        public int? MeshIndex { get; set; }
         [JsonProperty("rotation")]
         public Quaternion? Rotation { get; set; }
         [JsonProperty("scale")]
@@ -32,6 +32,10 @@ namespace GraphicsLib.Types.GltfTypes
         public object? Extras { get; set; }
         [JsonIgnore]
         public GltfNode? Parent { get; set; }
+        [JsonIgnore]
+        public GltfNode[]? ChildrenNodes { get; set; }
+        [JsonIgnore]
+        public GltfMesh? Mesh { get; set; }
         [JsonIgnore]
         public Matrix4x4 GlobalTransform { get => GetGlobalTransform(); }
         [JsonIgnore]

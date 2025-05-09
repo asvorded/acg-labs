@@ -125,7 +125,7 @@ namespace GraphicsLib.Shaders
             }
         }
 
-        public uint PixelShader(Vertex input)
+        public uint PixelShader(in Vertex input)
         {
             Material material = input.Material;
 

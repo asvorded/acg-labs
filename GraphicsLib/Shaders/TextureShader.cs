@@ -16,12 +16,10 @@ namespace GraphicsLib.Shaders
 
         public Scene Scene { get => scene; set => SetSceneParams(value); }
         private Matrix4x4 worldTransform;
-        private Matrix4x4 worldNormalTransform;
         private void SetSceneParams(Scene value)
         {
             scene = value;
             worldTransform = scene.Obj.transformation.Matrix;
-            worldNormalTransform = scene.Obj.transformation.NormalMatrix;
         }
 
         public TextureShader()
@@ -68,7 +66,7 @@ namespace GraphicsLib.Shaders
             return vertex;
         }
 
-        public uint PixelShader(Vertex input)
+        public uint PixelShader(in Vertex input)
         {
             Vector2 uv = input.Uv;
             Material material = input.Material;

@@ -2,10 +2,11 @@
 using SixLabors.ImageSharp.PixelFormats;
 using System.Configuration;
 using System.Numerics;
+using System.Runtime.Intrinsics.X86;
+using System.Runtime.Intrinsics;
 
 namespace GraphicsLib.Types
 {
-    //TODO: bake more
     public class Sampler
     {
         private int width;
@@ -16,10 +17,10 @@ namespace GraphicsLib.Types
         private readonly MagnificationFilterMode magnificationFilterMode;
         private readonly MinificationFilterMode minificationFilterMode;
 
-        public Sampler(WrappingMode uWrappingMode,
-            WrappingMode vWrappingMode,
-            MagnificationFilterMode magnificationFilterMode,
-            MinificationFilterMode minificationFilterMode)
+        public Sampler(WrappingMode uWrappingMode = WrappingMode.ClampToEdge,
+            WrappingMode vWrappingMode = WrappingMode.ClampToEdge,
+            MagnificationFilterMode magnificationFilterMode = MagnificationFilterMode.Nearest,
+            MinificationFilterMode minificationFilterMode = MinificationFilterMode.Nearest)
         {
             this.uWrappingMode = uWrappingMode;
             this.vWrappingMode = vWrappingMode;
@@ -125,15 +126,26 @@ namespace GraphicsLib.Types
                         int y1 = int.Clamp(y0 + 1, 0, width - 1);
                         float dx = uv.X * (width - 1) - x0;
                         float dy = uv.Y * (height - 1) - y0;
-                        Vector4 topLeft = ToUnscaledVector4(textureData[y0 * width + x0]);
-                        Vector4 topRight = ToUnscaledVector4(textureData[y0 * width + x1]);
-                        Vector4 bottomLeft = ToUnscaledVector4(textureData[y1 * width + x0]);
-                        Vector4 bottomRight = ToUnscaledVector4(textureData[y1 * width + x1]);
-                        Vector4 result = Vector4.Lerp(Vector4.Lerp(topLeft, topRight, dx), Vector4.Lerp(bottomLeft, bottomRight, dx), dy);
-                        result *= (1 / 255f);
-                        return result;
-                    }
-            }
+                        if (Sse41.IsSupported)
+                        {
+                            Vector4 topLeft = ToUnscaledSse41(textureData[y0 * width + x0]);
+                            Vector4 topRight = ToUnscaledSse41(textureData[y0 * width + x1]);
+                            Vector4 bottomLeft = ToUnscaledSse41(textureData[y1 * width + x0]);
+                            Vector4 bottomRight = ToUnscaledSse41(textureData[y1 * width + x1]);
+                            Vector4 result = Vector4.Lerp(Vector4.Lerp(topLeft, topRight, dx), Vector4.Lerp(bottomLeft, bottomRight, dx), dy);
+                            result *= (1 / 255f);
+                            return result;
+                        }
+                        else
+                        {
+                            Vector4 topLeft = ToUnscaledVector4(textureData[y0 * width + x0]);
+                            Vector4 topRight = ToUnscaledVector4(textureData[y0 * width + x1]);
+                            Vector4 bottomLeft = ToUnscaledVector4(textureData[y1 * width + x0]);
+                            Vector4 bottomRight = ToUnscaledVector4(textureData[y1 * width + x1]);
+                            Vector4 result = Vector4.Lerp(Vector4.Lerp(topLeft, topRight, dx), Vector4.Lerp(bottomLeft, bottomRight, dx), dy);
+                            result *= (1 / 255f);
+                            return result;
+                        }
                     }
             }
             int x2 = (int)(uv.X * (width - 1));
@@ -143,6 +155,11 @@ namespace GraphicsLib.Types
         static Vector4 ToUnscaledVector4(Rgba32 rgba)
         {
             return new Vector4(rgba.R, rgba.G, rgba.B, rgba.A);
+        }
+        static unsafe Vector4 ToUnscaledSse41(Rgba32 rgba)
+        {
+            Vector128<byte> vector = Vector128.Load<byte>((byte*)(&rgba));
+            return Sse42.ConvertToVector128Single(Sse42.ConvertToVector128Int32(vector)).AsVector4();
         }
     }
 }

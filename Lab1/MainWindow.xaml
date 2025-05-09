@@ -7,13 +7,16 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:system="clr-namespace:System;assembly=mscorlib"
     Title="MainWindow"
-    Width="1174"
+    Width="1490"
     Height="450"
     Keyboard.KeyDown="canvas_KeyDown"
     SizeChanged="Window_SizeChanged"
     ThemeMode="System"
     WindowState="Maximized"
     mc:Ignorable="d">
+    <Window.DataContext>
+        <local:MainWindowViewModel />
+    </Window.DataContext>
     <Window.Resources>
         <system:String x:Key="openString">Open File...</system:String>
         <system:String x:Key="fileString">File:</system:String>
@@ -23,6 +26,7 @@
         <system:String x:Key="mode_rotate">Rotate</system:String>
     </Window.Resources>
     <Grid>
+
         <Grid.RowDefinitions>
             <RowDefinition Height="40" />
             <RowDefinition />
@@ -30,12 +34,14 @@
         <DockPanel>
             <StackPanel HorizontalAlignment="Left" Orientation="Horizontal">
                 <Button
-                    Width="100"
-                    Height="30"
                     Margin="15,0,15,0"
                     HorizontalAlignment="Left"
                     Click="ButtonOpenFile_Click"
                     Content="{StaticResource openString}" />
+                <Button
+                    Height="28"
+                    Click="OpenPopupButton_Click"
+                    Content="Источники света" />
                 <CheckBox
                     Name="fixLightCheckBox"
                     Margin="5,0,5,0"
@@ -114,11 +120,19 @@
         <Border
             x:Name="canvas"
             Grid.Row="1"
-            Margin="10"
+            Margin="10,10,10,10"
             Background="Black"
             MouseDown="Window_MouseDown"
             MouseMove="Window_MouseMove"
             MouseUp="Window_MouseUp"
             PreviewMouseWheel="Window_MouseWheel" />
+        <Popup
+            Margin="100"
+            IsOpen="{Binding IsPopupOpen, UpdateSourceTrigger=PropertyChanged}"
+            Placement="Center"
+            StaysOpen="False">
+            <local:LightSourcesPopup DataContext="{Binding}" />
+        </Popup>
     </Grid>
+
 </Window>

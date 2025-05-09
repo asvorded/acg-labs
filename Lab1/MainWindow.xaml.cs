@@ -1,6 +1,7 @@
 ﻿using GraphicsLib;
 using GraphicsLib.Shaders;
 using GraphicsLib.Types;
+using GraphicsLib.Types2;
 using Microsoft.Win32;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -10,6 +11,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using static GraphicsLib.Types2.PbrShader;
 
 namespace Lab1
 {
@@ -18,6 +20,8 @@ namespace Lab1
     /// </summary>
     public partial class MainWindow : Window
     {
+        private MainWindowViewModel ViewModel => DataContext as MainWindowViewModel;
+
         private readonly OpenFileDialog ofd;
 
         private static Obj? obj;
@@ -26,7 +30,8 @@ namespace Lab1
         private Renderer renderer;
         private Point oldPos;
         private WriteableBitmap? bitmap;
-
+        private readonly ModelRenderer modelRenderer;
+        private ModelScene? modelScene;
         static MainWindow()
         {
             camera = new Camera();
@@ -48,11 +53,27 @@ namespace Lab1
             Height = SystemParameters.PrimaryScreenHeight / 1.25;
             Width = SystemParameters.PrimaryScreenWidth / 1.25;
             renderer = new Renderer(scene);
-#if DEBUG
+            modelRenderer = new ModelRenderer();
             DebugPanel.Visibility = Visibility.Visible;
-#else
-            DebugPanel.Visibility = Visibility.Visible;
-#endif
+            Stopwatch s = Stopwatch.StartNew();
+            Stopwatch s2 = new();
+            int frameCount = 0;
+            CompositionTarget.Rendering += (o, e) => {
+                double delta = s2.Elapsed.TotalSeconds;
+                s2.Restart();
+
+                //obj.Transformation.AngleY += (float)(speed * 5 * delta);
+                Draw();
+                frameCount++;
+
+                if (s.ElapsedMilliseconds >= 1000)
+                {
+                    DebugPanel.Text = frameCount.ToString();
+
+                    s.Restart();
+                    frameCount = 0;
+                }
+            };
         }
 
         private void OnFileOpened(object? sender, CancelEventArgs e)
@@ -60,12 +81,20 @@ namespace Lab1
             fileName.Text = string.Join(' ', Resources["fileString"].ToString(), ofd.SafeFileName);
             try
             {
-                if (System.IO.Path.GetExtension(ofd.FileName).Equals(".obj"))
+                /*if (System.IO.Path.GetExtension(ofd.FileName).Equals(".obj"))
                     obj = Parser.ParseObjFile(ofd.FileName);
-                else
-                    obj = Parser.ParseGltfFile(ofd.FileName);
-                obj.transformation.Reset();
-                scene.Obj = obj;
+                else*/
+                    //obj = Parser.ParseGltfFile(ofd.FileName
+                    {
+                        GraphicsLib.Types2.ModelScene scene = GraphicsLib.Types2.ModelParser.ParseGltfFile(ofd.FileName);
+                        scene.Camera = camera;
+                    camera.Polar = MathF.PI / 2;
+                    camera.Target = new Vector3(0, 1, 0);
+                        modelScene = scene;
+                    }
+
+                //obj.transformation.Reset();
+                //scene.Obj = obj;
             }
             catch (Exception ex)
             {
@@ -73,76 +102,35 @@ namespace Lab1
             }
             bitmap = new WriteableBitmap(
     ((int)canvas.ActualWidth), ((int)canvas.ActualHeight), 96, 96, PixelFormats.Bgra32, null);
-            Draw();
-
+            //Draw();
+            //ModelDraw();
         }
+        private void OpenPopupButton_Click(object sender, RoutedEventArgs e)
+        {
+            ViewModel.IsPopupOpen = true;
+        }
+        private void ModelDraw()
+        {
+            if(modelScene == null || bitmap == null)
+            {
+                return;
+            }
+            Stopwatch stopwatch = Stopwatch.StartNew();
+            camera.UpdateViewPort(bitmap.PixelWidth, bitmap.PixelHeight);
 
+            modelRenderer.Render<GraphicsLib.Types2.PbrShader, PbrVertex>(modelScene, bitmap);
+
+
+            bitmap.Lock();
+            bitmap.AddDirtyRect(new Int32Rect(0, 0, bitmap.PixelWidth, bitmap.PixelHeight));
+            bitmap.Unlock();
+            stopwatch.Stop();
+            DebugPanel.Text = $"{TimeSpan.TicksPerSecond / stopwatch.ElapsedTicks} fps / {stopwatch.ElapsedMilliseconds} ms";
+            canvas.Child = new Image { Source = bitmap };
+        }
         private void Draw()
         {
-            if (renderer == null || bitmap == null || obj == null)
-                return;
-            try
-            {
-                if (fixLightCheckBox.IsChecked == false)
-                    scene.LightPosition = camera.Position;
-                Stopwatch stopwatch = Stopwatch.StartNew();
-                renderer.Bitmap = bitmap;
-                camera.UpdateViewPort(bitmap.PixelWidth, bitmap.PixelHeight);
-                switch (renderMode)
-                {
-                    case "Wireframe":
-                        {
-                            bitmap = new WriteableBitmap(
-                ((int)canvas.ActualWidth), ((int)canvas.ActualHeight), 96, 96, PixelFormats.Bgra32, null);
-                renderer.Bitmap = bitmap;
-                            camera.UpdateViewPort(bitmap.PixelWidth, bitmap.PixelHeight);
-                            renderer.RenderWireframe();
-                        }
-                        break;
-                    case "Flat":
-                {
-                            bitmap = new WriteableBitmap(
-((int)canvas.ActualWidth), ((int)canvas.ActualHeight), 96, 96, PixelFormats.Bgra32, null);
-                            renderer.Bitmap = bitmap;
-                    camera.UpdateViewPort(bitmap.PixelWidth, bitmap.PixelHeight);
-                        renderer.RenderSolid();
-                        }
-                        break;
-                    case "Smooth":
-                        {
-                        renderer.Render<PhongShader, PhongShader.Vertex>();
-                        }
-                        break;
-                    case "Textured":
-                        {
-                            renderer.Render<PbrShader, PbrShader.Vertex>();
-                        }
-                        break;
-                    case "Deferred":
-                        {
-                        renderer.RenderDeferred();
-                }
-                        break;
-                    case "Shadows":
-                {
-                            renderer.RenderShadow();
-                        }
-                        break;
-                    default:
-                        break;
-                }
-                bitmap.Lock();
-                bitmap.AddDirtyRect(new Int32Rect(0, 0, bitmap.PixelWidth, bitmap.PixelHeight));
-                bitmap.Unlock();
-                stopwatch.Stop();
-                DebugPanel.Text = $"{TimeSpan.TicksPerSecond / stopwatch.ElapsedTicks} fps/ {stopwatch.ElapsedMilliseconds} ms";
-                canvas.Child = new Image { Source = bitmap };
-                renderer.Bitmap = null;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message);
-            }
+            ModelDraw();            
         }
 
         private void ButtonOpenFile_Click(object sender, RoutedEventArgs e)
@@ -181,7 +169,6 @@ namespace Lab1
                     camera.RotateAroundTargetHorizontal((float)(-dx * MathF.PI / canvas.ActualWidth));
                     camera.RotateAroundTargetVertical((float)(-dy * MathF.PI / canvas.ActualHeight));
                 }
-                Draw();
                 oldPos = newPos;
             }
             else
@@ -201,12 +188,10 @@ namespace Lab1
             float dz = (float)e.Delta;
             float step = Keyboard.Modifiers == ModifierKeys.Control ? 0.002f : 0.0005f;
             camera.MoveTowardTarget(dz * step * camera.Distance);
-            Draw();
         }
 
         private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            Draw();
         }
 
         private void canvas_GotMouseCapture(object sender, MouseEventArgs e) { }
@@ -227,7 +212,7 @@ namespace Lab1
                         break;
                     case "RenderingMode":
                         renderMode = ((RadioButton)sender).Content.ToString()!;
-                        Draw();
+                        //Draw();
                         break;
                 }
             }
@@ -339,7 +324,6 @@ namespace Lab1
                     speed *= camera.Distance / 500;
                 }
                 action();
-                Draw();
             }
         }
     }

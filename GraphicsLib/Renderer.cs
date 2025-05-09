@@ -15,11 +15,11 @@ namespace GraphicsLib
         private Vector4[] projectionSpaceBuffer;
         private int bufferLength;
         private Zbuffer? zBuffer;
-        private ZbufferV2? zBufferV2;
+        private ZBufferV2? zBufferV2;
         private GBuffer? gBuffer;
-        private ZbufferV2[] shadowMaps;
-        private static readonly int shadowMapWidth = 8196;
-        private static readonly int shadowMapHeight = 8196;
+        private ZBufferV2[] shadowMaps;
+        private static readonly int shadowMapWidth = 2048;
+        private static readonly int shadowMapHeight = 2048;
         public Renderer(Scene scene)
         {
             Scene = scene;
@@ -29,10 +29,10 @@ namespace GraphicsLib
             zBuffer = default;
             zBufferV2 = default;
             gBuffer = default;
-            shadowMaps = new ZbufferV2[6];
+            shadowMaps = new ZBufferV2[6];
             for (int i = 0; i < shadowMaps.Length; i++)
             {
-                shadowMaps[i] = new ZbufferV2(shadowMapWidth, shadowMapHeight);
+                shadowMaps[i] = new ZBufferV2(shadowMapWidth, shadowMapHeight);
             }
         }
         private void ResizeBuffer(Obj obj)
@@ -76,7 +76,7 @@ namespace GraphicsLib
             }
             if (zBufferV2 == null)
             {
-                zBufferV2 = new ZbufferV2(Bitmap.PixelWidth, Bitmap.PixelHeight);
+                zBufferV2 = new ZBufferV2(Bitmap.PixelWidth, Bitmap.PixelHeight);
             }
             else
             {
@@ -84,7 +84,7 @@ namespace GraphicsLib
                 int height = Bitmap.PixelHeight;
                 if (zBufferV2.Width != width && zBufferV2.Height != height)
                 {
-                    zBufferV2 = new ZbufferV2(Bitmap.PixelWidth, Bitmap.PixelHeight);
+                    zBufferV2 = new ZBufferV2(Bitmap.PixelWidth, Bitmap.PixelHeight);
                 }
                 else
                 {
@@ -485,7 +485,8 @@ namespace GraphicsLib
                 Scene.Camera = camera;
                 shadowMaps[i].Clear();
                 zBufferV2 = shadowMaps[i];
-                Pipeline<ShadowShader, ShadowShader.Vertex> pipeline = new(this);
+                //Pipeline<ShadowShader, ShadowShader.Vertex> pipeline = new(this);
+                Pipeline<OpaqueShadowShader, OpaqueShadowShader.Vertex> pipeline = new(this);
                 pipeline.Render();
             }
             zBufferV2 = originalZBufferV2;
@@ -585,7 +586,6 @@ namespace GraphicsLib
                     return;
                 ProjectTriangle(p0, p1, p2);
             }
-
             private void ProjectTriangle(Vertex p0, Vertex p1, Vertex p2)
             {
                 p0.Position = Vector4.Transform(p0.Position, projectionTransform);
@@ -593,7 +593,6 @@ namespace GraphicsLib
                 p2.Position = Vector4.Transform(p2.Position, projectionTransform);
                 CullAndClipTriangle(p0, p1, p2);
             }
-
             private void CullAndClipTriangle(in Vertex p0, in Vertex p1, in Vertex p2)
             {
                 //check if triangle is outside the view frustum
@@ -775,15 +774,13 @@ namespace GraphicsLib
                         if (renderer.zBufferV2!.Test(x, y, -lineInterpolant.Position.W))
                         {
                             Vertex correctedPoint = lineInterpolant * (1 / lineInterpolant.Position.W);
-                            renderer.zBufferV2.TestAndSet(x, y, -lineInterpolant.Position.W, shader.PixelShader(correctedPoint));
+                            uint color = shader.PixelShader(correctedPoint);
+                            renderer.zBufferV2.TestAndSet(x, y, -lineInterpolant.Position.W, color);
                         }
                     }
                 }
             }
         }
-
-
-
         public void RenderSolid()
         {
             if (Bitmap == null)

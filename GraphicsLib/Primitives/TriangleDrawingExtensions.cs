@@ -159,7 +159,7 @@ namespace GraphicsLib.Primitives
             }
 
         }
-        public static void FlushZBufferV2(this WriteableBitmap bitmap, ZbufferV2 zbufferV2)
+        public static void FlushZBufferV2(this WriteableBitmap bitmap, ZBufferV2 zbufferV2)
         {
             unsafe
             {

@@ -17,12 +17,12 @@ namespace GraphicsLib.Types
             Obj = obj;
         }
         public Vector3 AmbientColor { get; set; } = new(1f, 1f, 1f);
-        public float AmbientIntensity { get; set; } = 0.1f;
+        public float AmbientIntensity { get; set; } = 0.3f;
         public Vector3 baseDiffuseColor { get; set; } = new(0f, 0.5f, 1f);
         public float SpecularPower { get; set; } = 100f;
 
-        public Vector3 LightColor { get; set; } = new(1f, 1f, 1f);
-        public float LightIntensity { get; set; } = 0.9f;
-        public Vector3 LightPosition { get; set; } = new(000f, 1000f, 1000f);
+        public Vector3 LightColor { get; set; } = new(0.6f, 0.6f, 1f);
+        public float LightIntensity { get; set; } = 0.7f;
+        public Vector3 LightPosition { get; set; } = new(000f, 0000f, 100f);
     }
 }

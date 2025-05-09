@@ -1,0 +1,326 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Runtime.Intrinsics.X86;
+using System.Runtime.Intrinsics;
+using System.Text;
+using System.Threading.Tasks;
+using static GraphicsLib.Types2.PbrShader;
+using GraphicsLib.Types;
+using System.Windows.Media.Media3D;
+using Material = GraphicsLib.Types.Material;
+
+namespace GraphicsLib.Types2
+{
+    public unsafe class PbrShader : IModelShader<PbrVertex>
+    {
+        static Material? currentMaterial = null;
+        static Matrix4x4 worldTransformation = Matrix4x4.Identity;
+        static Matrix4x4 normalTransformation = Matrix4x4.Identity;
+        static Vector3 cameraPosition;
+        static Vector3 lightPosition;
+        static float lightIntensity;
+        static Vector3 ambientLightColor;
+        static float ambientLightIntensity;
+        static Vector3 lightColor;
+
+        static Vector3* positionsArray = null;
+        static Vector3* normalsArray = null;
+        static Vector2* uvsArray = null;
+        static Vector4* tangentsArray = null;
+        static Vector2* normalUvsArray = null;
+        static Vector2* roughnessMetallicUvsArray = null;
+
+        public static void BindPrimitive(in ModelPrimitive primitive, in Matrix4x4 transformation)
+        {
+            currentMaterial = primitive.Material;
+            worldTransformation = transformation;
+            Matrix4x4.Invert(transformation, out Matrix4x4 inverse);
+            normalTransformation = Matrix4x4.Transpose(inverse);
+            BindAttributes(primitive);
+        }
+        private static T* GetAttributePointer<T>(in ModelPrimitive primitive, string attributeName) where T : unmanaged
+        {
+            if (!primitive.AttributesOffsets.TryGetValue(attributeName, out short offset)){
+                return null;
+            }
+            if (offset == -1)
+            {
+                return null;
+            }
+            unsafe
+            {
+                float[] floatData = primitive.FloatData[offset];
+                fixed (float* dataPtr = floatData)
+                {
+                    return (T*)dataPtr;
+                }
+            }
+        }
+        public static void BindAttributes(in ModelPrimitive primitive)
+        {
+            unsafe
+            {
+                positionsArray = GetAttributePointer<Vector3>(primitive, "POSITION");
+                normalsArray = GetAttributePointer<Vector3>(primitive, "NORMAL");
+                uvsArray = GetAttributePointer<Vector2>(primitive, $"TEXCOORD_{currentMaterial!.baseColorCoordsIndex}");
+                tangentsArray = GetAttributePointer<Vector4>(primitive, "TANGENT");
+                normalUvsArray = GetAttributePointer<Vector2>(primitive, $"TEXCOORD_{currentMaterial!.normalCoordsIndex}");
+                roughnessMetallicUvsArray = GetAttributePointer<Vector2>(primitive, $"TEXCOORD_{currentMaterial!.metallicRoughnessCoordsIndex}");
+            }
+        }
+        public static void UnbindAttributes()
+        {
+            positionsArray = null;
+            normalsArray = null;
+            uvsArray = null;
+            tangentsArray = null;
+            normalUvsArray = null;
+            roughnessMetallicUvsArray = null;
+        }
+        public static void UnbindPrimitive()
+        {
+            currentMaterial = null;
+            UnbindAttributes();
+
+        }
+        public static void BindScene(in ModelScene scene)
+        {
+            cameraPosition = scene.Camera!.Position;
+            lightPosition = scene.Camera.Position;
+            lightIntensity = 0.8f;
+            lightColor = new Vector3(1f);
+            ambientLightColor = new Vector3(1f);
+            ambientLightIntensity = 0.2f;
+        }
+
+        public static Vector4 PixelShader(in PbrVertex input)
+        {
+            Vector4 diffuseColor = currentMaterial!.baseColor;
+            if (currentMaterial!.baseColorTextureSampler != null)
+            {
+                diffuseColor *= currentMaterial!.baseColorTextureSampler.Sample(input.Uv);
+            }
+            if(diffuseColor.W < 0.0001f)
+            {
+                return new Vector4(0);
+            }
+            Vector3 normal = Vector3.Normalize(input.Normal);
+            if (currentMaterial.normalTextureSampler != null)
+            {
+                float sign = input.Tangent.W;
+                Vector3 tangent = input.Tangent.AsVector3();
+                Vector3 tangentSpaceNormal = currentMaterial.normalTextureSampler.Sample(input.NormalUv).AsVector3();
+                //decode
+                tangentSpaceNormal = tangentSpaceNormal * 2 - new Vector3(1, 1, 1);
+                Vector3 bitangent = sign * Vector3.Cross(normal, tangent);
+                normal = Vector3.Normalize(tangent * tangentSpaceNormal.X + bitangent * tangentSpaceNormal.Y + normal * tangentSpaceNormal.Z);
+            }
+            //calculate all lighting related vectors
+            Vector3 viewDir = Vector3.Normalize(cameraPosition - input.WorldPosition);
+            Vector3 lightDir = Vector3.Normalize(lightPosition - input.WorldPosition);
+            Vector3 halfWayDir = Vector3.Normalize(lightDir + viewDir);
+            //calculate roughness and metallic
+            float roughness = currentMaterial.roughness;
+            float metallic = currentMaterial.metallic;
+            if (currentMaterial.metallicRoughnessTextureSampler != null)
+            {
+                Vector4 metallicRoughness = currentMaterial.metallicRoughnessTextureSampler.Sample(input.RoughnessMetallicUv);
+                roughness *= metallicRoughness.Y;
+                metallic *= metallicRoughness.Z;
+            }
+            float nDotL = Math.Max(Vector3.Dot(normal, lightDir), 0);
+            if (nDotL <= 0)
+            {
+                Vector3 ambient = Vector3.Clamp(diffuseColor.AsVector3() * ambientLightColor * ambientLightIntensity
+                                            , Vector3.Zero
+                                            , new Vector3(1));
+                return new Vector4(ambient, diffuseColor.W);
+            }
+            //calculate pbr lighting
+            Vector3 baseReflectivity = Vector3.Lerp(new Vector3(1.0f), diffuseColor.AsVector3(), metallic);
+            float nDotV = Math.Max(Vector3.Dot(normal, viewDir), 0);
+            float oneMinusNDotV = 1 - nDotV;
+            Vector3 fresnel = baseReflectivity + (new Vector3(1) - baseReflectivity) * (oneMinusNDotV * oneMinusNDotV * oneMinusNDotV * oneMinusNDotV * oneMinusNDotV);
+            Vector3 kSpecular = fresnel;
+            Vector3 kDiffuse = (new Vector3(1));/// - fresnel;
+            float alpha = roughness;
+            float alphaSqr = alpha * alpha;
+            float nDotH = Math.Max(Vector3.Dot(normal, halfWayDir), 0);
+            float denomPart = (alphaSqr - 1) * nDotH * nDotH + 1;
+            float normalDistribution = alphaSqr / MathF.Max((MathF.PI * denomPart * denomPart), 0.0001f);
+            float k = (alpha + 1) * (alpha + 1) * 0.125f;
+
+            float gl = MathF.ReciprocalEstimate(Math.Max((nDotL * (1 - k) + k), 0.001f));
+            float gv = MathF.ReciprocalEstimate(Math.Max((nDotV * (1 - k) + k), 0.001f));
+            float geometryShading = gl * gv;
+            Vector3 cookTorrance = kSpecular * (normalDistribution * geometryShading * 0.25f);
+            Vector3 diffuse = diffuseColor.AsVector3();
+            Vector3 bdfs = cookTorrance + (diffuse * kDiffuse);
+            Vector3 finalColor = Vector3.Clamp(bdfs * lightColor * (nDotL * lightIntensity)
+                            + diffuseColor.AsVector3() * ambientLightColor * ambientLightIntensity
+                            , Vector3.Zero
+                            , new Vector3(1));
+            return new Vector4(finalColor, diffuseColor.W);
+        }
+
+
+        public static PbrVertex VertexShader(in ModelPrimitive primitive, in int index)
+        {
+            int vertexDataIndex = primitive.Indices![index];
+            Vector3 position = Vector3.Transform(positionsArray[vertexDataIndex], worldTransformation);
+            return new PbrVertex()
+            {
+                Position = new Vector4(position, 1),
+                Normal = (normalsArray==null)? Vector3.Zero : Vector3.Normalize(Vector3.TransformNormal(normalsArray[vertexDataIndex], normalTransformation)),
+                WorldPosition = position,
+                Uv = (uvsArray==null)? Vector2.Zero : uvsArray[vertexDataIndex],
+                Tangent = (tangentsArray==null)? Vector4.Zero : tangentsArray[vertexDataIndex],
+                NormalUv = (normalUvsArray==null)? Vector2.Zero : normalUvsArray[vertexDataIndex],
+                RoughnessMetallicUv = (roughnessMetallicUvsArray==null)? Vector2.Zero : roughnessMetallicUvsArray[vertexDataIndex]
+            };
+        }
+
+        public struct PbrVertex : IVertex<PbrVertex>
+        {
+            public Vector4 Position { readonly get => position; set => position = value; }
+            public Vector4 Tangent { readonly get => tangent; set => tangent = value; }
+            public Vector3 Normal { readonly get => normal; set => normal = value; }
+            public Vector3 WorldPosition { readonly get => worldPosition; set => worldPosition = value; }
+            public Vector2 Uv { readonly get => uv; set => uv = value; }
+            public Vector2 NormalUv { readonly get => normalUv; set => normalUv = value; }
+            public Vector2 RoughnessMetallicUv { readonly get => roughnessMetallicUv; set => roughnessMetallicUv = value; }
+
+            private Vector4 position;
+            private Vector4 tangent;
+            private Vector3 normal;
+            private Vector3 worldPosition;
+            private Vector2 uv;
+            private Vector2 normalUv;
+            private Vector2 roughnessMetallicUv;
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public static PbrVertex Lerp(PbrVertex a, PbrVertex b, float t)
+            {
+                if (Avx2.IsSupported)
+                {
+                    return a * (1 - t) + b * t;
+                }
+                else
+                {
+                    return new PbrVertex
+                    {
+                        Position = Vector4.Lerp(a.Position, b.Position, t),
+                        normal = Vector3.Lerp(a.normal, b.normal, t),
+                        worldPosition = Vector3.Lerp(a.worldPosition, b.worldPosition, t),
+                        uv = Vector2.Lerp(a.uv, b.uv, t),
+                        tangent = Vector4.Lerp(a.tangent, b.tangent, t),
+                        normalUv = Vector2.Lerp(a.normalUv, b.normalUv, t),
+                        roughnessMetallicUv = Vector2.Lerp(a.roughnessMetallicUv, b.roughnessMetallicUv, t),
+                    };
+                }
+
+            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public static PbrVertex operator +(PbrVertex lhs, PbrVertex rhs)
+            {
+                if (Avx2.IsSupported)
+                {
+                    unsafe
+                    {
+                        PbrVertex vertex = default;
+                        Avx2.Store((float*)&vertex.position, Avx2.Add(Avx2.LoadVector256((float*)&lhs.position), Avx2.LoadVector256((float*)&rhs.position)));
+                        Avx2.Store((float*)&vertex.normal, Avx2.Add(Avx2.LoadVector256((float*)&lhs.normal), Avx2.LoadVector256((float*)&rhs.normal)));
+                        Avx2.Store((float*)&vertex.normalUv, Avx2.Add(Avx2.LoadVector128((float*)&lhs.normalUv), Avx2.LoadVector128((float*)&rhs.normalUv)));
+                        return vertex;
+                    }
+                }
+                else
+                {
+                    return new PbrVertex
+                    {
+                        Position = lhs.Position + rhs.Position,
+                        normal = lhs.normal + rhs.normal,
+                        worldPosition = lhs.worldPosition + rhs.worldPosition,
+                        uv = lhs.uv + rhs.uv,
+                        tangent = lhs.tangent + rhs.tangent,
+                        normalUv = lhs.normalUv + rhs.normalUv,
+                        roughnessMetallicUv = lhs.roughnessMetallicUv + rhs.roughnessMetallicUv,
+                    };
+
+                }
+
+            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public static PbrVertex operator -(PbrVertex lhs, PbrVertex rhs)
+            {
+                if (Avx2.IsSupported)
+                {
+                    unsafe
+                    {
+                        PbrVertex vertex = default;
+                        Avx2.Store((float*)&vertex.position, Avx2.Subtract(Avx2.LoadVector256((float*)&lhs.position), Avx2.LoadVector256((float*)&rhs.position)));
+                        Avx2.Store((float*)&vertex.normal, Avx2.Subtract(Avx2.LoadVector256((float*)&lhs.normal), Avx2.LoadVector256((float*)&rhs.normal)));
+                        Avx2.Store((float*)&vertex.normalUv, Avx2.Subtract(Avx2.LoadVector128((float*)&lhs.normalUv), Avx2.LoadVector128((float*)&rhs.normalUv)));
+                        return vertex;
+                    }
+                }
+                else
+                {
+                    return new PbrVertex
+                    {
+                        Position = lhs.Position - rhs.Position,
+                        normal = lhs.normal - rhs.normal,
+                        worldPosition = lhs.worldPosition - rhs.worldPosition,
+                        uv = lhs.uv - rhs.uv,
+                        tangent = lhs.tangent - rhs.tangent,
+                        normalUv = lhs.normalUv - rhs.normalUv,
+                        roughnessMetallicUv = lhs.roughnessMetallicUv - rhs.roughnessMetallicUv,
+                    };
+                }
+            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public static PbrVertex operator *(PbrVertex lhs, float scalar)
+            {
+                if (Avx2.IsSupported)
+                {
+                    unsafe
+                    {
+                        PbrVertex vertex = default;
+                        Vector256<float> multiplier = Avx2.BroadcastScalarToVector256(&scalar);
+                        Avx2.Store((float*)&vertex.position, Avx2.Multiply(Avx2.LoadVector256((float*)&lhs.position), multiplier));
+                        Avx2.Store((float*)&vertex.normal, Avx2.Multiply(Avx2.LoadVector256((float*)&lhs.normal), multiplier));
+                        Avx2.Store((float*)&vertex.normalUv, Avx2.Multiply(Avx2.LoadVector128((float*)&lhs.normalUv), multiplier.GetLower()));
+                        return vertex;
+                    }
+                }
+                else
+                {
+                    return new PbrVertex
+                    {
+                        Position = lhs.Position * scalar,
+                        normal = lhs.normal * scalar,
+                        worldPosition = lhs.worldPosition * scalar,
+                        uv = lhs.uv * scalar,
+                        tangent = lhs.tangent * scalar,
+                        normalUv = lhs.normalUv * scalar,
+                        roughnessMetallicUv = lhs.roughnessMetallicUv * scalar,
+                    };
+                }
+            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public static PbrVertex operator *(float scalar, PbrVertex rhs)
+            {
+                return rhs * scalar;
+            }
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public static PbrVertex operator /(PbrVertex lhs, float scalar)
+            {
+                return lhs * (1 / scalar);
+            }
+        }
+    }
+    
+}
