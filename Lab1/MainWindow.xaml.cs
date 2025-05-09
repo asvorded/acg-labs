@@ -63,7 +63,15 @@ namespace Lab1
             Dispatcher.Hooks.DispatcherInactive += (o, e) => {
                 double delta = s2.Elapsed.TotalMilliseconds;
                 s2.Restart();
-                ModelDraw((float)elapsed.Elapsed.TotalSeconds);
+                if (pause)
+                {
+                    elapsed.Stop();
+                }
+                else
+                {
+                    elapsed.Start();
+                }
+                    ModelDraw((float)elapsed.Elapsed.TotalSeconds);
                 frameCount++;
                 DebugPanel.Text = $"fps {currentFrameCount} time {(int)(delta)}";
                 if (s.ElapsedMilliseconds >= 1000)
@@ -209,7 +217,7 @@ namespace Lab1
             }
 
         }
-
+        private static bool pause = false;
         private static float speed = 4f;
         private Dictionary<Key, Action> moveActions = new() {
             {
@@ -231,6 +239,12 @@ namespace Lab1
                             obj.transformation.Offset.Y += speed;
                     }
 
+                }
+            },
+            {
+                Key.Q, () =>
+                {
+                    pause = !pause;
                 }
             },
             {
