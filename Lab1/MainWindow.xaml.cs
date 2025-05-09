@@ -57,19 +57,18 @@ namespace Lab1
             DebugPanel.Visibility = Visibility.Visible;
             Stopwatch s = Stopwatch.StartNew();
             Stopwatch s2 = new();
+            Stopwatch elapsed = Stopwatch.StartNew();
             int frameCount = 0;
-            CompositionTarget.Rendering += (o, e) => {
-                double delta = s2.Elapsed.TotalSeconds;
+            int currentFrameCount = 0;
+            Dispatcher.Hooks.DispatcherInactive += (o, e) => {
+                double delta = s2.Elapsed.TotalMilliseconds;
                 s2.Restart();
-
-                //obj.Transformation.AngleY += (float)(speed * 5 * delta);
-                Draw();
+                ModelDraw((float)elapsed.Elapsed.TotalSeconds);
                 frameCount++;
-
+                DebugPanel.Text = $"fps {currentFrameCount} time {(int)(delta)}";
                 if (s.ElapsedMilliseconds >= 1000)
                 {
-                    DebugPanel.Text = frameCount.ToString();
-
+                    currentFrameCount = frameCount;
                     s.Restart();
                     frameCount = 0;
                 }
@@ -81,35 +80,25 @@ namespace Lab1
             fileName.Text = string.Join(' ', Resources["fileString"].ToString(), ofd.SafeFileName);
             try
             {
-                /*if (System.IO.Path.GetExtension(ofd.FileName).Equals(".obj"))
-                    obj = Parser.ParseObjFile(ofd.FileName);
-                else*/
-                    //obj = Parser.ParseGltfFile(ofd.FileName
-                    {
-                        GraphicsLib.Types2.ModelScene scene = GraphicsLib.Types2.ModelParser.ParseGltfFile(ofd.FileName);
-                        scene.Camera = camera;
-                    camera.Polar = MathF.PI / 2;
-                    camera.Target = new Vector3(0, 1, 0);
-                        modelScene = scene;
-                    }
-
-                //obj.transformation.Reset();
-                //scene.Obj = obj;
+                GraphicsLib.Types2.ModelScene scene = GraphicsLib.Types2.ModelParser.ParseGltfFile(ofd.FileName);
+                scene.Camera = camera;
+                camera.Polar = MathF.PI / 2;
+                camera.Target = new Vector3(0, 1, 0);
+                modelScene = scene;
             }
             catch (Exception ex)
             {
                 MessageBox.Show(ex.Message);
             }
             bitmap = new WriteableBitmap(
-    ((int)canvas.ActualWidth), ((int)canvas.ActualHeight), 96, 96, PixelFormats.Bgra32, null);
-            //Draw();
-            //ModelDraw();
+                    ((int)canvas.ActualWidth), ((int)canvas.ActualHeight), 96, 96, PixelFormats.Bgra32, null);
+            ForcedDraw();
         }
         private void OpenPopupButton_Click(object sender, RoutedEventArgs e)
         {
             ViewModel.IsPopupOpen = true;
         }
-        private void ModelDraw()
+        private void ModelDraw(float secondsElapsed)
         {
             if(modelScene == null || bitmap == null)
             {
@@ -117,7 +106,7 @@ namespace Lab1
             }
             Stopwatch stopwatch = Stopwatch.StartNew();
             camera.UpdateViewPort(bitmap.PixelWidth, bitmap.PixelHeight);
-
+            ModelRenderer.TimeElapsed = secondsElapsed;
             modelRenderer.Render<GraphicsLib.Types2.PbrShader, PbrVertex>(modelScene, bitmap);
 
 
@@ -125,12 +114,12 @@ namespace Lab1
             bitmap.AddDirtyRect(new Int32Rect(0, 0, bitmap.PixelWidth, bitmap.PixelHeight));
             bitmap.Unlock();
             stopwatch.Stop();
-            DebugPanel.Text = $"{TimeSpan.TicksPerSecond / stopwatch.ElapsedTicks} fps / {stopwatch.ElapsedMilliseconds} ms";
+            //DebugPanel.Text = $"{TimeSpan.TicksPerSecond / stopwatch.ElapsedTicks} fps / {stopwatch.ElapsedMilliseconds} ms";
             canvas.Child = new Image { Source = bitmap };
         }
-        private void Draw()
+        private void ForcedDraw()
         {
-            ModelDraw();            
+            //ModelDraw(0);            
         }
 
         private void ButtonOpenFile_Click(object sender, RoutedEventArgs e)
@@ -169,6 +158,7 @@ namespace Lab1
                     camera.RotateAroundTargetHorizontal((float)(-dx * MathF.PI / canvas.ActualWidth));
                     camera.RotateAroundTargetVertical((float)(-dy * MathF.PI / canvas.ActualHeight));
                 }
+                ForcedDraw();
                 oldPos = newPos;
             }
             else
@@ -188,6 +178,7 @@ namespace Lab1
             float dz = (float)e.Delta;
             float step = Keyboard.Modifiers == ModifierKeys.Control ? 0.002f : 0.0005f;
             camera.MoveTowardTarget(dz * step * camera.Distance);
+            ForcedDraw();
         }
 
         private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
@@ -212,7 +203,7 @@ namespace Lab1
                         break;
                     case "RenderingMode":
                         renderMode = ((RadioButton)sender).Content.ToString()!;
-                        //Draw();
+                        ForcedDraw();
                         break;
                 }
             }
@@ -325,6 +316,7 @@ namespace Lab1
                 }
                 action();
             }
+            ForcedDraw();
         }
     }
 }

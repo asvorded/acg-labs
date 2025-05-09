@@ -64,14 +64,16 @@ namespace GraphicsLib.Types2
                 var attributes = p.Attributes.Select<KeyValuePair<string, int>, KeyValuePair<string, GltfAccessor>>(a => new(a.Key, p.Root!.Accessors![a.Value])).ToDictionary();
                 Dictionary<string, short> attributesOffsets = [];
                 List<float[]> floatData = [];
+                int vertexCount = 0;
                 foreach (var attribute in attributes)
                 {
                     floatData.Add(GltfUtils.GetAccessorData<float>(attribute.Value));
+                    vertexCount = Math.Max(vertexCount, attribute.Value.Count);
                     attributesOffsets.Add(attribute.Key, (short)(floatData.Count - 1));
                 }
                 primitives[i] = new ModelPrimitive()
                 {
-
+                    VertexCount = vertexCount,
                     Indices = p.PointIndices,
                     Material = p.Material.HasValue ? materialsList[p.Material.Value] : Material.defaultMaterial,
                     Mode = p.Mode,
@@ -129,6 +131,10 @@ namespace GraphicsLib.Types2
                 {
                     modelNode.Scale = gltfNode.Scale.Value;
                 }
+            }
+            if(gltfNode.Animations != null)
+            {
+                modelNode.Animations = [.. gltfNode.Animations.Select(a => ModelAnimation.FromGltfAnimation(a))];
             }
             return modelNode;
         }

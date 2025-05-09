@@ -37,6 +37,8 @@ namespace GraphicsLib.Types.GltfTypes
         [JsonIgnore]
         public GltfMesh? Mesh { get; set; }
         [JsonIgnore]
+        public List<GltfAnimationChannel>? Animations { get; set; }
+        [JsonIgnore]
         public Matrix4x4 GlobalTransform { get => GetGlobalTransform(); }
         [JsonIgnore]
         public Matrix4x4 LocalTransform { get => GetLocalTransform(); }

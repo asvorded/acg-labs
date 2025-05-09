@@ -122,6 +122,32 @@ namespace GraphicsLib.Types.GltfTypes
                     }
                 }
             }
+            if(gltfRoot.Animations != null)
+            {
+                foreach (var animation in gltfRoot.Animations)
+                {
+                    if (animation.Channels != null)
+                    {
+                        foreach (var channel in animation.Channels)
+                        {
+                            channel.GltfAnimationSampler = animation.Samplers![channel.Sampler];
+                            int nodeIndex = channel.Target.Node!.Value;
+                            if (gltfRoot.Nodes![nodeIndex].Animations == null)
+                            {
+                                gltfRoot.Nodes[nodeIndex].Animations = [];
+                            }
+                            gltfRoot.Nodes[nodeIndex].Animations!.Add(channel);
+                        }
+                    }
+                    if(animation.Samplers != null)
+                    {
+                        foreach (var sampler in animation.Samplers)
+                        {
+                            sampler.Root = gltfRoot;
+                        }
+                    }
+                }
+            }
         }
 
 

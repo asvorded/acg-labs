@@ -17,6 +17,8 @@ namespace GraphicsLib.Types2
         public Vector3 Translation { get => translation; set { translation = value; UpdateMatrix(); } }
         public Matrix4x4 TransformationMatrix { get => transformationMatrix; set { transformationMatrix = value; UpdateTransformationComponentsFromMatrix(); } }
         public Matrix4x4 NormalTransformationMatrix { get => normalTransformationMatrix; set { normalTransformationMatrix = value; UpdateTransformationComponentsFromNormalMatrix(); } }
+        
+        public ModelAnimation[]? Animations { get; set; }
         private void UpdateMatrix()
         {
             var transform = Matrix4x4.Identity;

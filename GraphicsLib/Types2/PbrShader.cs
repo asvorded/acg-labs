@@ -167,9 +167,8 @@ namespace GraphicsLib.Types2
         }
 
 
-        public static PbrVertex VertexShader(in ModelPrimitive primitive, in int index)
+        public static PbrVertex VertexShader(in ModelPrimitive primitive, in int vertexDataIndex)
         {
-            int vertexDataIndex = primitive.Indices![index];
             Vector3 position = Vector3.Transform(positionsArray[vertexDataIndex], worldTransformation);
             return new PbrVertex()
             {

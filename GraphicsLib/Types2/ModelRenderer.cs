@@ -1,6 +1,7 @@
 ﻿using GraphicsLib.Primitives;
 using GraphicsLib.Shaders;
 using GraphicsLib.Types;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Numerics;
 using System.Windows;
@@ -14,7 +15,7 @@ namespace GraphicsLib.Types2
         private static readonly Queue<(Matrix4x4 Transform, ModelPrimitive Primitive)> nonOpaqueQueue = [];
 
         private static readonly ConcurrentDictionary<(Type, Type), object> pipelineCache = [];
-         
+        public static float TimeElapsed { get; set; } = 0;
         public void Render<Shader, Vertex>(in ModelScene scene,in WriteableBitmap Bitmap) where Shader : IModelShader<Vertex>, new() where Vertex : struct, IVertex<Vertex>
         {
             if (scene.RootModelNodes == null || scene.RootModelNodes.Length == 0 || scene.Camera == null)
@@ -48,9 +49,17 @@ namespace GraphicsLib.Types2
             pipeline.Render(primitive);
             Shader.UnbindPrimitive();
         }
-        private static void RenderOpaqueRecursive<Shader, Vertex>(in Pipeline<Shader,Vertex> pipeline, in ModelNode node,in Matrix4x4 transform) where Shader : IModelShader<Vertex>, new() where Vertex : struct, IVertex<Vertex>
+        private static void RenderOpaqueRecursive<Shader, Vertex>(in Pipeline<Shader,Vertex> pipeline, in ModelNode node,in Matrix4x4 parentTransform) where Shader : IModelShader<Vertex>, new() where Vertex : struct, IVertex<Vertex>
         {
-            Matrix4x4 currentTransformation = node.TransformationMatrix * transform;
+            Matrix4x4 currentTransformation = node.TransformationMatrix;
+            if (node.Animations != null)
+            {
+                foreach (var animation in node.Animations)
+                {
+                    currentTransformation = animation.Apply(currentTransformation, TimeElapsed);
+                }
+            }
+            currentTransformation *= parentTransform;
             if (node.ChildNodes != null)
             {
                 foreach (var child in node.ChildNodes)
@@ -104,7 +113,7 @@ namespace GraphicsLib.Types2
             private readonly Plane[] worldSpacevViewFrustumPlanes = new Plane[6];
             private int screenHeight;
             private int screenWidth;
-
+            private Vertex[]? verticesBuffer = null;
             public void BindScene(ModelScene scene)
             {
                 Scene = scene;
@@ -227,58 +236,91 @@ namespace GraphicsLib.Types2
                 }
                 return true;
             }
+            private ParallelOptions RenderLoopParallelOptions { get; set; } = new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount * 2};
             public void Render(ModelPrimitive primitive)
             {
-                currentPrimitive = primitive;
+                PreprocessVertices(primitive);
                 switch (primitive.Mode)
                 {
                     case Types.GltfTypes.GltfMeshMode.TRIANGLES:
                         {
-                            Parallel.For(0, primitive.Indices!.Length / 3, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount * 4}, AssembleTriangle);
+                            Parallel.For(0, primitive.Indices!.Length / 3, RenderLoopParallelOptions, AssembleTriangle);
                         }
                         break;
                     case Types.GltfTypes.GltfMeshMode.TRIANGLE_STRIP:
                         {
-                            Parallel.For(0, primitive.Indices!.Length - 2, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount * 4 }, AssembleTriangleStrip);
+                            Parallel.For(0, primitive.Indices!.Length - 2, RenderLoopParallelOptions, AssembleTriangleStrip);
                         }
                         break;
                     case Types.GltfTypes.GltfMeshMode.TRIANGLE_FAN:
                         {
-                            Parallel.For(2, primitive.Indices!.Length - 2, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount * 4 }, AssembleTriangleFan);
+                            Parallel.For(2, primitive.Indices!.Length - 2, RenderLoopParallelOptions, AssembleTriangleFan);
                         }
                         break;
                 }
-                currentPrimitive = null;            
+                CleanUpVertices();
+            }
+            private ParallelOptions PreprocessLoopParallelOptions { get; set; } = new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount };
+
+            private void PreprocessVertices(ModelPrimitive primitive)
+            {
+                currentPrimitive = primitive;
+                ArrayPool<Vertex> arrayPool = ArrayPool<Vertex>.Shared;
+                int verticesCount = currentPrimitive.VertexCount;
+                verticesBuffer = arrayPool.Rent(verticesCount);
+                PreprocessLoopParallelOptions.MaxDegreeOfParallelism = Math.Min(verticesCount / 128 + 1, Environment.ProcessorCount);
+
+                if (verticesCount > 128)
+                {
+                    Parallel.For(0, verticesCount, PreprocessLoopParallelOptions, i =>
+                        verticesBuffer[i] = Shader.VertexShader(currentPrimitive, i)
+                    );
+                }
+                else
+                {
+                    for (int i = 0; i < verticesCount; i++)
+                    {
+                        verticesBuffer[i] = Shader.VertexShader(currentPrimitive, i);
+                    }
+                }
+        
+            }
+            private void CleanUpVertices()
+            {
+                currentPrimitive = null;
+                ArrayPool<Vertex> arrayPool = ArrayPool<Vertex>.Shared;
+                arrayPool.Return(verticesBuffer!);
+                verticesBuffer = null;
             }
             private void AssembleTriangle(int i)
             {
-                Vertex p0 = Shader.VertexShader(currentPrimitive!, 3 * i);
-                Vertex p1 = Shader.VertexShader(currentPrimitive!, 3 * i + 1);
-                Vertex p2 = Shader.VertexShader(currentPrimitive!, 3 * i + 2);
+                Vertex p0 = verticesBuffer![currentPrimitive!.Indices![3 * i]];
+                Vertex p1 = verticesBuffer[currentPrimitive!.Indices![3 * i + 1]];
+                Vertex p2 = verticesBuffer[currentPrimitive!.Indices![3 * i + 2]];
                 MoveTriangleToCameraSpace(ref p0, ref p1, ref p2);
             }
             private void AssembleTriangleStrip(int i)
             {
                 if(i % 2 == 1)
                 {
-                    Vertex p0 = Shader.VertexShader(currentPrimitive!, i);
-                    Vertex p1 = Shader.VertexShader(currentPrimitive!, i + 1);
-                    Vertex p2 = Shader.VertexShader(currentPrimitive!, i + 2);
+                    Vertex p0 = verticesBuffer![currentPrimitive!.Indices![i]];
+                    Vertex p1 = verticesBuffer[currentPrimitive!.Indices![i + 1]];
+                    Vertex p2 = verticesBuffer[currentPrimitive!.Indices![i + 2]];
                     MoveTriangleToCameraSpace(ref p0, ref p1, ref p2);
                 }
                 else
                 {
-                    Vertex p0 = Shader.VertexShader(currentPrimitive!, i + 1);
-                    Vertex p1 = Shader.VertexShader(currentPrimitive!, i);
-                    Vertex p2 = Shader.VertexShader(currentPrimitive!, i + 2);
+                    Vertex p1 = verticesBuffer![currentPrimitive!.Indices![i + 1]];
+                    Vertex p0 = verticesBuffer[currentPrimitive!.Indices![i]];
+                    Vertex p2 = verticesBuffer[currentPrimitive!.Indices![i + 2]];
                     MoveTriangleToCameraSpace(ref p0, ref p1, ref p2);
                 }
             }
             private void AssembleTriangleFan(int i)
             {
-                Vertex p0 = Shader.VertexShader(currentPrimitive!, 0);
-                Vertex p1 = Shader.VertexShader(currentPrimitive!, i + 1);
-                Vertex p2 = Shader.VertexShader(currentPrimitive!, i + 2);
+                Vertex p1 = verticesBuffer![currentPrimitive!.Indices![0]];
+                Vertex p0 = verticesBuffer[currentPrimitive!.Indices![i + 1]];
+                Vertex p2 = verticesBuffer[currentPrimitive!.Indices![i + 2]];
                 MoveTriangleToCameraSpace(ref p0, ref p1, ref p2);
             }
             private void MoveTriangleToCameraSpace(ref Vertex p0, ref Vertex p1, ref Vertex p2)

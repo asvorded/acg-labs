@@ -9,8 +9,9 @@ namespace GraphicsLib.Types2
         public static abstract void BindPrimitive(in ModelPrimitive primitive, in Matrix4x4 transformation);
         public static abstract void UnbindPrimitive();
         public static abstract Vector4 PixelShader(in Vertex input);
-        public static abstract Vertex VertexShader(in ModelPrimitive primitive,in int index);
-        
+        public static abstract Vertex VertexShader(in ModelPrimitive primitive, in int vertexDataIndex);
+
+
     }
     public interface IVertex<T> where T : IVertex<T>
     {
