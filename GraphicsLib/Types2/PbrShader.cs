@@ -17,6 +17,7 @@ namespace GraphicsLib.Types2
     public unsafe class PbrShader : IModelShader<PbrVertex>
     {
         static Material? currentMaterial = null;
+        static ModelSkin? currentSkin = null;
         static Matrix4x4 worldTransformation = Matrix4x4.Identity;
         static Matrix4x4 normalTransformation = Matrix4x4.Identity;
         static Vector3 cameraPosition;
@@ -32,7 +33,30 @@ namespace GraphicsLib.Types2
         static Vector4* tangentsArray = null;
         static Vector2* normalUvsArray = null;
         static Vector2* roughnessMetallicUvsArray = null;
+        static ushort* jointsArray = null;
+        static float* weightsArray = null;
 
+        public static void BindScene(in ModelScene scene)
+        {
+            cameraPosition = scene.Camera!.Position;
+            lightPosition = scene.Camera.Position;
+            lightIntensity = 0.8f;
+            lightColor = new Vector3(1f);
+            ambientLightColor = new Vector3(1f);
+            ambientLightIntensity = 0.2f;
+        }
+        public static void UnbindScene()
+        {
+            // no action needed
+        }
+        public static void BindSkin(in ModelSkin skin)
+        {
+            currentSkin = skin;
+        }
+        public static void UnbindSkin()
+        {
+            currentSkin = null;
+        }
         public static void BindPrimitive(in ModelPrimitive primitive, in Matrix4x4 transformation)
         {
             currentMaterial = primitive.Material;
@@ -40,6 +64,11 @@ namespace GraphicsLib.Types2
             Matrix4x4.Invert(transformation, out Matrix4x4 inverse);
             normalTransformation = Matrix4x4.Transpose(inverse);
             BindAttributes(primitive);
+        }
+        public static void UnbindPrimitive()
+        {
+            UnbindAttributes();
+            currentMaterial = null;      
         }
         private static T* GetAttributePointer<T>(in ModelPrimitive primitive, string attributeName) where T : unmanaged
         {
@@ -59,7 +88,7 @@ namespace GraphicsLib.Types2
                 }
             }
         }
-        public static void BindAttributes(in ModelPrimitive primitive)
+        private static void BindAttributes(in ModelPrimitive primitive)
         {
             unsafe
             {
@@ -69,9 +98,22 @@ namespace GraphicsLib.Types2
                 tangentsArray = GetAttributePointer<Vector4>(primitive, "TANGENT");
                 normalUvsArray = GetAttributePointer<Vector2>(primitive, $"TEXCOORD_{currentMaterial!.normalCoordsIndex}");
                 roughnessMetallicUvsArray = GetAttributePointer<Vector2>(primitive, $"TEXCOORD_{currentMaterial!.metallicRoughnessCoordsIndex}");
+                jointsArray = GetJointsPointer(primitive);
+                weightsArray = GetAttributePointer<float>(primitive, "WEIGHTS_0");
             }
         }
-        public static void UnbindAttributes()
+        private static ushort* GetJointsPointer(in ModelPrimitive primitive)
+        {
+            if(primitive.Joints == null || primitive.Joints.Length == 0)
+            {
+                return null;
+            }
+            fixed(ushort* jointsPtr = primitive.Joints[0])
+            {
+                return jointsPtr;
+            }
+        }
+        private static void UnbindAttributes()
         {
             positionsArray = null;
             normalsArray = null;
@@ -79,22 +121,7 @@ namespace GraphicsLib.Types2
             tangentsArray = null;
             normalUvsArray = null;
             roughnessMetallicUvsArray = null;
-        }
-        public static void UnbindPrimitive()
-        {
-            currentMaterial = null;
-            UnbindAttributes();
-
-        }
-        public static void BindScene(in ModelScene scene)
-        {
-            cameraPosition = scene.Camera!.Position;
-            lightPosition = scene.Camera.Position;
-            lightIntensity = 0.8f;
-            lightColor = new Vector3(1f);
-            ambientLightColor = new Vector3(1f);
-            ambientLightIntensity = 0.2f;
-        }
+        }       
 
         public static Vector4 PixelShader(in PbrVertex input)
         {
@@ -169,18 +196,48 @@ namespace GraphicsLib.Types2
 
         public static PbrVertex VertexShader(in ModelPrimitive primitive, in int vertexDataIndex)
         {
-            Vector3 position = Vector3.Transform(positionsArray[vertexDataIndex], worldTransformation);
+            Vector4 initialPosition = new Vector4(positionsArray[vertexDataIndex], 1);
+            Vector3 initialNormal = (normalsArray==null)? Vector3.Zero : normalsArray[vertexDataIndex];
+            Vector4 initialTangent = (tangentsArray==null)? Vector4.Zero : tangentsArray[vertexDataIndex];
+            float tangentDir = initialTangent.W;
+            if (currentSkin != null)
+            {
+                initialPosition = weightsArray[vertexDataIndex * 4] * Vector4.Transform(initialPosition, GetInversedBoneTransform(jointsArray[vertexDataIndex * 4])) +
+                    weightsArray[vertexDataIndex * 4 + 1] * Vector4.Transform(initialPosition, GetInversedBoneTransform(jointsArray[vertexDataIndex * 4 + 1])) +
+                    weightsArray[vertexDataIndex * 4 + 2] * Vector4.Transform(initialPosition, GetInversedBoneTransform(jointsArray[vertexDataIndex * 4 + 2])) +
+                    weightsArray[vertexDataIndex * 4 + 3] * Vector4.Transform(initialPosition, GetInversedBoneTransform(jointsArray[vertexDataIndex * 4 + 3]));
+                initialNormal = Vector3.Normalize(Vector3.TransformNormal(initialNormal, GetInversedBoneTransform(jointsArray[vertexDataIndex * 4])) * weightsArray[vertexDataIndex * 4] +
+                    Vector3.TransformNormal(initialNormal, GetInversedBoneTransform(jointsArray[vertexDataIndex * 4 + 1])) * weightsArray[vertexDataIndex * 4 + 1] +
+                    Vector3.TransformNormal(initialNormal, GetInversedBoneTransform(jointsArray[vertexDataIndex * 4 + 2])) * weightsArray[vertexDataIndex * 4 + 2] +
+                    Vector3.TransformNormal(initialNormal, GetInversedBoneTransform(jointsArray[vertexDataIndex * 4 + 3])) * weightsArray[vertexDataIndex * 4 + 3]);
+                Vector3 tangent = new Vector3(initialTangent.X, initialTangent.Y, initialTangent.Z);
+                tangent = Vector3.Normalize(Vector3.TransformNormal(tangent, GetInversedBoneTransform(jointsArray[vertexDataIndex * 4])) * weightsArray[vertexDataIndex * 4] +
+                    Vector3.TransformNormal(tangent, GetInversedBoneTransform(jointsArray[vertexDataIndex * 4 + 1])) * weightsArray[vertexDataIndex * 4 + 1] +
+                    Vector3.TransformNormal(tangent, GetInversedBoneTransform(jointsArray[vertexDataIndex * 4 + 2])) * weightsArray[vertexDataIndex * 4 + 2] +
+                    Vector3.TransformNormal(tangent, GetInversedBoneTransform(jointsArray[vertexDataIndex * 4 + 3])) * weightsArray[vertexDataIndex * 4 + 3]);
+                initialTangent = new Vector4(tangent.X, tangent.Y, tangent.Z, tangentDir);
+            }
+            Vector4 worldPosition = Vector4.Transform(initialPosition, worldTransformation);
+            Vector3 worldNormal = Vector3.Transform(initialNormal, normalTransformation);
+            Vector4 worldTangent = new Vector4(Vector3.TransformNormal(initialTangent.AsVector3(), worldTransformation), tangentDir);
             return new PbrVertex()
             {
-                Position = new Vector4(position, 1),
-                Normal = (normalsArray==null)? Vector3.Zero : Vector3.Normalize(Vector3.TransformNormal(normalsArray[vertexDataIndex], normalTransformation)),
-                WorldPosition = position,
+                Position = worldPosition,
+                Normal = worldNormal,
+                WorldPosition = worldPosition.AsVector3(),
                 Uv = (uvsArray==null)? Vector2.Zero : uvsArray[vertexDataIndex],
-                Tangent = (tangentsArray==null)? Vector4.Zero : tangentsArray[vertexDataIndex],
+                Tangent = worldTangent,
                 NormalUv = (normalUvsArray==null)? Vector2.Zero : normalUvsArray[vertexDataIndex],
                 RoughnessMetallicUv = (roughnessMetallicUvsArray==null)? Vector2.Zero : roughnessMetallicUvsArray[vertexDataIndex]
             };
         }
+        private static Matrix4x4 GetInversedBoneTransform(in int jointIndex)
+        {
+            return currentSkin!.CurrentFrameJointMatrices?[jointIndex] ?? Matrix4x4.Identity;
+        }
+
+
+
 
         public struct PbrVertex : IVertex<PbrVertex>
         {

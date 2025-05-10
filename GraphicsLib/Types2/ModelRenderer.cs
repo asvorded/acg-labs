@@ -12,7 +12,8 @@ namespace GraphicsLib.Types2
     public class ModelRenderer
     {
         public ZBufferV2? Zbuffer { get; set; }
-        private static readonly Queue<(Matrix4x4 Transform, ModelPrimitive Primitive)> nonOpaqueQueue = [];
+        private static readonly Queue<(Matrix4x4 Transform, ModelSkin? Skin, ModelPrimitive Primitive)> nonOpaqueQueue = [];
+        private static readonly Queue<(Matrix4x4 Transform, ModelSkin? Skin, ModelPrimitive Primitive)> opaqueQueue = [];
 
         private static readonly ConcurrentDictionary<(Type, Type), object> pipelineCache = [];
         public static float TimeElapsed { get; set; } = 0;
@@ -35,19 +36,34 @@ namespace GraphicsLib.Types2
                 RenderOpaqueRecursive<Shader, Vertex>(pipeline, scene.RootModelNodes[i], Matrix4x4.Identity);
             }
             Vector3 cameraPosition = scene.Camera.Position;
-            foreach (var (Transform, Primitive) in nonOpaqueQueue.OrderBy(x =>  (Vector3.Transform(x.Primitive.BoundingBox!.Value.Center, x.Transform) - cameraPosition).LengthSquared()))
+            foreach (var (Transform, Skin, Primitive) in opaqueQueue)
             {
-                RenderNonOpaquePrimitive<Shader, Vertex>(pipeline, Primitive, Transform);
+                if (Skin != null)
+                {
+                    Shader.BindSkin(Skin);
+                }
+                RenderPrimitive<Shader, Vertex>(pipeline, Primitive, Transform);
+                if (Skin != null)
+                {
+                    Shader.UnbindSkin();
+                }
+            }
+            opaqueQueue.Clear();
+            foreach (var (Transform, Skin, Primitive) in nonOpaqueQueue.OrderBy(x => (Vector3.Transform(x.Primitive.BoundingBox!.Value.Center, x.Transform) - cameraPosition).LengthSquared()))
+            {
+                if(Skin != null)
+                {
+                    Shader.BindSkin(Skin);
+                }
+                RenderPrimitive<Shader, Vertex>(pipeline, Primitive, Transform);
+                if(Skin != null)
+                {
+                    Shader.UnbindSkin();
+                }
             }
             nonOpaqueQueue.Clear();
             pipeline.Unbind();
             Bitmap.FlushZBufferV2(Zbuffer);
-        }
-        private static void RenderNonOpaquePrimitive<Shader, Vertex>(in Pipeline<Shader, Vertex> pipeline, in ModelPrimitive primitive, in Matrix4x4 transform) where Shader : IModelShader<Vertex>, new() where Vertex : struct, IVertex<Vertex>
-        {
-            Shader.BindPrimitive(primitive, transform);
-            pipeline.Render(primitive);
-            Shader.UnbindPrimitive();
         }
         private static void RenderOpaqueRecursive<Shader, Vertex>(in Pipeline<Shader,Vertex> pipeline, in ModelNode node,in Matrix4x4 parentTransform) where Shader : IModelShader<Vertex>, new() where Vertex : struct, IVertex<Vertex>
         {
@@ -60,6 +76,14 @@ namespace GraphicsLib.Types2
                 }
             }
             currentTransformation *= parentTransform;
+            if(node.InfluencedSkins != null)
+            {
+                foreach(var skin in node.InfluencedSkins)
+                {
+                    skin.influencedSkin.CurrentFrameJointMatrices[skin.jointIndex] = skin.influencedSkin.InverseBindMatrices[skin.jointIndex]
+                                                                                     * currentTransformation;
+                }
+            }
             if (node.ChildNodes != null)
             {
                 foreach (var child in node.ChildNodes)
@@ -69,28 +93,36 @@ namespace GraphicsLib.Types2
             }
             if(node.Mesh != null && pipeline.IsBoundingBoxWithinView(node.Mesh.BoundingBox!.Value, currentTransformation))
             {
-                foreach (var primitive in node.Mesh.Primitives)
+                if (node.AppliedSkin != null)
                 {
-                    RenderOpaquePrimitive(pipeline, primitive, currentTransformation);
+                    Shader.BindSkin(node.AppliedSkin);
+                }
+                var localPipelineCopy = pipeline;
+                foreach (var primitive in 
+                    node.Mesh.Primitives.Where(primitive => 
+                    localPipelineCopy.IsBoundingBoxWithinView(primitive.BoundingBox!.Value, currentTransformation))
+                )
+                {
+                    if (primitive.Material?.alphaMode == Types.GltfTypes.GltfMaterialAlphaMode.OPAQUE)
+                    {
+                        opaqueQueue.Enqueue((currentTransformation, node.AppliedSkin, primitive));
+                    }
+                    else
+                    {
+                        nonOpaqueQueue.Enqueue((currentTransformation, node.AppliedSkin, primitive));
+                    }
+                }
+                if (node.AppliedSkin != null)
+                {
+                    Shader.UnbindSkin();
                 }
             }
         }
-        private static void RenderOpaquePrimitive<Shader, Vertex>(in Pipeline<Shader, Vertex> pipeline, in ModelPrimitive primitive,in Matrix4x4 transform) where Shader : IModelShader<Vertex>, new() where Vertex : struct, IVertex<Vertex>
+        private static void RenderPrimitive<Shader, Vertex>(in Pipeline<Shader, Vertex> pipeline, in ModelPrimitive primitive,in Matrix4x4 transform) where Shader : IModelShader<Vertex>, new() where Vertex : struct, IVertex<Vertex>
         {
-            if (pipeline.IsBoundingBoxWithinView(primitive.BoundingBox!.Value, transform))
-            {
-                if (primitive.Material?.alphaMode == Types.GltfTypes.GltfMaterialAlphaMode.OPAQUE)
-                {
-                    Shader.BindPrimitive(primitive, transform);
-                    pipeline.Render(primitive);
-                    Shader.UnbindPrimitive();
-                }
-                else
-                {
-                    nonOpaqueQueue.Enqueue((transform, primitive));
-                }
-
-            }
+            Shader.BindPrimitive(primitive, transform);
+            pipeline.Render(primitive);
+            Shader.UnbindPrimitive();
         }
 
         private static Pipeline<Shader, Vertex> GetPipeline<Shader, Vertex>() where Shader : IModelShader<Vertex>, new() where Vertex : struct, IVertex<Vertex>

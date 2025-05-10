@@ -18,6 +18,8 @@ namespace GraphicsLib.Types2
         public Matrix4x4 TransformationMatrix { get => transformationMatrix; set { transformationMatrix = value; UpdateTransformationComponentsFromMatrix(); } }
         public Matrix4x4 NormalTransformationMatrix { get => normalTransformationMatrix; set { normalTransformationMatrix = value; UpdateTransformationComponentsFromNormalMatrix(); } }
         
+        public ModelSkin? AppliedSkin { get; set; }
+        public (int jointIndex, ModelSkin influencedSkin)[]? InfluencedSkins { get; set; }
         public ModelAnimation[]? Animations { get; set; }
         private void UpdateMatrix()
         {

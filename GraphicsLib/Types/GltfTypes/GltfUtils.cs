@@ -41,8 +41,9 @@ namespace GraphicsLib.Types.GltfTypes
             //bind parents of nodes to calculate transform matrices
             if (gltfRoot.Nodes != null)
             {
-                foreach (var node in gltfRoot.Nodes)
+                for(int nodeIndex = 0; nodeIndex <  gltfRoot.Nodes.Count; nodeIndex++)
                 {
+                    var node = gltfRoot.Nodes[nodeIndex];
                     if (node.Children != null)
                     {
                         foreach (var index in node.Children)
@@ -60,7 +61,10 @@ namespace GraphicsLib.Types.GltfTypes
                     {
                         node.Mesh = gltfRoot.Meshes![node.MeshIndex.Value];
                     }
-
+                    if (node.Skin.HasValue)
+                    {
+                        node.AppliedSkin = gltfRoot.Skins![node.Skin.Value];
+                    }
                 }
             }
             if (gltfRoot.Meshes != null)
@@ -145,6 +149,21 @@ namespace GraphicsLib.Types.GltfTypes
                         {
                             sampler.Root = gltfRoot;
                         }
+                    }
+                }
+            }
+            if(gltfRoot.Skins != null)
+            {
+                foreach (var skin in gltfRoot.Skins)
+                {
+                    skin.Root = gltfRoot;
+                    for(int i = 0; i < skin.Joints.Length; i++)
+                    {
+                        if(gltfRoot.Nodes![skin.Joints[i]].InfluencedSkins == null)
+                        {
+                            gltfRoot.Nodes![skin.Joints[i]].InfluencedSkins = [];
+                        }
+                        gltfRoot.Nodes![skin.Joints[i]].InfluencedSkins!.Add((i,skin));
                     }
                 }
             }

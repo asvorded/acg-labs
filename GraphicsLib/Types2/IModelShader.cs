@@ -6,8 +6,12 @@ namespace GraphicsLib.Types2
     public interface IModelShader<Vertex> where Vertex : IVertex<Vertex>
     {
         public static abstract void BindScene(in ModelScene scene);
+        public static abstract void UnbindScene();
         public static abstract void BindPrimitive(in ModelPrimitive primitive, in Matrix4x4 transformation);
         public static abstract void UnbindPrimitive();
+        public static abstract void BindSkin(in ModelSkin skin);
+        public static abstract void UnbindSkin();
+
         public static abstract Vector4 PixelShader(in Vertex input);
         public static abstract Vertex VertexShader(in ModelPrimitive primitive, in int vertexDataIndex);
 

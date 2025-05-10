@@ -41,6 +41,10 @@ namespace GraphicsLib.Types2
             {
                 tIndex = 0;
             }
+            if(tIndex > Timestamps.Length - 1)
+            {
+                tIndex = Timestamps.Length - 1;
+            }
             Matrix4x4.Decompose(currentTransformation, out Vector3 scale, out Quaternion rotation, out Vector3 translation);
             switch (PathType)
             {

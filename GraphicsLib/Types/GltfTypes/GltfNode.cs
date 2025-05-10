@@ -39,6 +39,10 @@ namespace GraphicsLib.Types.GltfTypes
         [JsonIgnore]
         public List<GltfAnimationChannel>? Animations { get; set; }
         [JsonIgnore]
+        public GltfSkin? AppliedSkin { get; set; }
+        [JsonIgnore]
+        public List<(int jointIndex, GltfSkin influencedSkin)>? InfluencedSkins { get; set; }
+        [JsonIgnore]
         public Matrix4x4 GlobalTransform { get => GetGlobalTransform(); }
         [JsonIgnore]
         public Matrix4x4 LocalTransform { get => GetLocalTransform(); }
