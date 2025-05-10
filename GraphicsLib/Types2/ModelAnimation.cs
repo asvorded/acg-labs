@@ -64,9 +64,9 @@ namespace GraphicsLib.Types2
                     }
 
                 case GltfAnimationPathType.WEIGHTS:
-                    return Matrix4x4.Identity;
+                    return currentTransformation;
                 default:
-                    return Matrix4x4.Identity;
+                    return currentTransformation;
             }
 
         }
