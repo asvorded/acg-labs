@@ -13,11 +13,11 @@ namespace Lab1
     public class MainWindowViewModel : INotifyPropertyChanged
     {
         public ObservableCollection<LightSourceModel> LightSources { get; set; }
-        private LightSourceModel _selectedLight;
+        private LightSourceModel? _selectedLight;
         private bool _isPopupOpen;
         private Visibility _detailsVisibility;
 
-        public LightSourceModel SelectedLight
+        public LightSourceModel? SelectedLight
         {
             get => _selectedLight;
             set
@@ -66,7 +66,7 @@ namespace Lab1
             LightSources.Add(newLight);
         }
 
-        public event PropertyChangedEventHandler PropertyChanged;
+        public event PropertyChangedEventHandler? PropertyChanged;
 
         protected virtual void OnPropertyChanged(string propertyName)
         {

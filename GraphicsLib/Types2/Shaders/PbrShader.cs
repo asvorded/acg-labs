@@ -7,12 +7,12 @@ using System.Runtime.Intrinsics.X86;
 using System.Runtime.Intrinsics;
 using System.Text;
 using System.Threading.Tasks;
-using static GraphicsLib.Types2.PbrShader;
+using static GraphicsLib.Types2.Shaders.PbrShader;
 using GraphicsLib.Types;
 using System.Windows.Media.Media3D;
 using Material = GraphicsLib.Types.Material;
 
-namespace GraphicsLib.Types2
+namespace GraphicsLib.Types2.Shaders
 {
     public unsafe class PbrShader : IModelShader<PbrVertex>
     {
@@ -70,47 +70,18 @@ namespace GraphicsLib.Types2
             UnbindAttributes();
             currentMaterial = null;      
         }
-        private static T* GetAttributePointer<T>(in ModelPrimitive primitive, string attributeName) where T : unmanaged
-        {
-            if (!primitive.AttributesOffsets.TryGetValue(attributeName, out short offset)){
-                return null;
-            }
-            if (offset == -1)
-            {
-                return null;
-            }
-            unsafe
-            {
-                float[] floatData = primitive.FloatData[offset];
-                fixed (float* dataPtr = floatData)
-                {
-                    return (T*)dataPtr;
-                }
-            }
-        }
         private static void BindAttributes(in ModelPrimitive primitive)
         {
             unsafe
             {
-                positionsArray = GetAttributePointer<Vector3>(primitive, "POSITION");
-                normalsArray = GetAttributePointer<Vector3>(primitive, "NORMAL");
-                uvsArray = GetAttributePointer<Vector2>(primitive, $"TEXCOORD_{currentMaterial!.baseColorCoordsIndex}");
-                tangentsArray = GetAttributePointer<Vector4>(primitive, "TANGENT");
-                normalUvsArray = GetAttributePointer<Vector2>(primitive, $"TEXCOORD_{currentMaterial!.normalCoordsIndex}");
-                roughnessMetallicUvsArray = GetAttributePointer<Vector2>(primitive, $"TEXCOORD_{currentMaterial!.metallicRoughnessCoordsIndex}");
-                jointsArray = GetJointsPointer(primitive);
-                weightsArray = GetAttributePointer<float>(primitive, "WEIGHTS_0");
-            }
-        }
-        private static ushort* GetJointsPointer(in ModelPrimitive primitive)
-        {
-            if(primitive.Joints == null || primitive.Joints.Length == 0)
-            {
-                return null;
-            }
-            fixed(ushort* jointsPtr = primitive.Joints[0])
-            {
-                return jointsPtr;
+                positionsArray = ModelShaderUtils.GetAttributePointer<Vector3>(primitive, "POSITION");
+                normalsArray = ModelShaderUtils.GetAttributePointer<Vector3>(primitive, "NORMAL");
+                uvsArray = ModelShaderUtils.GetAttributePointer<Vector2>(primitive, $"TEXCOORD_{currentMaterial!.baseColorCoordsIndex}");
+                tangentsArray = ModelShaderUtils.GetAttributePointer<Vector4>(primitive, "TANGENT");
+                normalUvsArray = ModelShaderUtils.GetAttributePointer<Vector2>(primitive, $"TEXCOORD_{currentMaterial!.normalCoordsIndex}");
+                roughnessMetallicUvsArray = ModelShaderUtils.GetAttributePointer<Vector2>(primitive, $"TEXCOORD_{currentMaterial!.metallicRoughnessCoordsIndex}");
+                jointsArray = ModelShaderUtils.GetJointsPointer(primitive);
+                weightsArray = ModelShaderUtils.GetAttributePointer<float>(primitive, "WEIGHTS_0");
             }
         }
         private static void UnbindAttributes()
@@ -121,6 +92,8 @@ namespace GraphicsLib.Types2
             tangentsArray = null;
             normalUvsArray = null;
             roughnessMetallicUvsArray = null;
+            jointsArray = null;
+            weightsArray = null;
         }       
 
         public static Vector4 PixelShader(in PbrVertex input)
@@ -172,33 +145,31 @@ namespace GraphicsLib.Types2
             float oneMinusNDotV = 1 - nDotV;
             Vector3 fresnel = baseReflectivity + (new Vector3(1) - baseReflectivity) * (oneMinusNDotV * oneMinusNDotV * oneMinusNDotV * oneMinusNDotV * oneMinusNDotV);
             Vector3 kSpecular = fresnel;
-            Vector3 kDiffuse = (new Vector3(1));/// - fresnel;
+            Vector3 kDiffuse = new Vector3(1);/// - fresnel;
             float alpha = roughness;
             float alphaSqr = alpha * alpha;
             float nDotH = Math.Max(Vector3.Dot(normal, halfWayDir), 0);
             float denomPart = (alphaSqr - 1) * nDotH * nDotH + 1;
-            float normalDistribution = alphaSqr / MathF.Max((MathF.PI * denomPart * denomPart), 0.0001f);
+            float normalDistribution = alphaSqr / MathF.Max(MathF.PI * denomPart * denomPart, 0.0001f);
             float k = (alpha + 1) * (alpha + 1) * 0.125f;
 
-            float gl = MathF.ReciprocalEstimate(Math.Max((nDotL * (1 - k) + k), 0.001f));
-            float gv = MathF.ReciprocalEstimate(Math.Max((nDotV * (1 - k) + k), 0.001f));
+            float gl = MathF.ReciprocalEstimate(Math.Max(nDotL * (1 - k) + k, 0.001f));
+            float gv = MathF.ReciprocalEstimate(Math.Max(nDotV * (1 - k) + k, 0.001f));
             float geometryShading = gl * gv;
             Vector3 cookTorrance = kSpecular * (normalDistribution * geometryShading * 0.25f);
             Vector3 diffuse = diffuseColor.AsVector3();
-            Vector3 bdfs = cookTorrance + (diffuse * kDiffuse);
+            Vector3 bdfs = cookTorrance + diffuse * kDiffuse;
             Vector3 finalColor = Vector3.Clamp(bdfs * lightColor * (nDotL * lightIntensity)
                             + diffuseColor.AsVector3() * ambientLightColor * ambientLightIntensity
                             , Vector3.Zero
                             , new Vector3(1));
             return new Vector4(finalColor, diffuseColor.W);
         }
-
-
         public static PbrVertex VertexShader(in ModelPrimitive primitive, in int vertexDataIndex)
         {
             Vector4 initialPosition = new Vector4(positionsArray[vertexDataIndex], 1);
-            Vector3 initialNormal = (normalsArray==null)? Vector3.Zero : normalsArray[vertexDataIndex];
-            Vector4 initialTangent = (tangentsArray==null)? Vector4.Zero : tangentsArray[vertexDataIndex];
+            Vector3 initialNormal = normalsArray==null? Vector3.Zero : normalsArray[vertexDataIndex];
+            Vector4 initialTangent = tangentsArray==null? Vector4.Zero : tangentsArray[vertexDataIndex];
             float tangentDir = initialTangent.W;
             if (currentSkin != null)
             {
@@ -225,21 +196,17 @@ namespace GraphicsLib.Types2
                 Position = worldPosition,
                 Normal = worldNormal,
                 WorldPosition = worldPosition.AsVector3(),
-                Uv = (uvsArray==null)? Vector2.Zero : uvsArray[vertexDataIndex],
+                Uv = uvsArray==null? Vector2.Zero : uvsArray[vertexDataIndex],
                 Tangent = worldTangent,
-                NormalUv = (normalUvsArray==null)? Vector2.Zero : normalUvsArray[vertexDataIndex],
-                RoughnessMetallicUv = (roughnessMetallicUvsArray==null)? Vector2.Zero : roughnessMetallicUvsArray[vertexDataIndex]
+                NormalUv = normalUvsArray==null? Vector2.Zero : normalUvsArray[vertexDataIndex],
+                RoughnessMetallicUv = roughnessMetallicUvsArray==null? Vector2.Zero : roughnessMetallicUvsArray[vertexDataIndex]
             };
         }
         private static Matrix4x4 GetInversedBoneTransform(in int jointIndex)
         {
             return currentSkin!.CurrentFrameJointMatrices?[jointIndex] ?? Matrix4x4.Identity;
         }
-
-
-
-
-        public struct PbrVertex : IVertex<PbrVertex>
+        public struct PbrVertex : IModelVertex<PbrVertex>
         {
             public Vector4 Position { readonly get => position; set => position = value; }
             public Vector4 Tangent { readonly get => tangent; set => tangent = value; }
@@ -287,9 +254,9 @@ namespace GraphicsLib.Types2
                     unsafe
                     {
                         PbrVertex vertex = default;
-                        Avx2.Store((float*)&vertex.position, Avx2.Add(Avx2.LoadVector256((float*)&lhs.position), Avx2.LoadVector256((float*)&rhs.position)));
-                        Avx2.Store((float*)&vertex.normal, Avx2.Add(Avx2.LoadVector256((float*)&lhs.normal), Avx2.LoadVector256((float*)&rhs.normal)));
-                        Avx2.Store((float*)&vertex.normalUv, Avx2.Add(Avx2.LoadVector128((float*)&lhs.normalUv), Avx2.LoadVector128((float*)&rhs.normalUv)));
+                        Avx.Store((float*)&vertex.position, Avx.Add(Avx.LoadVector256((float*)&lhs.position), Avx.LoadVector256((float*)&rhs.position)));
+                        Avx.Store((float*)&vertex.normal, Avx.Add(Avx.LoadVector256((float*)&lhs.normal), Avx.LoadVector256((float*)&rhs.normal)));
+                        Sse.Store((float*)&vertex.normalUv, Sse.Add(Sse.LoadVector128((float*)&lhs.normalUv), Sse.LoadVector128((float*)&rhs.normalUv)));
                         return vertex;
                     }
                 }
@@ -317,9 +284,9 @@ namespace GraphicsLib.Types2
                     unsafe
                     {
                         PbrVertex vertex = default;
-                        Avx2.Store((float*)&vertex.position, Avx2.Subtract(Avx2.LoadVector256((float*)&lhs.position), Avx2.LoadVector256((float*)&rhs.position)));
-                        Avx2.Store((float*)&vertex.normal, Avx2.Subtract(Avx2.LoadVector256((float*)&lhs.normal), Avx2.LoadVector256((float*)&rhs.normal)));
-                        Avx2.Store((float*)&vertex.normalUv, Avx2.Subtract(Avx2.LoadVector128((float*)&lhs.normalUv), Avx2.LoadVector128((float*)&rhs.normalUv)));
+                        Avx.Store((float*)&vertex.position, Avx.Subtract(Avx.LoadVector256((float*)&lhs.position), Avx.LoadVector256((float*)&rhs.position)));
+                        Avx.Store((float*)&vertex.normal, Avx.Subtract(Avx.LoadVector256((float*)&lhs.normal), Avx.LoadVector256((float*)&rhs.normal)));
+                        Sse.Store((float*)&vertex.normalUv, Sse.Subtract(Sse.LoadVector128((float*)&lhs.normalUv), Sse.LoadVector128((float*)&rhs.normalUv)));
                         return vertex;
                     }
                 }
@@ -345,10 +312,10 @@ namespace GraphicsLib.Types2
                     unsafe
                     {
                         PbrVertex vertex = default;
-                        Vector256<float> multiplier = Avx2.BroadcastScalarToVector256(&scalar);
-                        Avx2.Store((float*)&vertex.position, Avx2.Multiply(Avx2.LoadVector256((float*)&lhs.position), multiplier));
-                        Avx2.Store((float*)&vertex.normal, Avx2.Multiply(Avx2.LoadVector256((float*)&lhs.normal), multiplier));
-                        Avx2.Store((float*)&vertex.normalUv, Avx2.Multiply(Avx2.LoadVector128((float*)&lhs.normalUv), multiplier.GetLower()));
+                        Vector256<float> multiplier = Avx.BroadcastScalarToVector256(&scalar);
+                        Avx.Store((float*)&vertex.position, Avx.Multiply(Avx.LoadVector256((float*)&lhs.position), multiplier));
+                        Avx.Store((float*)&vertex.normal, Avx.Multiply(Avx.LoadVector256((float*)&lhs.normal), multiplier));
+                        Sse.Store((float*)&vertex.normalUv, Sse.Multiply(Sse.LoadVector128((float*)&lhs.normalUv), multiplier.GetLower()));
                         return vertex;
                     }
                 }

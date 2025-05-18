@@ -11,7 +11,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using static GraphicsLib.Types2.PbrShader;
+using static GraphicsLib.Types2.Shaders.PbrShader;
 
 namespace Lab1
 {
@@ -20,23 +20,15 @@ namespace Lab1
     /// </summary>
     public partial class MainWindow : Window
     {
-        private MainWindowViewModel ViewModel => DataContext as MainWindowViewModel;
+        private MainWindowViewModel? ViewModel => DataContext as MainWindowViewModel;
 
         private readonly OpenFileDialog ofd;
 
-        private static Obj? obj;
-        private static Camera camera;
-        private static Scene scene;
-        private Renderer renderer;
+        private static readonly Camera camera = new Camera();
         private Point oldPos;
         private WriteableBitmap? bitmap;
         private readonly ModelRenderer modelRenderer;
         private ModelScene? modelScene;
-        static MainWindow()
-        {
-            camera = new Camera();
-            scene = new Scene(camera);
-        }
         public MainWindow()
         {
             InitializeComponent();
@@ -52,7 +44,6 @@ namespace Lab1
             ofd.FileOk += OnFileOpened;
             Height = SystemParameters.PrimaryScreenHeight / 1.25;
             Width = SystemParameters.PrimaryScreenWidth / 1.25;
-            renderer = new Renderer(scene);
             modelRenderer = new ModelRenderer();
             DebugPanel.Visibility = Visibility.Visible;
             Stopwatch s = Stopwatch.StartNew();
@@ -60,7 +51,7 @@ namespace Lab1
             Stopwatch elapsed = Stopwatch.StartNew();
             int frameCount = 0;
             int currentFrameCount = 0;
-            Dispatcher.Hooks.DispatcherInactive += (o, e) => {
+            CompositionTarget.Rendering += (o, e) => {
                 double delta = s2.Elapsed.TotalMilliseconds;
                 s2.Restart();
                 if (pause)
@@ -71,7 +62,7 @@ namespace Lab1
                 {
                     elapsed.Start();
                 }
-                    ModelDraw((float)elapsed.Elapsed.TotalSeconds);
+                ModelDraw((float)elapsed.Elapsed.TotalSeconds);
                 frameCount++;
                 DebugPanel.Text = $"fps {currentFrameCount} time {(int)(delta)}";
                 if (s.ElapsedMilliseconds >= 1000)
@@ -88,7 +79,7 @@ namespace Lab1
             fileName.Text = string.Join(' ', Resources["fileString"].ToString(), ofd.SafeFileName);
             try
             {
-                GraphicsLib.Types2.ModelScene scene = GraphicsLib.Types2.ModelParser.ParseGltfFile(ofd.FileName);
+                ModelScene scene = ModelParser.ParseGltfFile(ofd.FileName);
                 scene.Camera = camera;
                 camera.Polar = MathF.PI / 2;
                 camera.Target = new Vector3(0, 1, 0);
@@ -104,7 +95,7 @@ namespace Lab1
         }
         private void OpenPopupButton_Click(object sender, RoutedEventArgs e)
         {
-            ViewModel.IsPopupOpen = true;
+            ViewModel!.IsPopupOpen = true;
         }
         private void ModelDraw(float secondsElapsed)
         {
@@ -115,7 +106,7 @@ namespace Lab1
             Stopwatch stopwatch = Stopwatch.StartNew();
             camera.UpdateViewPort(bitmap.PixelWidth, bitmap.PixelHeight);
             ModelRenderer.TimeElapsed = secondsElapsed;
-            modelRenderer.Render<GraphicsLib.Types2.PbrShader, PbrVertex>(modelScene, bitmap);
+            modelRenderer.Render<GraphicsLib.Types2.Shaders.PbrShader, PbrVertex>(modelScene, bitmap);
 
 
             bitmap.Lock();
@@ -127,7 +118,7 @@ namespace Lab1
         }
         private void ForcedDraw()
         {
-            //ModelDraw(0);            
+            //unused
         }
 
         private void ButtonOpenFile_Click(object sender, RoutedEventArgs e)
@@ -197,7 +188,6 @@ namespace Lab1
 
         private void canvas_LostMouseCapture(object sender, MouseEventArgs e) { }
 
-        private string transformMode = "Move";
         private string renderMode = "Flat";
 
         private void RadioButton_Checked(object sender, RoutedEventArgs e)
@@ -206,9 +196,6 @@ namespace Lab1
             {
                 switch (radioButton.GroupName)
                 {
-                    case "TransformMode":
-                        transformMode = ((RadioButton)sender).Content.ToString()!;
-                        break;
                     case "RenderingMode":
                         renderMode = ((RadioButton)sender).Content.ToString()!;
                         ForcedDraw();
@@ -218,116 +205,21 @@ namespace Lab1
 
         }
         private static bool pause = false;
-        private static float speed = 4f;
-        private Dictionary<Key, Action> moveActions = new() {
-            {
-                Key.Left, () => { if (obj != null) obj.transformation.Offset.X += speed; }
-            },
-            {
-                Key.Right, () => { if (obj != null) obj!.transformation.Offset.X -= speed; }
-            },
-            {
-                Key.Up, () => {
-                    if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
-                    {
-                        if (obj != null)
-                            obj.transformation.Offset.Z += speed;
-                    }
-                    else
-                    {
-                        if (obj != null)
-                            obj.transformation.Offset.Y += speed;
-                    }
-
-                }
-            },
+        private readonly Dictionary<Key, Action> moveActions = new() {
             {
                 Key.Q, () =>
                 {
                     pause = !pause;
                 }
-            },
-            {
-                Key.Down, () => {
-                    if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
-                    {
-                        if (obj != null)
-                            obj.transformation.Offset.Z -= speed;
-                    }
-
-                    else
-                    {
-                        if (obj != null)
-                            obj.transformation.Offset.Y -= speed;
-                    }
-                }
-            },
-            {
-                Key.OemPlus, MakeLarger
-            },
-            {
-                Key.OemMinus, MakeSmaller
             }
         };
 
-        private Dictionary<Key, Action> rotateActions = new() {
-            {
-                Key.Up, () => { obj!.transformation.AngleX += speed * 0.01f; }
-            },
-            {
-                Key.Down, () => { obj!.transformation.AngleX -= speed * 0.01f; }
-            },
-            {
-                Key.Left, () => {
-                    if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
-                        obj!.transformation.AngleY += speed * 0.01f;
-                    else
-                        obj!.transformation.AngleZ += speed * 0.01f;
-                }
-            },
-            {
-                Key.Right, () => {
-                    if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0)
-                        obj!.transformation.AngleY -= speed * 0.01f;
-                    else
-                        obj!.transformation.AngleZ -= speed * 0.01f;
-                }
-            },
-            {
-                Key.OemPlus, MakeLarger
-            },
-            {
-                Key.OemMinus, MakeSmaller
-            }
-        };
-
-        private static void MakeLarger()
-        {
-            if (obj != null)
-                obj.transformation.Scale += speed / 10.0f;
-        }
-
-        private static void MakeSmaller()
-        {
-            if (obj != null)
-                obj.transformation.Scale -= speed / 10.0f;
-        }
-
+        
         private void canvas_KeyDown(object sender, KeyEventArgs e)
         {
             Dictionary<Key, Action> handlers = moveActions;
-            if (transformMode == "Rotate")
-            {
-                handlers = rotateActions;
-            }
-
             if (handlers.TryGetValue(e.Key, out Action? action))
             {
-                speed = (Keyboard.Modifiers & ModifierKeys.Control) != 0 ? 1f : 0.25f;
-                if (transformMode == "Move")
-                {
-                    speed *= camera.Distance / 500;
-                }
                 action();
             }
             ForcedDraw();

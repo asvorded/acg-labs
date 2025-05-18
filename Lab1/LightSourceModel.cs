@@ -1,11 +1,6 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Media.Media3D;
+﻿using System.ComponentModel;
 using System.Windows.Media;
+using System.Windows.Media.Media3D;
 
 namespace Lab1
 {
@@ -91,7 +86,7 @@ namespace Lab1
             Direction = new Vector3D(0, 0, 0);
         }
 
-        public event PropertyChangedEventHandler PropertyChanged;
+        public event PropertyChangedEventHandler? PropertyChanged;
 
         protected virtual void OnPropertyChanged(string propertyName)
         {

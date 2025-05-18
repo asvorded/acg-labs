@@ -176,7 +176,7 @@ namespace GraphicsLib.Types
                     {
                         int x = (int)MathF.Round((uv.X * (width1024 - 1)));
                         int y = (int)MathF.Round((uv.Y * (height1024 - 1)));
-                        return textureData[y * width1024 + x].ToScaledVector4();
+                        return textureData![y * width1024 + x].ToScaledVector4();
                     }
                 case MagnificationFilterMode.Linear:
                     {
@@ -188,7 +188,7 @@ namespace GraphicsLib.Types
                         float dy = uv.Y * (height1024 - 1) - y0;
                         if (Sse41.IsSupported)
                         {
-                            Vector4 topLeft = ToUnscaledSse41(textureData[y0 * width1024 + x0]);
+                            Vector4 topLeft = ToUnscaledSse41(textureData![y0 * width1024 + x0]);
                             Vector4 topRight = ToUnscaledSse41(textureData[y0 * width1024 + x1]);
                             Vector4 bottomLeft = ToUnscaledSse41(textureData[y1 * width1024 + x0]);
                             Vector4 bottomRight = ToUnscaledSse41(textureData[y1 * width1024 + x1]);
@@ -198,7 +198,7 @@ namespace GraphicsLib.Types
                         }
                         else
                         {
-                            Vector4 topLeft = ToUnscaledVector4(textureData[y0 * width1024 + x0]);
+                            Vector4 topLeft = ToUnscaledVector4(textureData![y0 * width1024 + x0]);
                             Vector4 topRight = ToUnscaledVector4(textureData[y0 * width1024 + x1]);
                             Vector4 bottomLeft = ToUnscaledVector4(textureData[y1 * width1024 + x0]);
                             Vector4 bottomRight = ToUnscaledVector4(textureData[y1 * width1024 + x1]);
@@ -210,7 +210,7 @@ namespace GraphicsLib.Types
             }
             int x2 = (int)(uv.X * (width1024 - 1));
             int y2 = (int)(uv.Y * (height1024 - 1));
-            return textureData[y2 * width1024 + x2].ToScaledVector4();
+            return textureData![y2 * width1024 + x2].ToScaledVector4();
         }
         private Vector4 Sample2048x2048(Vector2 uv)
         {
@@ -222,7 +222,7 @@ namespace GraphicsLib.Types
                     {
                         int x = (int)MathF.Round((uv.X * (width2048 - 1)));
                         int y = (int)MathF.Round((uv.Y * (height2048 - 1)));
-                        return textureData[y * width2048 + x].ToScaledVector4();
+                        return textureData![y * width2048 + x].ToScaledVector4();
                     }
                 case MagnificationFilterMode.Linear:
                     {
@@ -234,7 +234,7 @@ namespace GraphicsLib.Types
                         float dy = uv.Y * (height2048 - 1) - y0;
                         if (Sse41.IsSupported)
                         {
-                            Vector4 topLeft = ToUnscaledSse41(textureData[y0 * width2048 + x0]);
+                            Vector4 topLeft = ToUnscaledSse41(textureData![y0 * width2048 + x0]);
                             Vector4 topRight = ToUnscaledSse41(textureData[y0 * width2048 + x1]);
                             Vector4 bottomLeft = ToUnscaledSse41(textureData[y1 * width2048 + x0]);
                             Vector4 bottomRight = ToUnscaledSse41(textureData[y1 * width2048 + x1]);
@@ -244,7 +244,7 @@ namespace GraphicsLib.Types
                         }
                         else
                         {
-                            Vector4 topLeft = ToUnscaledVector4(textureData[y0 * width2048 + x0]);
+                            Vector4 topLeft = ToUnscaledVector4(textureData![y0 * width2048 + x0]);
                             Vector4 topRight = ToUnscaledVector4(textureData[y0 * width2048 + x1]);
                             Vector4 bottomLeft = ToUnscaledVector4(textureData[y1 * width2048 + x0]);
                             Vector4 bottomRight = ToUnscaledVector4(textureData[y1 * width2048 + x1]);
@@ -256,7 +256,7 @@ namespace GraphicsLib.Types
             }
             int x2 = (int)(uv.X * (width2048 - 1));
             int y2 = (int)(uv.Y * (height2048 - 1));
-            return textureData[y2 * width2048 + x2].ToScaledVector4();
+            return textureData![y2 * width2048 + x2].ToScaledVector4();
         }
         private Vector4 Sample4096x4096(Vector2 uv)
         {
@@ -268,7 +268,7 @@ namespace GraphicsLib.Types
                     {
                         int x = (int)MathF.Round((uv.X * (width4096 - 1)));
                         int y = (int)MathF.Round((uv.Y * (height4096 - 1)));
-                        return textureData[y * width4096 + x].ToScaledVector4();
+                        return textureData![y * width4096 + x].ToScaledVector4();
                     }
                 case MagnificationFilterMode.Linear:
                     {
@@ -280,7 +280,7 @@ namespace GraphicsLib.Types
                         float dy = uv.Y * (height4096 - 1) - y0;
                         if (Sse41.IsSupported)
                         {
-                            Vector4 topLeft = ToUnscaledSse41(textureData[y0 * width4096 + x0]);
+                            Vector4 topLeft = ToUnscaledSse41(textureData![y0 * width4096 + x0]);
                             Vector4 topRight = ToUnscaledSse41(textureData[y0 * width4096 + x1]);
                             Vector4 bottomLeft = ToUnscaledSse41(textureData[y1 * width4096 + x0]);
                             Vector4 bottomRight = ToUnscaledSse41(textureData[y1 * width4096 + x1]);
@@ -290,7 +290,7 @@ namespace GraphicsLib.Types
                         }
                         else
                         {
-                            Vector4 topLeft = ToUnscaledVector4(textureData[y0 * width4096 + x0]);
+                            Vector4 topLeft = ToUnscaledVector4(textureData![y0 * width4096 + x0]);
                             Vector4 topRight = ToUnscaledVector4(textureData[y0 * width4096 + x1]);
                             Vector4 bottomLeft = ToUnscaledVector4(textureData[y1 * width4096 + x0]);
                             Vector4 bottomRight = ToUnscaledVector4(textureData[y1 * width4096 + x1]);
@@ -302,7 +302,7 @@ namespace GraphicsLib.Types
             }
             int x2 = (int)(uv.X * (width4096 - 1));
             int y2 = (int)(uv.Y * (height4096 - 1));
-            return textureData[y2 * width4096 + x2].ToScaledVector4();
+            return textureData![y2 * width4096 + x2].ToScaledVector4();
         }
         static Vector4 ToUnscaledVector4(in Rgba32 rgba)
         {

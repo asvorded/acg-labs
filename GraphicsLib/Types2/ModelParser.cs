@@ -72,43 +72,43 @@ namespace GraphicsLib.Types2
             }
         }
         private static readonly ConcurrentDictionary<GltfSkin, ModelSkin> skinCache = [];
-        private static async Task<ModelMesh> ParseMesh(GltfMesh gltfMesh, Material[] materialsList)
+        private static ModelMesh ParseMesh(GltfMesh gltfMesh, Material[] materialsList)
         {
             var primitives = new ModelPrimitive[gltfMesh.Primitives.Length];
             Parallel.For(0, gltfMesh.Primitives.Length, i =>
-            {
-                var p = gltfMesh.Primitives[i];
-                var attributes = p.Attributes.Select<KeyValuePair<string, int>, KeyValuePair<string, GltfAccessor>>(a => new(a.Key, p.Root!.Accessors![a.Value])).ToDictionary();
-                Dictionary<string, short> attributesOffsets = [];
-                List<float[]> floatData = [];
-                List<ushort[]> weightsData = [];
-                int vertexCount = 0;
-                foreach (var attribute in attributes)
                 {
-                    if (attribute.Key.StartsWith("JOINTS_"))
+                    var p = gltfMesh.Primitives[i];
+                    var attributes = p.Attributes.Select<KeyValuePair<string, int>, KeyValuePair<string, GltfAccessor>>(a => new(a.Key, p.Root!.Accessors![a.Value])).ToDictionary();
+                    Dictionary<string, short> attributesOffsets = [];
+                    List<float[]> floatData = [];
+                    List<ushort[]> weightsData = [];
+                    int vertexCount = 0;
+                    foreach (var attribute in attributes)
                     {
-                        weightsData.Add(GltfUtils.GetAccessorData<ushort>(attribute.Value));
-                    }
-                    else
-                    {
-                        floatData.Add(GltfUtils.GetAccessorData<float>(attribute.Value));
-                        vertexCount = Math.Max(vertexCount, attribute.Value.Count);
-                        attributesOffsets.Add(attribute.Key, (short)(floatData.Count - 1));
-                    }
+                        if (attribute.Key.StartsWith("JOINTS_"))
+                        {
+                            weightsData.Add(GltfUtils.GetAccessorData<ushort>(attribute.Value));
+                        }
+                        else
+                        {
+                            floatData.Add(GltfUtils.GetAccessorData<float>(attribute.Value));
+                            vertexCount = Math.Max(vertexCount, attribute.Value.Count);
+                            attributesOffsets.Add(attribute.Key, (short)(floatData.Count - 1));
+                        }
 
-                }
-                primitives[i] = new ModelPrimitive()
-                {
-                    VertexCount = vertexCount,
-                    Indices = p.PointIndices,
-                    Material = p.Material.HasValue ? materialsList[p.Material.Value] : Material.defaultMaterial,
-                    Joints = [.. weightsData],
-                    Mode = p.Mode,
-                    AttributesOffsets = attributesOffsets,
-                    FloatData = [.. floatData],
-                    BoundingBox = GltfUtils.GetBoundingBox(attributes, floatData[attributesOffsets["POSITION"]])
-                };
-            });
+                    }
+                    primitives[i] = new ModelPrimitive()
+                    {
+                        VertexCount = vertexCount,
+                        Indices = p.PointIndices,
+                        Material = p.Material.HasValue ? materialsList[p.Material.Value] : Material.defaultMaterial,
+                        Joints = [.. weightsData],
+                        Mode = p.Mode,
+                        AttributesOffsets = attributesOffsets,
+                        FloatData = [.. floatData],
+                        BoundingBox = GltfUtils.GetBoundingBox(attributes, floatData[attributesOffsets["POSITION"]])
+                    };
+                });
             var mesh = new ModelMesh()
             {
                 Primitives = primitives,
@@ -122,14 +122,7 @@ namespace GraphicsLib.Types2
             var childrenTasks = gltfNode.ChildrenNodes?
             .Select(child => ParseNode(child, materialsList))
                 .ToArray() ?? [];
-            //bullshit
-#pragma warning disable CS8619 // Допустимость значения NULL для ссылочных типов в значении не соответствует целевому типу.
-            Task<ModelMesh?> meshTask = gltfNode.Mesh != null ?
-                ParseMesh(gltfNode.Mesh, materialsList)
-                : Task.FromResult<ModelMesh?>(null);
-#pragma warning restore CS8619 // Допустимость значения NULL для ссылочных типов в значении не соответствует целевому типу.
-
-            ModelMesh? mesh = await meshTask;
+            ModelMesh? mesh = gltfNode.Mesh != null ? ParseMesh(gltfNode.Mesh, materialsList) : null;
             ModelNode[]? childrenNodes = await Task.WhenAll(childrenTasks);
             if(childrenNodes.Length == 0)
             {

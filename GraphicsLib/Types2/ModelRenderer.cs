@@ -1,10 +1,9 @@
 ﻿using GraphicsLib.Primitives;
-using GraphicsLib.Shaders;
 using GraphicsLib.Types;
+using GraphicsLib.Types2.Shaders;
 using System.Buffers;
 using System.Collections.Concurrent;
 using System.Numerics;
-using System.Windows;
 using System.Windows.Media.Imaging;
 
 namespace GraphicsLib.Types2
@@ -17,11 +16,11 @@ namespace GraphicsLib.Types2
 
         private static readonly ConcurrentDictionary<(Type, Type), object> pipelineCache = [];
         public static float TimeElapsed { get; set; } = 0;
-        public void Render<Shader, Vertex>(in ModelScene scene,in WriteableBitmap Bitmap) where Shader : IModelShader<Vertex>, new() where Vertex : struct, IVertex<Vertex>
+        public void Render<Shader, Vertex>(in ModelScene scene, in WriteableBitmap Bitmap) where Shader : IModelShader<Vertex>, new() where Vertex : struct, IModelVertex<Vertex>
         {
             if (scene.RootModelNodes == null || scene.RootModelNodes.Length == 0 || scene.Camera == null)
                 return;
-            if(Zbuffer == null)
+            if (Zbuffer == null)
             {
                 Zbuffer = new((int)scene.Camera.ScreenWidth, (int)scene.Camera.ScreenHeight);
                 Zbuffer.ChangeDefaultColor(0xFF0080AA);
@@ -31,10 +30,15 @@ namespace GraphicsLib.Types2
             pipeline.BindScene(scene);
             pipeline.BindZBuffer(Zbuffer);
             Shader.BindScene(scene);
-            for (int i = 0; i < scene.RootModelNodes.Length; i++)
+            foreach (var node in scene.RootModelNodes)
             {
-                RenderOpaqueRecursive<Shader, Vertex>(pipeline, scene.RootModelNodes[i], Matrix4x4.Identity);
+                CalculateBindingMatrices(node, Matrix4x4.Identity);
             }
+            foreach (var node in scene.RootModelNodes)
+            {
+                EnqueuePrimitivesRecursive<Shader, Vertex>(pipeline, node, Matrix4x4.Identity);
+            }
+
             Vector3 cameraPosition = scene.Camera.Position;
             foreach (var (Transform, Skin, Primitive) in opaqueQueue)
             {
@@ -51,12 +55,12 @@ namespace GraphicsLib.Types2
             opaqueQueue.Clear();
             foreach (var (Transform, Skin, Primitive) in nonOpaqueQueue.OrderBy(x => (Vector3.Transform(x.Primitive.BoundingBox!.Value.Center, x.Transform) - cameraPosition).LengthSquared()))
             {
-                if(Skin != null)
+                if (Skin != null)
                 {
                     Shader.BindSkin(Skin);
                 }
                 RenderPrimitive<Shader, Vertex>(pipeline, Primitive, Transform);
-                if(Skin != null)
+                if (Skin != null)
                 {
                     Shader.UnbindSkin();
                 }
@@ -65,7 +69,8 @@ namespace GraphicsLib.Types2
             pipeline.Unbind();
             Bitmap.FlushZBufferV2(Zbuffer);
         }
-        private static void RenderOpaqueRecursive<Shader, Vertex>(in Pipeline<Shader,Vertex> pipeline, in ModelNode node,in Matrix4x4 parentTransform) where Shader : IModelShader<Vertex>, new() where Vertex : struct, IVertex<Vertex>
+
+        private static void CalculateBindingMatrices(in ModelNode node, in Matrix4x4 parentTransform)
         {
             Matrix4x4 currentTransformation = node.TransformationMatrix;
             if (node.Animations != null)
@@ -76,32 +81,60 @@ namespace GraphicsLib.Types2
                 }
             }
             currentTransformation *= parentTransform;
-            if(node.InfluencedSkins != null)
+            if (node.InfluencedSkins != null)
             {
-                foreach(var skin in node.InfluencedSkins)
+                foreach (var (jointIndex, influencedSkin) in node.InfluencedSkins)
                 {
-                    skin.influencedSkin.CurrentFrameJointMatrices[skin.jointIndex] = skin.influencedSkin.InverseBindMatrices[skin.jointIndex]
-                                                                                     * currentTransformation;
+                    if (influencedSkin.CurrentFrameJointMatrices != null && influencedSkin.InverseBindMatrices != null)
+                    {
+                        influencedSkin.CurrentFrameJointMatrices[jointIndex] = influencedSkin.InverseBindMatrices[jointIndex]
+                                                                                        * currentTransformation;
+                    }
+
                 }
             }
             if (node.ChildNodes != null)
             {
                 foreach (var child in node.ChildNodes)
                 {
-                    RenderOpaqueRecursive<Shader, Vertex>(pipeline, child, currentTransformation);
+                    CalculateBindingMatrices(child, currentTransformation);
                 }
             }
-            if(node.Mesh != null && pipeline.IsBoundingBoxWithinView(node.Mesh.BoundingBox!.Value, currentTransformation))
+        }
+
+        private static void EnqueuePrimitivesRecursive<Shader, Vertex>(in Pipeline<Shader, Vertex> pipeline, in ModelNode node, in Matrix4x4 parentTransform) where Shader : IModelShader<Vertex>, new() where Vertex : struct, IModelVertex<Vertex>
+        {
+            Matrix4x4 currentTransformation = node.TransformationMatrix;
+            if (node.Animations != null)
             {
-                if (node.AppliedSkin != null)
+                foreach (var animation in node.Animations)
                 {
-                    Shader.BindSkin(node.AppliedSkin);
+                    currentTransformation = animation.Apply(currentTransformation, TimeElapsed);
                 }
-                var localPipelineCopy = pipeline;
-                foreach (var primitive in 
-                    node.Mesh.Primitives.Where(primitive => 
-                    localPipelineCopy.IsBoundingBoxWithinView(primitive.BoundingBox!.Value, currentTransformation))
-                )
+            }
+            currentTransformation *= parentTransform;
+            if (node.ChildNodes != null)
+            {
+                foreach (var child in node.ChildNodes)
+                {
+                    EnqueuePrimitivesRecursive<Shader, Vertex>(pipeline, child, currentTransformation);
+                }
+            }
+            if (node.Mesh != null)
+            {
+                var localPipeline = pipeline;
+                IEnumerable<ModelPrimitive> primitives = node.Mesh.Primitives;
+
+                // Filter primitives based on their bounding box visibility if no skin is applied to the node
+                if (node.AppliedSkin == null)
+                {
+                    primitives = primitives
+                        .Where(primitive => localPipeline.IsBoundingBoxWithinView(
+                            primitive.BoundingBox!.Value,
+                            currentTransformation));
+                }
+
+                foreach (var primitive in primitives)
                 {
                     if (primitive.Material?.alphaMode == Types.GltfTypes.GltfMaterialAlphaMode.OPAQUE)
                     {
@@ -112,29 +145,26 @@ namespace GraphicsLib.Types2
                         nonOpaqueQueue.Enqueue((currentTransformation, node.AppliedSkin, primitive));
                     }
                 }
-                if (node.AppliedSkin != null)
-                {
-                    Shader.UnbindSkin();
-                }
             }
+
         }
-        private static void RenderPrimitive<Shader, Vertex>(in Pipeline<Shader, Vertex> pipeline, in ModelPrimitive primitive,in Matrix4x4 transform) where Shader : IModelShader<Vertex>, new() where Vertex : struct, IVertex<Vertex>
+        private static void RenderPrimitive<Shader, Vertex>(in Pipeline<Shader, Vertex> pipeline, in ModelPrimitive primitive, in Matrix4x4 transform) where Shader : IModelShader<Vertex>, new() where Vertex : struct, IModelVertex<Vertex>
         {
             Shader.BindPrimitive(primitive, transform);
             pipeline.Render(primitive);
             Shader.UnbindPrimitive();
         }
 
-        private static Pipeline<Shader, Vertex> GetPipeline<Shader, Vertex>() where Shader : IModelShader<Vertex>, new() where Vertex : struct, IVertex<Vertex>
+        private static Pipeline<Shader, Vertex> GetPipeline<Shader, Vertex>() where Shader : IModelShader<Vertex>, new() where Vertex : struct, IModelVertex<Vertex>
         {
             var key = (typeof(Shader), typeof(Vertex));
             return (Pipeline<Shader, Vertex>)pipelineCache.GetOrAdd(key, (key) => GeneratePipeline<Shader, Vertex>());
         }
-        private static Pipeline<Shader, Vertex> GeneratePipeline<Shader, Vertex>() where Shader : IModelShader<Vertex>, new() where Vertex : struct, IVertex<Vertex>
+        private static Pipeline<Shader, Vertex> GeneratePipeline<Shader, Vertex>() where Shader : IModelShader<Vertex>, new() where Vertex : struct, IModelVertex<Vertex>
         {
             return new Pipeline<Shader, Vertex>();
         }
-        class Pipeline<Shader, Vertex> where Shader : IModelShader<Vertex>, new() where Vertex : struct, IVertex<Vertex>
+        class Pipeline<Shader, Vertex> where Shader : IModelShader<Vertex>, new() where Vertex : struct, IModelVertex<Vertex>
         {
             public ModelScene? Scene { get; set; }
             private ModelPrimitive? currentPrimitive;
@@ -248,7 +278,7 @@ namespace GraphicsLib.Types2
                     max = Vector3.Max(max, worldCorner);
                 }
 
-                return new(min, max );
+                return new(min, max);
             }
 
 
@@ -268,7 +298,7 @@ namespace GraphicsLib.Types2
                 }
                 return true;
             }
-            private ParallelOptions RenderLoopParallelOptions { get; set; } = new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount * 2};
+            private ParallelOptions RenderLoopParallelOptions { get; set; } = new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount * 2 };
             public void Render(ModelPrimitive primitive)
             {
                 PreprocessVertices(primitive);
@@ -315,7 +345,7 @@ namespace GraphicsLib.Types2
                         verticesBuffer[i] = Shader.VertexShader(currentPrimitive, i);
                     }
                 }
-        
+
             }
             private void CleanUpVertices()
             {
@@ -333,7 +363,7 @@ namespace GraphicsLib.Types2
             }
             private void AssembleTriangleStrip(int i)
             {
-                if(i % 2 == 1)
+                if (i % 2 == 1)
                 {
                     Vertex p0 = verticesBuffer![currentPrimitive!.Indices![i]];
                     Vertex p1 = verticesBuffer[currentPrimitive!.Indices![i + 1]];
@@ -367,7 +397,7 @@ namespace GraphicsLib.Types2
                     return;
                 ProjectTriangle(p0, p1, p2);
             }
-            private void ProjectTriangle(Vertex p0,Vertex p1, Vertex p2)
+            private void ProjectTriangle(Vertex p0, Vertex p1, Vertex p2)
             {
                 p0.Position = Vector4.Transform(p0.Position, projectionTransform);
                 p1.Position = Vector4.Transform(p1.Position, projectionTransform);
@@ -426,22 +456,22 @@ namespace GraphicsLib.Types2
                 }
 
             }
-            private void ClipTriangleIntoTwo(in Vertex pointBehind, in Vertex p1, in Vertex p2)
+            private void ClipTriangleIntoTwo(in Vertex pointBehind, in Vertex point1, in Vertex point2)
             {
-                float c0 = (-pointBehind.Position.Z) / (p1.Position.Z - pointBehind.Position.Z);
-                float c1 = (-pointBehind.Position.Z) / (p2.Position.Z - pointBehind.Position.Z);
-                Vertex leftInterpolant = Vertex.Lerp(pointBehind, p1, c0);
-                Vertex rightInterpolant = Vertex.Lerp(pointBehind, p2, c1);
-                ProjectTriangleToViewPort(leftInterpolant, p1, p2);
-                ProjectTriangleToViewPort(rightInterpolant, leftInterpolant, p2);
+                float c0 = (-pointBehind.Position.Z) / (point1.Position.Z - pointBehind.Position.Z);
+                float c1 = (-pointBehind.Position.Z) / (point2.Position.Z - pointBehind.Position.Z);
+                Vertex leftInterpolant = Vertex.Lerp(pointBehind, point1, c0);
+                Vertex rightInterpolant = Vertex.Lerp(pointBehind, point2, c1);
+                ProjectTriangleToViewPort(leftInterpolant, point1, point2);
+                ProjectTriangleToViewPort(rightInterpolant, leftInterpolant, point2);
             }
-            private void ClipTriangleIntoOne(in Vertex leftPointBehind, in Vertex rightPointBehind, in Vertex p2)
+            private void ClipTriangleIntoOne(in Vertex leftPointBehind, in Vertex rightPointBehind, in Vertex point2)
             {
-                float c0 = (-leftPointBehind.Position.Z) / (p2.Position.Z - leftPointBehind.Position.Z);
-                float c1 = (-rightPointBehind.Position.Z) / (p2.Position.Z - rightPointBehind.Position.Z);
-                Vertex leftInterpolant = Vertex.Lerp(leftPointBehind, p2, c0);
-                Vertex rightInterpolant = Vertex.Lerp(rightPointBehind, p2, c1);
-                ProjectTriangleToViewPort(leftInterpolant, p2, rightInterpolant);
+                float c0 = (-leftPointBehind.Position.Z) / (point2.Position.Z - leftPointBehind.Position.Z);
+                float c1 = (-rightPointBehind.Position.Z) / (point2.Position.Z - rightPointBehind.Position.Z);
+                Vertex leftInterpolant = Vertex.Lerp(leftPointBehind, point2, c0);
+                Vertex rightInterpolant = Vertex.Lerp(rightPointBehind, point2, c1);
+                ProjectTriangleToViewPort(leftInterpolant, point2, rightInterpolant);
             }
             private void ProjectTriangleToViewPort(Vertex p0, Vertex p1, Vertex p2)
             {
@@ -478,6 +508,7 @@ namespace GraphicsLib.Types2
                 {
                     (mid, max) = (max, mid);
                 }
+#pragma warning disable S1244 // Floating point numbers should not be tested for equality
                 if (min.Position.Y == mid.Position.Y)
                 {
                     //flat top
@@ -513,6 +544,7 @@ namespace GraphicsLib.Types2
                         DrawFlatTopTriangle(interpolant, mid, max);
                     }
                 }
+#pragma warning restore S1244 // Floating point numbers should not be tested for equality
             }
             void DrawFlatTopTriangle(in Vertex leftTopPoint, in Vertex rightTopPoint, in Vertex bottomPoint)
             {
@@ -557,9 +589,9 @@ namespace GraphicsLib.Types2
 
                             Vector4 color = Shader.PixelShader(correctedPoint) * 0xFF;
 
-                            if(currentPrimitive!.Material?.alphaMode == Types.GltfTypes.GltfMaterialAlphaMode.BLEND)
+                            if (currentPrimitive!.Material?.alphaMode == Types.GltfTypes.GltfMaterialAlphaMode.BLEND)
                             {
-                                if(color.W <= 0)
+                                if (color.W <= 0)
                                 {
                                     continue;
                                 }
@@ -583,7 +615,7 @@ namespace GraphicsLib.Types2
                                             | (uint)(color.Z);
                                 zBuffer.TestAndSet(x, y, -lineInterpolant.Position.W, colorUint);
                             }
-                               
+
                         }
                     }
                 }

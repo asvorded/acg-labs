@@ -62,21 +62,7 @@
             <StackPanel
                 HorizontalAlignment="Right"
                 DockPanel.Dock="Right"
-                Orientation="Horizontal">
-                <TextBlock
-                    Margin="20,0,20,0"
-                    VerticalAlignment="Center"
-                    Text="Edit mode:" />
-                <RadioButton
-                    Checked="RadioButton_Checked"
-                    Content="Move"
-                    GroupName="TransformMode"
-                    IsChecked="True" />
-                <RadioButton
-                    Checked="RadioButton_Checked"
-                    Content="Rotate"
-                    GroupName="TransformMode" />
-            </StackPanel>
+                Orientation="Horizontal" />
             <StackPanel
                 HorizontalAlignment="Right"
                 DockPanel.Dock="Right"
