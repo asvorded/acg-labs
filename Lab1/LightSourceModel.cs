@@ -1,96 +1,190 @@
-﻿using System.ComponentModel;
-using System.Windows.Media;
-using System.Windows.Media.Media3D;
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Linq;
+using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace Lab1
 {
-    public class LightSourceModel : INotifyPropertyChanged
+    public abstract class LightSourceModel : INotifyPropertyChanged
     {
-        private string _name;
-        private Color _color;
-        private string _type;
-        private double _intensity;
-        private Point3D _position;
-        private Vector3D _direction;
+        private Vector3Model _color = new Vector3Model();
+        private float _intensity;
+        private int shadowMapSize;
 
-        public string Name
+        public int ShadowMapSize
         {
-            get => _name;
-            set
-            {
-                _name = value;
-                OnPropertyChanged(nameof(Name));
-            }
+            get => shadowMapSize;
+            set { shadowMapSize = value; OnPropertyChanged(nameof(ShadowMapSize)); }
         }
-
-        public Color Color
+        public Vector3Model Color
         {
             get => _color;
             set
             {
+                if (_color != null)
+                    _color.VectorChanged -= ColorChangedHandler;
+
                 _color = value;
+
+                if (_color != null)
+                    _color.VectorChanged += ColorChangedHandler;
+
                 OnPropertyChanged(nameof(Color));
             }
         }
-
-        public string Type
-        {
-            get => _type;
-            set
-            {
-                _type = value;
-                OnPropertyChanged(nameof(Type));
-            }
-        }
-
-        public double Intensity
+        public float Intensity
         {
             get => _intensity;
-            set
-            {
-                _intensity = value;
-                OnPropertyChanged(nameof(Intensity));
-            }
+            set { _intensity = value; OnPropertyChanged(nameof(Intensity)); }
         }
+        protected LightSourceModel()
+        {
+            Color = new Vector3Model(1,1,1);
+            Intensity = 1;
+            ShadowMapSize = 1024;
+        }
+        public event PropertyChangedEventHandler? PropertyChanged;
+        protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+        private void ColorChangedHandler(object? sender, EventArgs e) =>
+                OnPropertyChanged(nameof(Color));
+    }
 
-        public Point3D Position
+    public class PointLightSourceModel : LightSourceModel
+    {
+        private Vector3Model _position = new Vector3Model();
+
+        public Vector3Model Position
         {
             get => _position;
             set
             {
+                if (_position != null)
+                    _position.VectorChanged -= PositionChangedHandler;
+
                 _position = value;
+
+                if (_position != null)
+                    _position.VectorChanged += PositionChangedHandler;
+
                 OnPropertyChanged(nameof(Position));
             }
         }
+        public PointLightSourceModel()
+        {
+            Position = new Vector3Model();
+        }
+        private void PositionChangedHandler(object? sender, EventArgs e) =>
+            OnPropertyChanged(nameof(Position));
+    }
 
-        public Vector3D Direction
+    public class DirectionalLightSourceModel : LightSourceModel
+    {
+        private Vector3Model _direction = new Vector3Model();
+
+        public Vector3Model Direction
         {
             get => _direction;
             set
             {
+                if (_direction != null)
+                    _direction.VectorChanged -= DirectionChangedHandler;
+
                 _direction = value;
+
+                if (_direction != null)
+                    _direction.VectorChanged += DirectionChangedHandler;
+
+                OnPropertyChanged(nameof(Direction));
+            }
+        }
+        private float _coverSize;
+
+        public float CoverSize
+        {
+            get => _coverSize;
+            set { _coverSize = value; OnPropertyChanged(nameof(CoverSize)); }
+        }
+        public DirectionalLightSourceModel()
+        {
+            Direction = new Vector3Model(1,0,0);
+            CoverSize = 100f;
+        }
+        private void DirectionChangedHandler(object? sender, EventArgs e) =>
+            OnPropertyChanged(nameof(Direction));
+    }
+
+    public class SpotLightSourceModel : LightSourceModel
+    {
+        private Vector3Model _position = new Vector3Model();
+        private Vector3Model _direction = new Vector3Model();
+        private float _cutOff;
+        private float _outerCutOff;
+
+        public Vector3Model Position
+        {
+            get => _position;
+            set
+            {
+                if (_position != null)
+                    _position.VectorChanged -= PositionChangedHandler;
+
+                _position = value;
+
+                if (_position != null)
+                    _position.VectorChanged += PositionChangedHandler;
+
+                OnPropertyChanged(nameof(Position));
+            }
+        }
+        public SpotLightSourceModel()
+        {
+            Direction = new Vector3Model(1, 0, 0);
+            Position = new Vector3Model();
+            CutOff = 60;
+            OuterCutOff = 80;
+        }
+
+        public Vector3Model Direction
+        {
+            get => _direction;
+            set
+            {
+                if (_direction != null)
+                    _direction.VectorChanged -= DirectionChangedHandler;
+
+                _direction = value;
+
+                if (_direction != null)
+                    _direction.VectorChanged += DirectionChangedHandler;
+
                 OnPropertyChanged(nameof(Direction));
             }
         }
 
-        public bool IsExpanded { get; set; }
-        public bool IsSelected { get; set; }
-
-        public LightSourceModel()
+        public float CutOff
         {
-            Color = Colors.White;
-            Name = "New light";
-            Type = "Точечный";
-            Intensity = 1.0;
-            Position = new Point3D(0, 0, 0);
-            Direction = new Vector3D(0, 0, 0);
+            get => _cutOff;
+            set { _cutOff = value; OnPropertyChanged(nameof(CutOff)); }
         }
 
-        public event PropertyChangedEventHandler? PropertyChanged;
-
-        protected virtual void OnPropertyChanged(string propertyName)
+        public float OuterCutOff
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            get => _outerCutOff;
+            set { _outerCutOff = value; OnPropertyChanged(nameof(OuterCutOff)); }
         }
+
+        private void PositionChangedHandler(object? sender, EventArgs e) =>
+            OnPropertyChanged(nameof(Position));
+
+        private void DirectionChangedHandler(object? sender, EventArgs e) =>
+            OnPropertyChanged(nameof(Direction));
     }
+
 }

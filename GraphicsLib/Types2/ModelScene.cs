@@ -9,8 +9,9 @@ namespace GraphicsLib.Types2
 {
     public class ModelScene
     {
-        public ModelNode[] RootModelNodes { get; set; }
-
+        public ModelNode[]? RootModelNodes { get; set; }
+        public ModelSkin[]? Skins { get; set; }
         public Camera? Camera { get; set; }
+        public LightSource[]? LightSources { get; set; }
     }
 }

@@ -157,6 +157,12 @@ namespace GraphicsLib.Types.GltfTypes
                 foreach (var skin in gltfRoot.Skins)
                 {
                     skin.Root = gltfRoot;
+                    int skinSkeletonRoot = skin.Skeleton != null ? skin.Skeleton.Value : skin.Joints[0];
+                    if(gltfRoot.Nodes![skinSkeletonRoot].SkeletonForSkins == null)
+                    {
+                        gltfRoot.Nodes[skinSkeletonRoot].SkeletonForSkins = [];
+                    }
+                    gltfRoot.Nodes[skinSkeletonRoot].SkeletonForSkins!.Add(skin);
                     for(int i = 0; i < skin.Joints.Length; i++)
                     {
                         if(gltfRoot.Nodes![skin.Joints[i]].InfluencedSkins == null)

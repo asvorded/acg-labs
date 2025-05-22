@@ -3,6 +3,7 @@ using GraphicsLib.Shaders;
 using GraphicsLib.Types;
 using GraphicsLib.Types2;
 using Microsoft.Win32;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Numerics;
@@ -12,6 +13,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using static GraphicsLib.Types2.Shaders.PbrShader;
+using static GraphicsLib.Types2.Shaders.PhongShader;
 
 namespace Lab1
 {
@@ -20,7 +22,7 @@ namespace Lab1
     /// </summary>
     public partial class MainWindow : Window
     {
-        private MainWindowViewModel? ViewModel => DataContext as MainWindowViewModel;
+        private LightEditorViewModel ViewModel => (LightEditorViewModel)DataContext;
 
         private readonly OpenFileDialog ofd;
 
@@ -29,6 +31,7 @@ namespace Lab1
         private WriteableBitmap? bitmap;
         private readonly ModelRenderer modelRenderer;
         private ModelScene? modelScene;
+        private LightSource[] lightSources = [];
         public MainWindow()
         {
             InitializeComponent();
@@ -62,6 +65,16 @@ namespace Lab1
                 {
                     elapsed.Start();
                 }
+                if (ViewModel.ChangesPending)
+                {
+                    lightSources = MapLightSources(ViewModel.LightSources);
+                    if (modelScene != null)
+                    {
+                        
+                        modelScene.LightSources = lightSources;
+                    }                  
+                    ViewModel.ApproveChanges();
+                }
                 ModelDraw((float)elapsed.Elapsed.TotalSeconds);
                 frameCount++;
                 DebugPanel.Text = $"fps {currentFrameCount} time {(int)(delta)}";
@@ -72,6 +85,48 @@ namespace Lab1
                     frameCount = 0;
                 }
             };
+        }
+        private static LightSource[] MapLightSources(ObservableCollection<LightSourceModel> lightSources)
+        {
+            LightSource[] result = new LightSource[lightSources.Count];
+            foreach (LightSourceModel lightSource in lightSources)
+            {
+                switch (lightSource)
+                {
+                    case PointLightSourceModel pointLight:
+                        result[lightSources.IndexOf(lightSource)] = new PointLightSource()
+                        {
+                            Color = new Vector3(pointLight.Color.X, pointLight.Color.Y, pointLight.Color.Z),
+                            Position = new Vector3(pointLight.Position.X, pointLight.Position.Y, pointLight.Position.Z),
+                            Intensity = pointLight.Intensity,
+                            ShadowMapSize = pointLight.ShadowMapSize,
+                        };
+                        break;
+                    case DirectionalLightSourceModel directionalLight:
+                        result[lightSources.IndexOf(lightSource)] = new DirectionalLightSource()
+                        {
+                            Color = new Vector3(directionalLight.Color.X, directionalLight.Color.Y, directionalLight.Color.Z),
+                            Direction = Vector3.Normalize(new Vector3(directionalLight.Direction.X, directionalLight.Direction.Y, directionalLight.Direction.Z)),
+                            Intensity = directionalLight.Intensity,
+                            ShadowMapSize = directionalLight.ShadowMapSize,
+                            CoverSize = directionalLight.CoverSize,
+                        };
+                        break;
+                    case SpotLightSourceModel spotLight:
+                        result[lightSources.IndexOf(lightSource)] = new SpotLightSource()
+                        {
+                            Color = new Vector3(spotLight.Color.X, spotLight.Color.Y, spotLight.Color.Z),
+                            Position = new Vector3(spotLight.Position.X, spotLight.Position.Y, spotLight.Position.Z),
+                            Direction = Vector3.Normalize(new Vector3(spotLight.Direction.X, spotLight.Direction.Y, spotLight.Direction.Z)),
+                            Intensity = spotLight.Intensity,
+                            CutOffCos = float.Cos(float.DegreesToRadians(spotLight.CutOff)),
+                            OuterCutCos = float.Cos(float.DegreesToRadians(spotLight.OuterCutOff)),
+                            ShadowMapSize = spotLight.ShadowMapSize,
+                        };
+                        break;
+                }
+            }
+            return result;
         }
 
         private void OnFileOpened(object? sender, CancelEventArgs e)
@@ -84,6 +139,7 @@ namespace Lab1
                 camera.Polar = MathF.PI / 2;
                 camera.Target = new Vector3(0, 1, 0);
                 modelScene = scene;
+                scene.LightSources = lightSources;
             }
             catch (Exception ex)
             {
@@ -95,7 +151,7 @@ namespace Lab1
         }
         private void OpenPopupButton_Click(object sender, RoutedEventArgs e)
         {
-            ViewModel!.IsPopupOpen = true;
+            ViewModel.IsPopupOpen = true;
         }
         private void ModelDraw(float secondsElapsed)
         {
@@ -103,17 +159,36 @@ namespace Lab1
             {
                 return;
             }
-            Stopwatch stopwatch = Stopwatch.StartNew();
             camera.UpdateViewPort(bitmap.PixelWidth, bitmap.PixelHeight);
             ModelRenderer.TimeElapsed = secondsElapsed;
-            modelRenderer.Render<GraphicsLib.Types2.Shaders.PbrShader, PbrVertex>(modelScene, bitmap);
-
+            switch (renderMode)
+            {
+                case RenderMode.Textured:
+                    {
+                        modelRenderer.Render<GraphicsLib.Types2.Shaders.PbrShader, PbrVertex>(modelScene, bitmap);
+                    }
+                    break;
+                case RenderMode.Shadowed:
+                    {
+                        modelRenderer.RenderShadow(modelScene, bitmap);
+                    }
+                    break;
+                case RenderMode.Wireframe:
+                    break;
+                case RenderMode.Solid:
+                    break;
+                case RenderMode.Smooth:
+                    {
+                        modelRenderer.Render<GraphicsLib.Types2.Shaders.PhongShader, PhongVertex>(modelScene, bitmap);
+                    }
+                    break;
+                default:
+                    break;
+            }
 
             bitmap.Lock();
             bitmap.AddDirtyRect(new Int32Rect(0, 0, bitmap.PixelWidth, bitmap.PixelHeight));
             bitmap.Unlock();
-            stopwatch.Stop();
-            //DebugPanel.Text = $"{TimeSpan.TicksPerSecond / stopwatch.ElapsedTicks} fps / {stopwatch.ElapsedMilliseconds} ms";
             canvas.Child = new Image { Source = bitmap };
         }
         private void ForcedDraw()
@@ -188,7 +263,7 @@ namespace Lab1
 
         private void canvas_LostMouseCapture(object sender, MouseEventArgs e) { }
 
-        private string renderMode = "Flat";
+        private RenderMode renderMode = RenderMode.Textured;
 
         private void RadioButton_Checked(object sender, RoutedEventArgs e)
         {
@@ -197,7 +272,7 @@ namespace Lab1
                 switch (radioButton.GroupName)
                 {
                     case "RenderingMode":
-                        renderMode = ((RadioButton)sender).Content.ToString()!;
+                        renderMode = Enum.Parse<RenderMode>(((RadioButton)sender).Content.ToString()!);
                         ForcedDraw();
                         break;
                 }

@@ -5,6 +5,8 @@ using System.Buffers;
 using System.Collections.Concurrent;
 using System.Numerics;
 using System.Windows.Media.Imaging;
+using static GraphicsLib.Types2.Shaders.ShadowMapBlendShader;
+using static GraphicsLib.Types2.Shaders.ShadowMapShader;
 
 namespace GraphicsLib.Types2
 {
@@ -16,6 +18,68 @@ namespace GraphicsLib.Types2
 
         private static readonly ConcurrentDictionary<(Type, Type), object> pipelineCache = [];
         public static float TimeElapsed { get; set; } = 0;
+
+        public void RenderShadow(in ModelScene scene, in WriteableBitmap Bitmap)
+        {
+            if (scene.RootModelNodes == null || scene.RootModelNodes.Length == 0 || scene.Camera == null)
+                return;
+            if (Zbuffer == null)
+            {
+                Zbuffer = new((int)scene.Camera.ScreenWidth, (int)scene.Camera.ScreenHeight);
+                Zbuffer.ChangeDefaultColor(0xFF0080AA);
+            }
+            Zbuffer.ResizeAndClear((int)scene.Camera.ScreenWidth, (int)scene.Camera.ScreenHeight);
+            var opaquePipeline = GetPipeline<ShadowMapShader, ShadowMapVertex>();
+            opaquePipeline.BindScene(scene);
+            opaquePipeline.BindZBuffer(Zbuffer);
+            ShadowMapShader.BindScene(scene);
+            if (scene.Skins != null)
+            {
+                foreach (var skin in scene.Skins)
+                {
+                    CalculateBindingMatrices(skin.Skeleton!, skin, Matrix4x4.Identity);
+                }
+            }
+            foreach (var node in scene.RootModelNodes)
+            {
+                EnqueuePrimitivesRecursive<ShadowMapShader, ShadowMapVertex>(opaquePipeline, node, Matrix4x4.Identity);
+            }
+            foreach (var (Transform, Skin, Primitive) in opaqueQueue)
+            {
+                if (Skin != null)
+                {
+                    ShadowMapShader.BindSkin(Skin);
+                }
+                RenderPrimitive<ShadowMapShader, ShadowMapVertex>(opaquePipeline, Primitive, Transform);
+                if (Skin != null)
+                {
+                    ShadowMapShader.UnbindSkin();
+                }
+            }
+            opaqueQueue.Clear();
+            opaquePipeline.Unbind();
+            ShadowMapShader.UnbindScene();
+            var blendPipeline = GetPipeline<ShadowMapBlendShader, ShadowMapBlendVertex>();
+            blendPipeline.BindScene(scene);
+            blendPipeline.BindZBuffer(Zbuffer);
+            ShadowMapBlendShader.BindScene(scene);
+            foreach (var (Transform, Skin, Primitive) in nonOpaqueQueue)
+            {
+                if (Skin != null)
+                {
+                    ShadowMapBlendShader.BindSkin(Skin);
+                }
+                RenderPrimitive<ShadowMapBlendShader, ShadowMapBlendVertex>(blendPipeline, Primitive, Transform);
+                if (Skin != null)
+                {
+                    ShadowMapBlendShader.UnbindSkin();
+                }
+            }
+            nonOpaqueQueue.Clear();            
+            blendPipeline.Unbind();           
+            ShadowMapBlendShader.UnbindScene();
+            Bitmap.FlushZBufferV2(Zbuffer);
+        }
         public void Render<Shader, Vertex>(in ModelScene scene, in WriteableBitmap Bitmap) where Shader : IModelShader<Vertex>, new() where Vertex : struct, IModelVertex<Vertex>
         {
             if (scene.RootModelNodes == null || scene.RootModelNodes.Length == 0 || scene.Camera == null)
@@ -30,16 +94,17 @@ namespace GraphicsLib.Types2
             pipeline.BindScene(scene);
             pipeline.BindZBuffer(Zbuffer);
             Shader.BindScene(scene);
-            foreach (var node in scene.RootModelNodes)
+            if (scene.Skins != null)
             {
-                CalculateBindingMatrices(node, Matrix4x4.Identity);
+                foreach (var skin in scene.Skins)
+                {
+                    CalculateBindingMatrices(skin.Skeleton!, skin, Matrix4x4.Identity);
+                }
             }
             foreach (var node in scene.RootModelNodes)
             {
                 EnqueuePrimitivesRecursive<Shader, Vertex>(pipeline, node, Matrix4x4.Identity);
             }
-
-            Vector3 cameraPosition = scene.Camera.Position;
             foreach (var (Transform, Skin, Primitive) in opaqueQueue)
             {
                 if (Skin != null)
@@ -53,6 +118,7 @@ namespace GraphicsLib.Types2
                 }
             }
             opaqueQueue.Clear();
+            Vector3 cameraPosition = scene.Camera.Position;
             foreach (var (Transform, Skin, Primitive) in nonOpaqueQueue.OrderBy(x => (Vector3.Transform(x.Primitive.BoundingBox!.Value.Center, x.Transform) - cameraPosition).LengthSquared()))
             {
                 if (Skin != null)
@@ -69,8 +135,7 @@ namespace GraphicsLib.Types2
             pipeline.Unbind();
             Bitmap.FlushZBufferV2(Zbuffer);
         }
-
-        private static void CalculateBindingMatrices(in ModelNode node, in Matrix4x4 parentTransform)
+        private static void CalculateBindingMatrices(in ModelNode node, ModelSkin skin, in Matrix4x4 parentTransform)
         {
             Matrix4x4 currentTransformation = node.TransformationMatrix;
             if (node.Animations != null)
@@ -83,21 +148,18 @@ namespace GraphicsLib.Types2
             currentTransformation *= parentTransform;
             if (node.InfluencedSkins != null)
             {
-                foreach (var (jointIndex, influencedSkin) in node.InfluencedSkins)
+                var (jointIndex, influencedSkin) = node.InfluencedSkins.First(x => x.influencedSkin == skin);
+                if (influencedSkin.CurrentFrameJointMatrices != null && influencedSkin.InverseBindMatrices != null)
                 {
-                    if (influencedSkin.CurrentFrameJointMatrices != null && influencedSkin.InverseBindMatrices != null)
-                    {
-                        influencedSkin.CurrentFrameJointMatrices[jointIndex] = influencedSkin.InverseBindMatrices[jointIndex]
-                                                                                        * currentTransformation;
-                    }
-
+                    influencedSkin.CurrentFrameJointMatrices[jointIndex] = influencedSkin.InverseBindMatrices[jointIndex]
+                                                                                    * currentTransformation;
                 }
             }
             if (node.ChildNodes != null)
             {
                 foreach (var child in node.ChildNodes)
                 {
-                    CalculateBindingMatrices(child, currentTransformation);
+                    CalculateBindingMatrices(child, skin, currentTransformation);
                 }
             }
         }
@@ -587,8 +649,33 @@ namespace GraphicsLib.Types2
                         {
                             Vertex correctedPoint = lineInterpolant * (1 / lineInterpolant.Position.W);
 
-                            Vector4 color = Shader.PixelShader(correctedPoint) * 0xFF;
-
+                            Vector4 color = Shader.PixelShader(correctedPoint);
+                            ////gamma correction
+                            //if (color.X < 0.04045f)
+                            //{
+                            //    color.X /= 12.92f;
+                            //}
+                            //else
+                            //{
+                            //    color.X = MathF.Pow((color.X + 0.055f) / 1.055f, 2.4f);
+                            //}
+                            //if (color.Y < 0.04045f)
+                            //{
+                            //    color.Y /= 12.92f;
+                            //}
+                            //else
+                            //{
+                            //    color.Y = MathF.Pow((color.Y + 0.055f) / 1.055f, 2.4f);
+                            //}
+                            //if (color.Z < 0.04045f)
+                            //{
+                            //    color.Z /= 12.92f;
+                            //}
+                            //else
+                            //{
+                            //    color.Z = MathF.Pow((color.Z + 0.055f) / 1.055f, 2.4f);
+                            //}
+                            color *= 0xFF;
                             if (currentPrimitive!.Material?.alphaMode == Types.GltfTypes.GltfMaterialAlphaMode.BLEND)
                             {
                                 if (color.W <= 0)

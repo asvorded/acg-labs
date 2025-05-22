@@ -62,6 +62,10 @@ namespace GraphicsLib.Types2
                         }
 
                     }
+                    if(!skinCache.IsEmpty)
+                    {
+                        scene.Skins = [.. skinCache.Values];
+                    }
                     return scene;
                 }
             return new ModelScene();
@@ -159,6 +163,13 @@ namespace GraphicsLib.Types2
             if(gltfNode.AppliedSkin != null)
             {
                 modelNode.AppliedSkin = skinCache[gltfNode.AppliedSkin];
+            }
+            if(gltfNode.SkeletonForSkins != null)
+            {
+                foreach (var gltfSkin in gltfNode.SkeletonForSkins)
+                {
+                    skinCache[gltfSkin].Skeleton = modelNode;
+                }
             }
             if (gltfNode.InfluencedSkins != null)
             {

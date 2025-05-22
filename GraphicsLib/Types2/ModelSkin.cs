@@ -1,10 +1,5 @@
 ﻿using GraphicsLib.Types.GltfTypes;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace GraphicsLib.Types2
 {
@@ -12,6 +7,7 @@ namespace GraphicsLib.Types2
     {
         public Matrix4x4[]? InverseBindMatrices { get; set; }
         public Matrix4x4[]? CurrentFrameJointMatrices { get; set; }
+        public ModelNode? Skeleton { get; set; }
         public static ModelSkin FromGltfSkin(GltfSkin gltfSkin)
         {
             var skin = new ModelSkin()

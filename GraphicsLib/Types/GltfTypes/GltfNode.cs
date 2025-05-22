@@ -41,6 +41,8 @@ namespace GraphicsLib.Types.GltfTypes
         [JsonIgnore]
         public GltfSkin? AppliedSkin { get; set; }
         [JsonIgnore]
+        public List<GltfSkin>? SkeletonForSkins { get; set; }
+        [JsonIgnore]
         public List<(int jointIndex, GltfSkin influencedSkin)>? InfluencedSkins { get; set; }
         [JsonIgnore]
         public Matrix4x4 GlobalTransform { get => GetGlobalTransform(); }

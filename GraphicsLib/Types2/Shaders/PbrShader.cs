@@ -11,6 +11,7 @@ using static GraphicsLib.Types2.Shaders.PbrShader;
 using GraphicsLib.Types;
 using System.Windows.Media.Media3D;
 using Material = GraphicsLib.Types.Material;
+using System.Drawing;
 
 namespace GraphicsLib.Types2.Shaders
 {
@@ -18,14 +19,12 @@ namespace GraphicsLib.Types2.Shaders
     {
         static Material? currentMaterial = null;
         static ModelSkin? currentSkin = null;
+        static LightSource[]? lightSources = null;
         static Matrix4x4 worldTransformation = Matrix4x4.Identity;
         static Matrix4x4 normalTransformation = Matrix4x4.Identity;
         static Vector3 cameraPosition;
-        static Vector3 lightPosition;
-        static float lightIntensity;
         static Vector3 ambientLightColor;
         static float ambientLightIntensity;
-        static Vector3 lightColor;
 
         static Vector3* positionsArray = null;
         static Vector3* normalsArray = null;
@@ -39,15 +38,13 @@ namespace GraphicsLib.Types2.Shaders
         public static void BindScene(in ModelScene scene)
         {
             cameraPosition = scene.Camera!.Position;
-            lightPosition = scene.Camera.Position;
-            lightIntensity = 0.8f;
-            lightColor = new Vector3(1f);
             ambientLightColor = new Vector3(1f);
-            ambientLightIntensity = 0.2f;
+            ambientLightIntensity = 0.5f;
+            lightSources = scene.LightSources;
         }
         public static void UnbindScene()
         {
-            // no action needed
+            lightSources = null;
         }
         public static void BindSkin(in ModelSkin skin)
         {
@@ -103,6 +100,7 @@ namespace GraphicsLib.Types2.Shaders
             {
                 diffuseColor *= currentMaterial!.baseColorTextureSampler.Sample(input.Uv);
             }
+            //transparent pixel
             if(diffuseColor.W < 0.0001f)
             {
                 return new Vector4(0);
@@ -118,10 +116,7 @@ namespace GraphicsLib.Types2.Shaders
                 Vector3 bitangent = sign * Vector3.Cross(normal, tangent);
                 normal = Vector3.Normalize(tangent * tangentSpaceNormal.X + bitangent * tangentSpaceNormal.Y + normal * tangentSpaceNormal.Z);
             }
-            //calculate all lighting related vectors
-            Vector3 viewDir = Vector3.Normalize(cameraPosition - input.WorldPosition);
-            Vector3 lightDir = Vector3.Normalize(lightPosition - input.WorldPosition);
-            Vector3 halfWayDir = Vector3.Normalize(lightDir + viewDir);
+            
             //calculate roughness and metallic
             float roughness = currentMaterial.roughness;
             float metallic = currentMaterial.metallic;
@@ -131,39 +126,45 @@ namespace GraphicsLib.Types2.Shaders
                 roughness *= metallicRoughness.Y;
                 metallic *= metallicRoughness.Z;
             }
-            float nDotL = Math.Max(Vector3.Dot(normal, lightDir), 0);
-            if (nDotL <= 0)
-            {
-                Vector3 ambient = Vector3.Clamp(diffuseColor.AsVector3() * ambientLightColor * ambientLightIntensity
-                                            , Vector3.Zero
-                                            , new Vector3(1));
-                return new Vector4(ambient, diffuseColor.W);
-            }
-            //calculate pbr lighting
             Vector3 baseReflectivity = Vector3.Lerp(new Vector3(1.0f), diffuseColor.AsVector3(), metallic);
+            Vector3 viewDir = Vector3.Normalize(cameraPosition - input.WorldPosition);
             float nDotV = Math.Max(Vector3.Dot(normal, viewDir), 0);
             float oneMinusNDotV = 1 - nDotV;
             Vector3 fresnel = baseReflectivity + (new Vector3(1) - baseReflectivity) * (oneMinusNDotV * oneMinusNDotV * oneMinusNDotV * oneMinusNDotV * oneMinusNDotV);
             Vector3 kSpecular = fresnel;
-            Vector3 kDiffuse = new Vector3(1);/// - fresnel;
+            Vector3 kDiffuse = new Vector3(1);
             float alpha = roughness;
             float alphaSqr = alpha * alpha;
-            float nDotH = Math.Max(Vector3.Dot(normal, halfWayDir), 0);
-            float denomPart = (alphaSqr - 1) * nDotH * nDotH + 1;
-            float normalDistribution = alphaSqr / MathF.Max(MathF.PI * denomPart * denomPart, 0.0001f);
             float k = (alpha + 1) * (alpha + 1) * 0.125f;
-
-            float gl = MathF.ReciprocalEstimate(Math.Max(nDotL * (1 - k) + k, 0.001f));
             float gv = MathF.ReciprocalEstimate(Math.Max(nDotV * (1 - k) + k, 0.001f));
-            float geometryShading = gl * gv;
-            Vector3 cookTorrance = kSpecular * (normalDistribution * geometryShading * 0.25f);
-            Vector3 diffuse = diffuseColor.AsVector3();
-            Vector3 bdfs = cookTorrance + diffuse * kDiffuse;
-            Vector3 finalColor = Vector3.Clamp(bdfs * lightColor * (nDotL * lightIntensity)
-                            + diffuseColor.AsVector3() * ambientLightColor * ambientLightIntensity
+            Vector3 ambient = Vector3.Clamp(diffuseColor.AsVector3() * ambientLightColor * ambientLightIntensity
                             , Vector3.Zero
                             , new Vector3(1));
-            return new Vector4(finalColor, diffuseColor.W);
+            Vector3 finalColor = ambient;
+            //calculate all lighting related vectors
+            if (lightSources != null)
+            {
+                foreach (var lightSource in lightSources)
+                {
+                    lightSource.CalculateLightDirAndIntensity(input.WorldPosition, out Vector3 lightDir, out float intensity);
+                    float nDotL = Math.Max(Vector3.Dot(normal, -lightDir), 0);
+                    if (nDotL <= 0 || intensity < 0.00001f)
+                    {
+                        continue;
+                    }
+                    Vector3 halfWayDir = Vector3.Normalize(-lightDir + viewDir);
+                    float nDotH = Math.Max(Vector3.Dot(normal, halfWayDir), 0);
+                    float denomPart = (alphaSqr - 1) * nDotH * nDotH + 1;
+                    float normalDistribution = alphaSqr / MathF.Max(MathF.PI * denomPart * denomPart, 0.0001f);
+                    float gl = MathF.ReciprocalEstimate(Math.Max(nDotL * (1 - k) + k, 0.001f));
+                    float geometryShading = gl * gv;
+                    Vector3 cookTorrance = kSpecular * (normalDistribution * geometryShading * 0.25f);
+                    Vector3 diffuse = diffuseColor.AsVector3();
+                    Vector3 bdfs = cookTorrance + diffuse * kDiffuse;
+                    finalColor += bdfs * lightSource.Color * (nDotL * intensity);
+                }
+            }
+            return new Vector4(Vector3.Clamp(finalColor, Vector3.Zero, new Vector3(1)), diffuseColor.W);
         }
         public static PbrVertex VertexShader(in ModelPrimitive primitive, in int vertexDataIndex)
         {
