@@ -111,15 +111,15 @@ namespace GraphicsLib.Types
                         uv.Y = 2 - uv.Y;
                     break;
             }
-            if (width == 1024 || height == 1024)
+            if (width == 1024 && height == 1024)
             {
                 return Sample1024x1024(uv);
             }
-            else if (width == 2048 || height == 2048)
+            else if (width == 2048 && height == 2048)
             {
                 return Sample2048x2048(uv);
             }
-            else if(width == 4096 || height == 4096)
+            else if(width == 4096 && height == 4096)
             {
                 return Sample4096x4096(uv);
             }

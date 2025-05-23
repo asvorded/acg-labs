@@ -16,7 +16,6 @@ namespace GraphicsLib.Types2.Shaders
         static Vector3 cameraPosition;
         static Vector3 ambientLightColor;
         static float ambientLightIntensity;
-        static Vector3 lightColor;
 
         static Vector3* positionsArray = null;
         static Vector3* normalsArray = null;

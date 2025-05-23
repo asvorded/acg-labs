@@ -4,6 +4,7 @@ using GraphicsLib.Types2.Shaders;
 using System.Buffers;
 using System.Collections.Concurrent;
 using System.Numerics;
+using System.Security.Cryptography.X509Certificates;
 using System.Windows.Media.Imaging;
 using static GraphicsLib.Types2.Shaders.ShadowMapBlendShader;
 using static GraphicsLib.Types2.Shaders.ShadowMapShader;
@@ -19,68 +20,113 @@ namespace GraphicsLib.Types2
         private static readonly ConcurrentDictionary<(Type, Type), object> pipelineCache = [];
         public static float TimeElapsed { get; set; } = 0;
 
-        public void RenderShadow(in ModelScene scene, in WriteableBitmap Bitmap)
+        public static void FillShadowMaps(ModelScene scene)
         {
-            if (scene.RootModelNodes == null || scene.RootModelNodes.Length == 0 || scene.Camera == null)
+            if (scene.LightSources == null)
+            {
                 return;
-            if (Zbuffer == null)
-            {
-                Zbuffer = new((int)scene.Camera.ScreenWidth, (int)scene.Camera.ScreenHeight);
-                Zbuffer.ChangeDefaultColor(0xFF0080AA);
             }
-            Zbuffer.ResizeAndClear((int)scene.Camera.ScreenWidth, (int)scene.Camera.ScreenHeight);
-            var opaquePipeline = GetPipeline<ShadowMapShader, ShadowMapVertex>();
-            opaquePipeline.BindScene(scene);
-            opaquePipeline.BindZBuffer(Zbuffer);
-            ShadowMapShader.BindScene(scene);
-            if (scene.Skins != null)
+            var previousCamera = scene.Camera;
+            foreach (var light in scene.LightSources)
             {
-                foreach (var skin in scene.Skins)
+                switch (light)
                 {
-                    CalculateBindingMatrices(skin.Skeleton!, skin, Matrix4x4.Identity);
+                    case PointLightSource pointSource:
+                        {
+                            var shadowMaps = pointSource.ShadowMaps;
+                            var viewPorts = pointSource.ShadowMapViewports;
+                            for (int i = 0; i < shadowMaps.Length; i++)
+                            {
+                                var shadowMap = shadowMaps[i];
+                                shadowMap.DepthMap.Clear();
+                                var viewport = viewPorts[i];
+                                scene.Camera = viewport;
+                                RenderScene<ShadowMapShader, ShadowMapVertex, ShadowMapBlendShader, ShadowMapBlendVertex>(scene, shadowMap.DepthMap, false);
+                            }    
+                        }
+                        break;
+                    case SpotLightSource spotLightSource:
+                        {
+                            var shadowMap = spotLightSource.ShadowMap;
+                            shadowMap.DepthMap.Clear();
+                            var viewport = spotLightSource.ShadowViewport;
+                            scene.Camera = viewport;
+                            RenderScene<ShadowMapShader, ShadowMapVertex, ShadowMapBlendShader, ShadowMapBlendVertex>(scene, shadowMap.DepthMap, false);                            
+                        }
+                        break;
                 }
             }
+            scene.Camera = previousCamera;
+        }
+
+        public static void RenderScene<OpaqueShader, OpaqueVertex, NonOpaqueShader, NonOpaqueVertex>(in ModelScene scene, in ZBufferV2 zBuffer, bool sortNonOpaque = true)
+            where OpaqueShader : IModelShader<OpaqueVertex>, new() where OpaqueVertex : struct, IModelVertex<OpaqueVertex>
+            where NonOpaqueShader : IModelShader<NonOpaqueVertex>, new() where NonOpaqueVertex : struct, IModelVertex<NonOpaqueVertex>
+        {
+            var opaquePipeline = GetPipeline<OpaqueShader, OpaqueVertex>();
+            opaquePipeline.BindScene(scene);
+            opaquePipeline.BindZBuffer(zBuffer);
+            OpaqueShader.BindScene(scene);
             foreach (var node in scene.RootModelNodes)
             {
-                EnqueuePrimitivesRecursive<ShadowMapShader, ShadowMapVertex>(opaquePipeline, node, Matrix4x4.Identity);
+                EnqueuePrimitivesRecursive<OpaqueShader, OpaqueVertex>(opaquePipeline, node, Matrix4x4.Identity);
             }
             foreach (var (Transform, Skin, Primitive) in opaqueQueue)
             {
                 if (Skin != null)
                 {
-                    ShadowMapShader.BindSkin(Skin);
+                    OpaqueShader.BindSkin(Skin);
                 }
-                RenderPrimitive<ShadowMapShader, ShadowMapVertex>(opaquePipeline, Primitive, Transform);
+                RenderPrimitive<OpaqueShader, OpaqueVertex>(opaquePipeline, Primitive, Transform);
                 if (Skin != null)
                 {
-                    ShadowMapShader.UnbindSkin();
+                    OpaqueShader.UnbindSkin();
                 }
             }
             opaqueQueue.Clear();
             opaquePipeline.Unbind();
-            ShadowMapShader.UnbindScene();
-            var blendPipeline = GetPipeline<ShadowMapBlendShader, ShadowMapBlendVertex>();
+            OpaqueShader.UnbindScene();
+            var blendPipeline = GetPipeline<NonOpaqueShader, NonOpaqueVertex>();
             blendPipeline.BindScene(scene);
-            blendPipeline.BindZBuffer(Zbuffer);
-            ShadowMapBlendShader.BindScene(scene);
-            foreach (var (Transform, Skin, Primitive) in nonOpaqueQueue)
+            blendPipeline.BindZBuffer(zBuffer);
+            NonOpaqueShader.BindScene(scene);
+            Vector3 cameraPosition = scene.Camera.Position;
+            if (sortNonOpaque)
             {
-                if (Skin != null)
+                foreach (var (Transform, Skin, Primitive) in nonOpaqueQueue.OrderBy(x => (Vector3.Transform(x.Primitive.BoundingBox!.Value.Center, x.Transform) - cameraPosition).LengthSquared()))
                 {
-                    ShadowMapBlendShader.BindSkin(Skin);
-                }
-                RenderPrimitive<ShadowMapBlendShader, ShadowMapBlendVertex>(blendPipeline, Primitive, Transform);
-                if (Skin != null)
-                {
-                    ShadowMapBlendShader.UnbindSkin();
+                    if (Skin != null)
+                    {
+                        NonOpaqueShader.BindSkin(Skin);
+                    }
+                    RenderPrimitive<NonOpaqueShader, NonOpaqueVertex>(blendPipeline, Primitive, Transform);
+                    if (Skin != null)
+                    {
+                        NonOpaqueShader.UnbindSkin();
+                    }
                 }
             }
-            nonOpaqueQueue.Clear();            
-            blendPipeline.Unbind();           
-            ShadowMapBlendShader.UnbindScene();
-            Bitmap.FlushZBufferV2(Zbuffer);
+            else
+            {
+                foreach (var (Transform, Skin, Primitive) in nonOpaqueQueue)
+                {
+                    if (Skin != null)
+                    {
+                        NonOpaqueShader.BindSkin(Skin);
+                    }
+                    RenderPrimitive<NonOpaqueShader, NonOpaqueVertex>(blendPipeline, Primitive, Transform);
+                    if (Skin != null)
+                    {
+                        NonOpaqueShader.UnbindSkin();
+                    }
+                }
+            }            
+            nonOpaqueQueue.Clear();
+            blendPipeline.Unbind();
+            NonOpaqueShader.UnbindScene();
         }
-        public void Render<Shader, Vertex>(in ModelScene scene, in WriteableBitmap Bitmap) where Shader : IModelShader<Vertex>, new() where Vertex : struct, IModelVertex<Vertex>
+
+        public void RenderShadow<Shader, Vertex>(in ModelScene scene, in WriteableBitmap bitmap) where Shader : IModelShader<Vertex>, new() where Vertex : struct, IModelVertex<Vertex>
         {
             if (scene.RootModelNodes == null || scene.RootModelNodes.Length == 0 || scene.Camera == null)
                 return;
@@ -90,10 +136,6 @@ namespace GraphicsLib.Types2
                 Zbuffer.ChangeDefaultColor(0xFF0080AA);
             }
             Zbuffer.ResizeAndClear((int)scene.Camera.ScreenWidth, (int)scene.Camera.ScreenHeight);
-            var pipeline = GetPipeline<Shader, Vertex>();
-            pipeline.BindScene(scene);
-            pipeline.BindZBuffer(Zbuffer);
-            Shader.BindScene(scene);
             if (scene.Skins != null)
             {
                 foreach (var skin in scene.Skins)
@@ -101,39 +143,29 @@ namespace GraphicsLib.Types2
                     CalculateBindingMatrices(skin.Skeleton!, skin, Matrix4x4.Identity);
                 }
             }
-            foreach (var node in scene.RootModelNodes)
+            FillShadowMaps(scene);
+            RenderScene<Shader, Vertex, Shader, Vertex>(scene, Zbuffer, true);
+            bitmap.FlushZBufferV2(Zbuffer);
+        }
+        public void Render<Shader, Vertex>(in ModelScene scene, in WriteableBitmap bitmap) where Shader : IModelShader<Vertex>, new() where Vertex : struct, IModelVertex<Vertex>
+        {
+            if (scene.RootModelNodes == null || scene.RootModelNodes.Length == 0 || scene.Camera == null)
+                return;
+            if (Zbuffer == null)
             {
-                EnqueuePrimitivesRecursive<Shader, Vertex>(pipeline, node, Matrix4x4.Identity);
+                Zbuffer = new((int)scene.Camera.ScreenWidth, (int)scene.Camera.ScreenHeight);
+                Zbuffer.ChangeDefaultColor(0xFF0080AA);
             }
-            foreach (var (Transform, Skin, Primitive) in opaqueQueue)
+            Zbuffer.ResizeAndClear((int)scene.Camera.ScreenWidth, (int)scene.Camera.ScreenHeight);
+            if (scene.Skins != null)
             {
-                if (Skin != null)
+                foreach (var skin in scene.Skins)
                 {
-                    Shader.BindSkin(Skin);
-                }
-                RenderPrimitive<Shader, Vertex>(pipeline, Primitive, Transform);
-                if (Skin != null)
-                {
-                    Shader.UnbindSkin();
-                }
-            }
-            opaqueQueue.Clear();
-            Vector3 cameraPosition = scene.Camera.Position;
-            foreach (var (Transform, Skin, Primitive) in nonOpaqueQueue.OrderBy(x => (Vector3.Transform(x.Primitive.BoundingBox!.Value.Center, x.Transform) - cameraPosition).LengthSquared()))
-            {
-                if (Skin != null)
-                {
-                    Shader.BindSkin(Skin);
-                }
-                RenderPrimitive<Shader, Vertex>(pipeline, Primitive, Transform);
-                if (Skin != null)
-                {
-                    Shader.UnbindSkin();
+                    CalculateBindingMatrices(skin.Skeleton!, skin, Matrix4x4.Identity);
                 }
             }
-            nonOpaqueQueue.Clear();
-            pipeline.Unbind();
-            Bitmap.FlushZBufferV2(Zbuffer);
+            RenderScene<Shader, Vertex, Shader, Vertex>(scene, Zbuffer, true);
+            bitmap.FlushZBufferV2(Zbuffer);
         }
         private static void CalculateBindingMatrices(in ModelNode node, ModelSkin skin, in Matrix4x4 parentTransform)
         {

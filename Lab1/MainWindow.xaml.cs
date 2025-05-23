@@ -170,7 +170,7 @@ namespace Lab1
                     break;
                 case RenderMode.Shadowed:
                     {
-                        modelRenderer.RenderShadow(modelScene, bitmap);
+                        modelRenderer.RenderShadow<GraphicsLib.Types2.Shaders.ShadowedPbrShader, PbrVertex>(modelScene, bitmap);
                     }
                     break;
                 case RenderMode.Wireframe:
